@@ -1,0 +1,81 @@
+# Semua angka yang menentukan perilaku bot ada di file ini.
+# Kode tidak boleh menyimpan nilai ini secara hardcode.
+# Nama field yang berakhiran _fraction atau _rate adalah pecahan, bukan persen:
+# 0.001 berarti 0,1 persen.
+
+exchange:
+  id: binance
+  symbol: BTC/USDT
+  timeframe: 1h
+  recv_window_ms: 5000
+  # Selisih jam lokal dan jam server yang masih ditoleransi saat start.
+  # Lebih dari ini bot berhenti dan menyebut angka drift-nya.
+  max_time_drift_ms: 1000
+  rate_limit: true
+  retry:
+    max_attempts: 5
+    base_delay_seconds: 1.0
+    max_delay_seconds: 30.0
+
+data:
+  cache_dir: data
+  history_start: "2025-09-01"
+  # Gap lebih panjang dari ini (dalam jumlah bar) dianggap data rusak, bukan downtime exchange.
+  max_gap_bars: 6
+
+strategy:
+  name: ema_cross
+  fast_period: 20
+  slow_period: 50
+
+risk:
+  # Ukuran posisi sebagai pecahan dari equity saat ini.
+  position_fraction: 0.10
+  # Batas atas nilai satu posisi sebagai pecahan equity.
+  max_position_fraction: 0.25
+  # Rugi harian maksimum, dihitung dari equity awal hari (UTC), termasuk unrealized.
+  daily_loss_limit_fraction: 0.03
+  # Lapis 1: stop loss dan take profit sisi bot, sebagai pecahan dari harga masuk.
+  stop_loss_fraction: 0.02
+  take_profit_fraction: 0.04
+  # Lapis 2 (tahap 8): stop order di exchange, jaraknya = stop_loss_fraction * multiplier.
+  # Harus lebih lebar dari lapis 1. Normalnya tidak pernah kena; kena hanya kalau bot sudah mati.
+  exchange_stop_multiplier: 2.0
+  # Proteksi runaway loop.
+  max_orders_per_minute: 5
+  # Gagal koneksi beruntun sebelum kill switch.
+  max_consecutive_failures: 5
+  # Kill switch manual: kalau file ini ada di root project, bot berhenti.
+  stop_file: STOP
+  # Apakah posisi yang sedang dipegang dijual saat kill switch terpicu. Diputus per pemicu.
+  flatten_on:
+    daily_loss: true
+    runaway_orders: false
+    connection_failures: false
+    stop_file: false
+
+costs:
+  # Tarif taker standar Binance spot tanpa diskon BNB. Ini angka realistis, bukan pesimistis.
+  taker_fee_rate: 0.001
+  # Konservatif untuk BTC/USDT ukuran retail dengan market order.
+  slippage_rate: 0.001
+  # Pengali untuk perintah backtest --stress. Hasil --stress yang pesimistis.
+  stress_multiplier: 2.0
+
+backtest:
+  initial_equity: 1000.0
+  # Jumlah bar per tahun untuk anualisasi Sharpe. 8760 untuk timeframe 1h.
+  bars_per_year: 8760
+
+live:
+  loop_interval_seconds: 30
+  # Bar terakhir yang umurnya melebihi timeframe + toleransi ini dianggap stale.
+  # Iterasi dilewati dan dicatat di log; strategi tidak memutuskan apa pun.
+  stale_bar_tolerance_seconds: 120
+  journal_path: state/orders.jsonl
+  state_path: state/risk_state.json
+  trades_csv: trades/trades.csv
+
+logging:
+  dir: logs
+  level: INFO

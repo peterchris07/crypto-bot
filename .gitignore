@@ -1,0 +1,27 @@
+# Rahasia. Jangan pernah dihapus dari daftar ini.
+.env
+.env.*
+!.env.example
+
+# Artefak runtime, semuanya bisa dibuat ulang atau bersifat pribadi
+data/
+logs/
+state/
+trades/
+STOP
+
+# Python
+.venv/
+__pycache__/
+*.pyc
+*.egg-info/
+dist/
+build/
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+
+# Editor dan OS
+.DS_Store
+.idea/
+.vscode/
