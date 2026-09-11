@@ -32,6 +32,7 @@ MINIMAL_CONFIG = textwrap.dedent(
       recv_window_ms: 5000
       max_time_drift_ms: 1000
       rate_limit: true
+      public_market_data_url: "https://data-api.binance.vision/api/v3"
       retry:
         max_attempts: 3
         base_delay_seconds: 0.01

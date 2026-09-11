@@ -252,6 +252,7 @@ def test_invalid_yaml_is_refused(project_dir: Path):
         ("costs", "stress_multiplier", 1.0, "stress_multiplier"),
         ("strategy", "fast_period", 60, "lebih kecil"),
         ("exchange", "max_time_drift_ms", 9000, "recv_window_ms"),
+        ("exchange", "public_market_data_url", "http://plain.example", "https"),
         ("backtest", "initial_equity", 0, "initial_equity"),
         ("logging", "level", "LOUD", "logging.level"),
     ],

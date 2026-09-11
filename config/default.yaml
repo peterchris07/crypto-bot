@@ -12,6 +12,11 @@ exchange:
   # Lebih dari ini bot berhenti dan menyebut angka drift-nya.
   max_time_drift_ms: 1000
   rate_limit: true
+  # Endpoint data pasar publik resmi Binance. Dipakai HANYA oleh adapter tanpa kunci
+  # (mode paper dan pengunduh data historis). Endpoint ini melayani data mainnet yang
+  # sama dengan api.binance.com, tapi tidak melayani endpoint akun/order.
+  # Kosongkan ("") untuk memakai URL bawaan ccxt.
+  public_market_data_url: "https://data-api.binance.vision/api/v3"
   retry:
     max_attempts: 5
     base_delay_seconds: 1.0

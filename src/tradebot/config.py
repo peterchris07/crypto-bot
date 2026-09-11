@@ -152,6 +152,7 @@ class ExchangeConfig:
     recv_window_ms: int
     max_time_drift_ms: int
     rate_limit: bool
+    public_market_data_url: str
     retry: RetryConfig
 
 
@@ -344,6 +345,10 @@ def validate(settings: Settings) -> None:
     _check(
         e.retry.max_delay_seconds >= e.retry.base_delay_seconds,
         "exchange.retry.max_delay_seconds harus >= base_delay_seconds",
+    )
+    _check(
+        e.public_market_data_url == "" or e.public_market_data_url.startswith("https://"),
+        "exchange.public_market_data_url harus kosong atau diawali https://",
     )
     _check(e.recv_window_ms > 0, "exchange.recv_window_ms harus > 0")
     _check(e.max_time_drift_ms > 0, "exchange.max_time_drift_ms harus > 0")

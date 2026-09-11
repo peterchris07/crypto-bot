@@ -46,6 +46,14 @@ Cek konfigurasi tanpa menyentuh exchange. Output menampilkan mode yang terpilih 
 uv run tradebot check-config
 ```
 
+Cek koneksi ke exchange sesuai mode. Perintah ini membandingkan jam lokal dengan jam server, memuat batas pasar, mengambil harga dan tiga bar terakhir, dan di mode testnet atau live juga menampilkan saldo dan order terbuka. Perintah ini tidak pernah mengirim order. Di mode paper tidak butuh kunci sama sekali.
+
+```bash
+uv run tradebot check-exchange
+```
+
+Untuk testnet, isi TRADING_MODE=testnet dan kunci testnet di .env, lalu jalankan perintah yang sama. Kalau jam mesin melenceng lebih dari batas di config, perintah gagal dengan pesan yang menyebut selisihnya dalam milidetik; sinkronkan jam sistem lalu ulangi.
+
 Perintah fetch-data, backtest, backtest --stress, dan run ditambahkan di tahap berikutnya sesuai urutan di SPEC.md.
 
 ## Menjalankan test
@@ -60,6 +68,12 @@ Test yang butuh kunci testnet ditandai testnet. Kalau kunci belum ada di .env, t
 
 Default di config/default.yaml adalah fee taker 0,1 persen dan slippage 0,1 persen per sisi. Fee 0,1 persen adalah tarif taker standar Binance spot tanpa diskon BNB, jadi ini angka realistis, bukan margin aman. Slippage 0,1 persen untuk BTC/USDT ukuran retail sudah konservatif. Yang pesimistis adalah perintah backtest --stress, yang menggandakan keduanya. Kalau strategi hanya terlihat baik di angka default dan runtuh di --stress, itu informasi penting, bukan gangguan.
 
+## Jaringan: api.binance.com diblokir ISP
+
+Pada jaringan tempat project ini dibangun (Biznet, 11 September 2026), nama api.binance.com dijawab oleh DNS ISP dengan alamat halaman blokir (rpz.biznet), dan sertifikatnya tidak cocok sehingga koneksi TLS gagal. Mengganti resolver ke 1.1.1.1 tidak menolong karena permintaan DNS di port 53 ikut dibelokkan. Dua alamat lain tidak diblokir: testnet.binance.vision untuk Spot Testnet dan data-api.binance.vision, endpoint data pasar publik resmi Binance yang melayani data mainnet yang sama tanpa endpoint akun.
+
+Karena itu adapter tanpa kunci (mode paper dan pengunduh data historis) mengambil data publik lewat data-api.binance.vision, diatur di config lewat exchange.public_market_data_url. Adapter berkunci tidak diarahkan ke sana karena endpoint akun dan order tidak ada di alamat itu. Konsekuensinya untuk tahap 8: mode live butuh api.binance.com yang bisa dijangkau, dan cara mencapainya, termasuk sisi kepatuhannya, adalah keputusan di luar kode ini. Jalankan check-exchange dengan TRADING_MODE=live sebelum tahap 8 dimulai untuk memastikan jalurnya ada.
+
 ## Struktur folder saat runtime
 
 Folder data, logs, state, dan trades dibuat otomatis dan tidak masuk git. Folder state berisi jurnal order (ditulis sebelum order dikirim) dan state harian risk manager. Folder trades berisi CSV yang mencatat setiap trade untuk pelaporan pajak; file ini hanya ditambah, tidak pernah ditimpa. Simpan cadangannya di luar mesin ini.
@@ -68,4 +82,8 @@ File bernama STOP di root project adalah kill switch manual. Membuat file itu me
 
 ## Status tahap
 
-Tahap 1 selesai: setup project, config loader, logging, penanganan .env, gitignore. Tahap 2 sampai 8 menyusul berurutan, masing-masing dengan test yang lulus sebelum tahap berikutnya dimulai.
+Tahap 1 selesai: setup project, config loader, logging, penanganan .env, gitignore.
+
+Tahap 2 selesai: interface ExchangeAdapter dan CcxtAdapter untuk testnet dan mainnet. Adapter mencoba ulang gangguan jaringan dengan backoff dari config, tidak pernah mencoba ulang error autentikasi atau saldo, tidak pernah mengirim ulang order yang jawabannya hilang, dan menolak membuat klien mainnet berkunci di luar jalur mode live. Test integrasi testnet ada di tests/test_testnet_integration.py dan dilewati dengan ringkasan kalau kunci belum ada.
+
+Tahap 3 sampai 8 menyusul berurutan, masing-masing dengan test yang lulus sebelum tahap berikutnya dimulai.
