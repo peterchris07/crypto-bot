@@ -130,11 +130,12 @@ TRADING_MODE punya tiga nilai: paper (default), testnet, live. Testnet tidak but
 │   │   ├── ema_cross.py     # strategi awal
 │   │   └── registry.py      # strategy.name -> kelas
 │   ├── risk/
-│   │   ├── manager.py       # position sizing, kill switch, batas harian
-│   │   └── state.py         # state harian dipersist
+│   │   ├── manager.py       # position sizing, stop lapis 1, kill switch (tahap 6), batas harian
+│   │   └── state.py         # state harian dipersist (tahap 6)
 │   ├── backtest/
-│   │   ├── engine.py
-│   │   └── metrics.py       # return, max drawdown, sharpe, win rate, profit factor
+│   │   ├── engine.py        # event-driven bar per bar, buy-and-hold dengan aturan sama
+│   │   ├── metrics.py       # return, max drawdown, sharpe, win rate, profit factor
+│   │   └── report.py        # laporan teks, biaya per komponen, pembanding
 │   ├── live/
 │   │   ├── journal.py       # write-ahead log order
 │   │   └── runner.py        # loop utama
@@ -187,6 +188,8 @@ Output metrik: total return, max drawdown, sharpe ratio, win rate, profit factor
 
 Tampilkan juga hasil buy-and-hold di periode yang sama sebagai pembanding. Kalau strategi kalah dari buy-and-hold, saya mau langsung lihat itu.
 
+Aturan eksekusi yang dipakai engine: order dieksekusi di open bar N setelah keputusan dari bar 0..N-1; stop lapis 1 dicek dari low dan high bar N termasuk untuk posisi yang baru dibuka di bar itu, dan kalau stop dan take profit tembus dalam satu bar diambil stop loss karena urutannya tidak diketahui. Di akhir data posisi terbuka ditutup di close terakhir dengan biaya penuh. Buy-and-hold dihitung dengan aturan dan biaya yang sama: beli seluruh equity di open bar pertama yang bisa ditransaksikan, jual di close terakhir. Backtest dari CLI tidak menyentuh jaringan dan tidak punya batas pasar exchange, jadi sizing tidak dibulatkan ke step dan minimum notional tidak dicek; engine menerima MarketLimits kalau pemanggil punya.
+
 Catatan untuk tahap 5, belum diimplementasikan: kalau holding period panjang, menganualisasi Sharpe dari return per bar 1h secara statistik meragukan, karena return antar bar dalam satu posisi saling bergantung. Yang benar adalah menganualisasi dari seri return pada frekuensi rebalance atau frekuensi keputusan strategi. backtest.bars_per_year tetap divalidasi terhadap timeframe supaya angka yang dipakai terlihat, tapi metrik Sharpe harus menyebut basis anualisasinya.
 
 ## Urutan Build
@@ -197,7 +200,7 @@ Kerjakan berurutan. Setiap tahap harus punya test yang lulus sebelum lanjut.
 2. ExchangeAdapter interface + CcxtAdapter untuk Binance testnet + TokocryptoAdapter untuk venue live. Test: fetch OHLCV dan saldo testnet, satu putaran limit order jauh dari harga di testnet (muncul di open orders dengan client id, dibatalkan, hilang), data publik Tokocrypto dari host resmi, dan terbukti menolak jalan kalau config minta mainnet tanpa dua syarat mode live. Selesai, kecuali test testnet yang menunggu kunci.
 3. Data fetcher historis + cache parquet, dari data publik Tokocrypto. Test: download 1 tahun data BTC/USDT 1h, verifikasi tidak ada bar bolong selain downtime yang tercatat. Selesai. Test unit memakai klien palsu dengan lubang yang diketahui posisinya (paginasi, bar berjalan, grid mingguan, kebijakan gap, data rusak dari venue, gangguan jaringan di tengah unduhan, inkremental, tulis atomik dan penulis bersamaan); test network mengunduh satu tahun penuh ke folder sementara, menanyakan ulang setiap gap yang dilaporkan langsung ke exchange supaya bar yang dijatuhkan fetcher sendiri ketahuan, dan mencocokkan laporan gap di parquet dengan isinya.
 4. Strategy interface + EMA crossover. Test: pakai data buatan dengan crossover yang sudah diketahui posisinya, pastikan signal muncul persis di bar yang benar. Selesai. Test memakai EMA acuan yang ditulis sebagai rekursi polos, terpisah dari pandas, plus data lompatan dan bentuk V; juga membuktikan sinyal adalah fungsi murni dari jendela tetap.
-5. Backtest engine + metrik. Test: strategi dummy yang selalu FLAT harus menghasilkan return 0 dan 0 trade. Strategi yang selalu LONG harus mendekati buy-and-hold dikurangi biaya.
+5. Backtest engine + metrik. Test: strategi dummy yang selalu FLAT harus menghasilkan return 0 dan 0 trade. Strategi yang selalu LONG harus mendekati buy-and-hold dikurangi biaya. Selesai, bersama RiskManager minimal (sizing, minimum notional, stop lapis 1) yang interface-nya sudah final; tahap 6 melengkapi kill switch di kelas yang sama. Test tambahan: strategi mata-mata membuktikan keputusan bar N hanya melihat bar sampai N-1, eksekusi di open bar N, stop dan take profit dari high/low bar dengan fill di harga stop plus slippage, keduanya tembus dalam satu bar dihitung stop loss, biaya per komponen, --stress menggandakan fee/bursa/slippage tapi bukan pajak, posisi terbuka ditutup di close terakhir, sizing di bawah minimum notional menghentikan backtest.
 6. RiskManager + semua kill switch. Test: setiap kondisi kill switch dipicu secara sintetis dan terbukti menghentikan bot; sizing di bawah minimum notional menghentikan bot dengan pesan jelas.
 7. PaperAdapter di atas harga Tokocrypto + live runner di mode paper. Jalankan minimal beberapa hari, bandingkan dengan hasil backtest di periode sama.
 8. Mode live di Tokocrypto. Baru dikerjakan setelah saya bilang siap. Order pertama harus ukuran minimum yang diizinkan exchange, bukan ukuran yang dihitung risk manager. Naikkan ukuran hanya setelah beberapa siklus masuk dan keluar posisi berjalan benar. Lapis 2 dipasang di tahap ini beserta test urutan cancel-stop-sebelum-keluar.

@@ -77,7 +77,17 @@ Output menyebut jumlah bar di cache, bar baru, jumlah permintaan, dan setiap gap
 
 Menarik histori jauh ke belakang, misalnya sejak Agustus 2017 untuk riset di RESEARCH.md, hampir pasti menabrak jendela pemeliharaan Binance yang lebih panjang dari enam jam (buku BTC/USDT Tokocrypto adalah buku Binance yang dibagi). Itu memang dirancang berhenti: cocokkan gap yang disebut di pesan error dengan pengumuman pemeliharaan, naikkan data.max_gap_bars secara sadar, dan catat keputusannya. Ini belum pernah dijalankan; angka lubangnya belum diketahui.
 
-Perintah backtest, backtest --stress, dan run ditambahkan di tahap berikutnya sesuai urutan di SPEC.md.
+Jalankan backtest dari cache parquet, tanpa jaringan. Strategi, risk, dan biaya dari config; buy-and-hold dengan biaya yang sama selalu ditampilkan, berikut biaya yang terbayar per komponen dan alasan keluar tiap posisi. Sharpe dianualisasi dari return per bar dan laporan menyebut basisnya.
+
+```bash
+uv run tradebot backtest
+uv run tradebot backtest --stress
+uv run tradebot backtest --start 2026-01-01 --end 2026-07-01
+```
+
+`--stress` menggandakan fee, biaya bursa, dan slippage dengan costs.stress_multiplier; pajak tetap. Kalau strategi hanya untung di angka default, laporan --stress yang memberi tahu. Cache yang belum ada berarti exit code 5 dengan pesan untuk menjalankan fetch-data dulu.
+
+Perintah run ditambahkan di tahap 7 sesuai urutan di SPEC.md.
 
 ## Menjalankan test
 
@@ -123,4 +133,6 @@ Tahap 3 selesai: fetcher OHLCV historis dari data publik Tokocrypto, cache parqu
 
 Tahap 4 selesai: interface Strategy dengan Signal sebagai state target, EMA crossover dengan periode dari config, dan registry strategy.name. Sinyal adalah fungsi murni dari jendela tetap slow_period x lookback_multiplier bar terakhir, supaya backtest dan live identik; sebelum jendela penuh sinyalnya FLAT. Test memakai EMA acuan yang ditulis terpisah dari pandas dan data buatan dengan crossover yang diketahui posisinya.
 
-Tahap 5 sampai 8 menyusul berurutan, masing-masing dengan test yang lulus sebelum tahap berikutnya dimulai.
+Tahap 5 selesai: engine backtest event-driven tanpa lookahead, metrik, laporan dengan buy-and-hold dan biaya per komponen, perintah backtest dan --stress, serta RiskManager minimal (sizing berbasis pecahan equity, minimum notional, stop dan take profit lapis 1) yang dipakai backtest dan nanti live tanpa perubahan interface.
+
+Tahap 6 sampai 8 menyusul berurutan, masing-masing dengan test yang lulus sebelum tahap berikutnya dimulai.

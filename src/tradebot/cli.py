@@ -1,8 +1,8 @@
 """Titik masuk command line.
 
 Perintah yang ada sejauh ini: check-config (tahap 1), check-exchange dan
-ledger-status (tahap 2), fetch-data (tahap 3). backtest dan run ditambahkan di
-tahap berikutnya.
+ledger-status (tahap 2), fetch-data (tahap 3), backtest dan backtest --stress
+(tahap 5). run ditambahkan di tahap 7.
 Flag --i-know-what-im-doing hanya ada pada perintah yang bisa menyentuh
 exchange dengan kunci; keberadaannya tidak pernah cukup sendiri,
 TRADING_MODE=live juga harus ada.
@@ -100,7 +100,82 @@ def build_parser() -> argparse.ArgumentParser:
             "berjalan menurut jam server; bar itu tidak pernah disimpan."
         ),
     )
+
+    backtest = sub.add_parser(
+        "backtest",
+        help=(
+            "Jalankan backtest dari cache parquet (tanpa jaringan) dengan strategi, risk, dan "
+            "biaya dari config. Buy-and-hold selalu ditampilkan."
+        ),
+    )
+    backtest.add_argument("--start", default=None, help="Awal periode, tanggal ISO UTC.")
+    backtest.add_argument("--end", default=None, help="Akhir periode (eksklusif), tanggal ISO UTC.")
+    backtest.add_argument(
+        "--stress",
+        action="store_true",
+        help="Gandakan fee, biaya bursa, dan slippage dengan costs.stress_multiplier; pajak tetap.",
+    )
     return parser
+
+
+def _backtest(settings: Settings, start: str | None, end: str | None, stress: bool) -> int:
+    from tradebot.backtest import format_report, run_backtest
+    from tradebot.data.cache import OhlcvCache
+    from tradebot.data.errors import DataError
+    from tradebot.data.ohlcv import parse_utc_ms, stamp_of
+    from tradebot.risk import RiskError, RiskManager
+    from tradebot.strategy import build_strategy
+
+    symbol = settings.exchange.symbol
+    timeframe = settings.exchange.timeframe
+    try:
+        start_ms = parse_utc_ms(start) if start else None
+        end_ms = parse_utc_ms(end) if end else None
+    except ValueError as exc:
+        print(f"CONFIG ERROR: {exc}", file=sys.stderr)
+        return EXIT_CONFIG_ERROR
+
+    cache = OhlcvCache(settings.root / settings.data.cache_dir)
+    path = cache.path_for(settings.exchange.live.id, symbol, timeframe)
+    try:
+        bars = cache.load(path)
+    except DataError as exc:
+        print(f"DATA ERROR: {exc}", file=sys.stderr)
+        return EXIT_DATA_ERROR
+    if bars.empty:
+        print(f"DATA ERROR: cache {path} belum ada; jalankan fetch-data dulu", file=sys.stderr)
+        return EXIT_DATA_ERROR
+    if start_ms is not None:
+        bars = bars[bars["timestamp"] >= stamp_of(start_ms)]
+    if end_ms is not None:
+        bars = bars[bars["timestamp"] < stamp_of(end_ms)]
+    bars = bars.reset_index(drop=True)
+    if len(bars) < 2:
+        print(
+            f"DATA ERROR: hanya {len(bars)} bar di periode yang diminta; butuh minimal 2",
+            file=sys.stderr,
+        )
+        return EXIT_DATA_ERROR
+
+    costs = settings.costs.stressed() if stress else settings.costs
+    strategy = build_strategy(settings.strategy)
+    risk = RiskManager(settings.risk, costs)
+    try:
+        result = run_backtest(
+            bars,
+            strategy,
+            risk,
+            costs,
+            initial_equity=settings.backtest.initial_equity,
+            bars_per_year=settings.backtest.bars_per_year,
+            symbol=symbol,
+            timeframe=timeframe,
+        )
+    except (RiskError, ValueError) as exc:
+        print(f"BACKTEST ERROR: {exc}", file=sys.stderr)
+        return EXIT_DATA_ERROR
+    print(format_report(result, stressed=stress))
+    return EXIT_OK
 
 
 def _ledger_status(settings: Settings) -> int:
@@ -284,6 +359,8 @@ def main(argv: Sequence[str] | None = None) -> int:
         return _ledger_status(settings)
     if args.command == "fetch-data":
         return _fetch_data(settings, args.start, args.end)
+    if args.command == "backtest":
+        return _backtest(settings, args.start, args.end, args.stress)
 
     parser.error(f"perintah tidak dikenal: {args.command}")
     return EXIT_CONFIG_ERROR
