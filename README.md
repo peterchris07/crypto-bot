@@ -96,7 +96,33 @@ uv run tradebot run
 uv run tradebot run --iterations 10
 ```
 
-Loop berhenti sendiri hanya karena kill switch (exit code 6) atau error fatal. Setiap iterasi: cek file STOP, ambil harga dan saldo, cek batas rugi harian, cek stop lapis 1 dari harga, lalu satu keputusan per bar yang sudah tutup. Bar yang masih berjalan tidak pernah dipakai; bar yang stale atau datang setelah lubang data dilewati dan dicatat di log. Setiap order dicatat ke state/orders.jsonl sebelum dikirim; saat start, order yang jawabannya hilang dicari lewat client order id dan tidak pernah dikirim ulang. Catatan posisi (harga masuk, stop, target) dan bar terakhir yang sudah diputuskan ada di state/position.json, dicocokkan dengan saldo saat start; kalau catatan hilang, harga masuk diambil dari pembelian terakhir di ledger. Bot yang mulai di tengah jam tetap memutuskan bar yang baru tutup; yang disebut stale hanya bar yang belum diberikan exchange lebih lama dari live.stale_bar_tolerance_seconds. Jalankan paper beberapa hari, lalu bandingkan dengan `backtest --start` di periode yang sama.
+Loop berhenti sendiri hanya karena kill switch (exit code 6) atau error fatal. Setiap iterasi: cek file STOP, ambil harga dan saldo, cek batas rugi harian, cek stop lapis 1 dari harga, lalu satu keputusan per bar yang sudah tutup. Bar yang masih berjalan tidak pernah dipakai; bar yang stale atau datang setelah lubang data dilewati dan dicatat di log. Setiap order dicatat ke state/orders.jsonl sebelum dikirim; saat start, order yang jawabannya hilang dicari lewat client order id dan tidak pernah dikirim ulang. Catatan posisi (harga masuk, stop, target) dan bar terakhir yang sudah diputuskan ada di state/position.json, dicocokkan dengan saldo saat start; kalau catatan hilang, harga masuk diambil dari pembelian terakhir di ledger. Bot yang mulai di tengah jam tetap memutuskan bar yang baru tutup; yang disebut stale hanya bar yang belum diberikan exchange lebih lama dari live.stale_bar_tolerance_seconds. Jalankan paper beberapa hari, lalu bandingkan dengan backtest di periode yang sama lewat dua perintah di bawah.
+
+## Kapan paper run selesai
+
+Paper selesai bukan diukur dari jumlah hari, tapi dari apa yang sudah terlihat. Keempat butir ini diperiksa otomatis dari log, jurnal, dan ledger, dengan buktinya:
+
+- satu restart di tengah posisi terbuka, pulih tanpa order ganda
+- satu kegagalan jaringan yang tertangani (gagal, lalu pulih)
+- satu kill switch menyala dan berhenti dengan exit code 6
+- beberapa trade yang bisa ditelusuri dari niat di jurnal sampai hasil dan sampai baris ledger (minimal live.checklist_min_fills)
+
+```bash
+uv run tradebot paper-checklist
+```
+
+Exit code 0 kalau semua terlihat, 8 kalau belum; setiap butir mencetak baris log atau id order yang menjadi buktinya. Restart bisa dipicu sendiri dengan menghentikan proses saat posisi terbuka lalu menjalankan `run` lagi; kegagalan jaringan dengan mematikan koneksi sebentar; kill switch dengan membuat file STOP.
+
+## Membandingkan paper dengan backtest
+
+Yang penting bukan besar selisih harga isi, tapi arahnya. Kalau paper konsisten mengisi lebih buruk dari backtest, asumsi costs.slippage_rate terlalu longgar dan setiap backtest optimis.
+
+```bash
+uv run tradebot compare-paper
+uv run tradebot compare-paper --start 2026-09-15 --end 2026-09-22
+```
+
+Perintah ini menjalankan backtest di periode fill paper (dari cache, dengan warmup), memasangkan setiap fill paper dengan fill backtest pada sisi dan bar yang sama, lalu mencetak selisih bertanda per trade dalam basis poin (positif = merugikan Anda), rata-rata, simpangan, persentase yang merugikan, nilai terburuk, uji tanda binomial, dan rinciannya per alasan keluar. Fill yang tidak punya pasangan dilaporkan, bukan dibuang. Kalau dari minimal live.bias_min_trades pasangan, pangsa yang merugikan (atau menguntungkan) mencapai live.bias_adverse_share, perintah mencetak "BIAS SATU ARAH TERDETEKSI" dan keluar dengan exit code 7. Selisih pada stop loss memang diharapkan positif, karena paper mengisi di harga yang terlihat sedangkan backtest di level stop; bias pada fill bersinyal adalah yang mengubah asumsi slippage.
 
 ## Menjalankan test
 

@@ -288,6 +288,12 @@ class LiveConfig:
     position_path: str
     paper_account_path: str
     trades_csv: str
+    # compare-paper: minimal pasangan fill sebelum bias dinilai, dan pangsa merugikan (atau
+    # menguntungkan) yang dianggap bias satu arah.
+    bias_min_trades: int
+    bias_adverse_share: float
+    # paper-checklist: minimal fill yang tertelusuri penuh dari jurnal sampai ledger.
+    checklist_min_fills: int
 
 
 @dataclass(frozen=True)
@@ -487,6 +493,12 @@ def validate(settings: Settings) -> None:
         ("live.trades_csv", lv.trades_csv),
     ):
         _check(bool(value.strip()), f"{name} tidak boleh kosong")
+    _check(lv.bias_min_trades >= 1, "live.bias_min_trades harus >= 1")
+    _check(
+        0.5 < lv.bias_adverse_share <= 1,
+        "live.bias_adverse_share harus di antara 0.5 (eksklusif) dan 1",
+    )
+    _check(lv.checklist_min_fills >= 1, "live.checklist_min_fills harus >= 1")
 
     level = settings.logging.level.upper()
     _check(

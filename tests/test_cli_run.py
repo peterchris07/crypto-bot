@@ -74,3 +74,93 @@ def test_run_rejects_zero_iterations(project_dir: Path, config_path: Path, fake_
         cli.main(["--config", str(config_path), "run", "--iterations", "0"])
         == cli.EXIT_CONFIG_ERROR
     )
+
+
+def test_compare_paper_and_checklist_commands(
+    project_dir: Path, config_path: Path, fake_public, capsys
+):
+    # tanpa fill: compare-paper menolak dengan pesan jelas
+    code = cli.main(["--config", str(config_path), "compare-paper"])
+    assert code == cli.EXIT_DATA_ERROR and "belum punya fill" in capsys.readouterr().err
+    # checklist kosong: belum selesai, exit 8
+    code = cli.main(["--config", str(config_path), "paper-checklist"])
+    out = capsys.readouterr().out
+    assert code == cli.EXIT_CHECKLIST_INCOMPLETE and out.count("[BELUM]") == 4
+
+
+def test_compare_paper_reports_signed_bias(
+    project_dir: Path, config_path: Path, fake_public, capsys
+):
+    """Ledger dengan fill yang konsisten lebih buruk dari backtest -> exit 7 dan vonis bias."""
+    import json
+
+    from tradebot.data.cache import OhlcvCache
+    from tradebot.data.ohlcv import frame_from_rows
+
+    prices = [100.0] * 4 + [110.0] * 6 + [90.0] * 6 + [110.0] * 6 + [90.0] * 6 + [110.0] * 6
+    rows = [[T0 + i * HOUR, p, p * 1.001, p * 0.999, p, 10.0] for i, p in enumerate(prices)]
+    cache = OhlcvCache(project_dir / "data")
+    cache.save(cache.path_for("tokocrypto", "BTC/USDT", "1h"), frame_from_rows(rows))
+    # strategi EMA 2/4 jendela 8: ganti config
+    text = (
+        config_path.read_text()
+        .replace("fast_period: 20", "fast_period: 2")
+        .replace("slow_period: 50", "slow_period: 4")
+        .replace("lookback_multiplier: 5", "lookback_multiplier: 2")
+    )
+    config_path.write_text(text)
+    from tradebot.backtest import run_backtest
+    from tradebot.config import load_settings
+    from tradebot.risk import RiskManager
+    from tradebot.strategy import build_strategy
+
+    settings = load_settings(config_path, environ={})
+    result = run_backtest(
+        frame_from_rows(rows),
+        build_strategy(settings.strategy),
+        RiskManager(settings.risk, settings.costs),
+        settings.costs,
+        initial_equity=1000.0,
+        bars_per_year=8760,
+        symbol="BTC/USDT",
+        timeframe="1h",
+    )
+    assert len(result.trades) >= 3
+    # ledger paper buatan: setiap fill 20 bps lebih buruk dari backtest
+    ledger_path = project_dir / "trades" / "trades.csv"
+    ledger_path.parent.mkdir()
+    journal_path = project_dir / "state" / "orders.jsonl"
+    journal_path.parent.mkdir()
+    header = (
+        "timestamp,pair,side,amount,price,quote_value,fee,fee_currency,order_id,"
+        "client_order_id,fee_status,recorded_at"
+    )
+    lines = [header]
+    events = []
+    n = 0
+    for trade in result.trades:
+        fills = [("buy", trade.entry_time, trade.entry_price * 1.002, "signal")]
+        if trade.exit_reason.value != "end_of_data":
+            fills.append(
+                ("sell", trade.exit_time, trade.exit_price * 0.998, trade.exit_reason.value)
+            )
+        for side, when, price, reason in fills:
+            n += 1
+            cid = f"c{n}"
+            stamp = (when + __import__("pandas").Timedelta(30, unit="s")).isoformat()
+            lines.append(
+                f"{stamp},BTC/USDT,{side},{trade.amount},{price},{trade.amount * price},"
+                f"0,USDT,paper-{n},{cid},reconciled,{stamp}"
+            )
+            events.append(
+                {"event": "intent", "client_order_id": cid, "reason": reason, "time": stamp}
+            )
+    ledger_path.write_text("\n".join(lines) + "\n")
+    journal_path.write_text("\n".join(json.dumps(e) for e in events) + "\n")
+
+    code = cli.main(["--config", str(config_path), "compare-paper"])
+    out = capsys.readouterr().out
+    assert code == cli.EXIT_BIAS_DETECTED, out
+    assert "BIAS SATU ARAH TERDETEKSI" in out and "LEBIH BURUK" in out
+    assert "+20.0 bps" in out and "merugikan 100%" in out
+    assert "tanpa pasangan: paper 0, backtest 0" in out

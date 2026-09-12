@@ -91,6 +91,9 @@ MINIMAL_CONFIG = textwrap.dedent(
       position_path: state/position.json
       paper_account_path: state/paper_account.json
       trades_csv: trades/trades.csv
+      bias_min_trades: 5
+      bias_adverse_share: 0.75
+      checklist_min_fills: 4
     logging:
       dir: logs
       level: INFO

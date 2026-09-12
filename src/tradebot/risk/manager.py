@@ -191,6 +191,8 @@ class RiskManager:
             )
 
     def record_connection_success(self) -> None:
+        if self.consecutive_failures:
+            log.info("koneksi pulih setelah %d kegagalan beruntun", self.consecutive_failures)
         self.consecutive_failures = 0
 
     # ------------------------------------------------------------------ #

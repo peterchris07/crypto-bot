@@ -19,6 +19,12 @@ import pytest
 
 from tests.fakes import BASE_MS, FakeTokocryptoClient
 from tradebot.backtest import run_backtest
+from tradebot.backtest.compare import (
+    backtest_fills,
+    compare_fills,
+    format_comparison,
+    paper_fills,
+)
 from tradebot.config import load_settings
 from tradebot.data.ohlcv import frame_from_rows
 from tradebot.exchange.factory import build_public_adapter
@@ -499,6 +505,20 @@ def test_paper_runner_matches_backtest_on_same_bars(settings, project_dir):
         assert live[0] == bt[0]
         assert live[1] == bt[1]
         assert live[2] == pytest.approx(bt[2], rel=1e-9)
+    # selisih bertanda per trade: untuk fill sinyal harus nol, tidak boleh ada bias
+    comparison = compare_fills(
+        paper_fills(
+            live_rows,
+            OrderJournal(project_dir / settings.live.journal_path).entries(),
+            "BTC/USDT",
+            "1h",
+        ),
+        backtest_fills(result),
+    )
+    assert not comparison.unmatched_paper and not comparison.unmatched_backtest
+    assert all(abs(d.adverse) < 1e-9 for d in comparison.matched)
+    text, biased = format_comparison(comparison, min_trades=1, adverse_share=0.75)
+    assert not biased and "tidak ada bias" in text
 
 
 # --------------------------------------------------------------------------- #
@@ -705,3 +725,20 @@ def test_paper_runner_matches_backtest_with_stops_and_targets(settings, project_
     # perbedaannya selalu ke sisi runner yang lebih pesimistis untuk stop loss.
     assert live_amounts[0] == pytest.approx(bt_amounts[0], rel=1e-9)
     assert live_amounts == pytest.approx(bt_amounts, rel=0.02)
+    # Arah selisih harga isi, per alasan: fill sinyal identik; stop loss di paper diisi di harga
+    # tick (low) yang LEBIH BURUK dari level stop, dan itu harus terlihat sebagai merugikan.
+    comparison = compare_fills(
+        paper_fills(live_rows, live, "BTC/USDT", "1h"), backtest_fills(result)
+    )
+    assert not comparison.unmatched_paper and not comparison.unmatched_backtest
+    by_reason = {}
+    for diff in comparison.matched:
+        by_reason.setdefault(diff.reason, []).append(diff.adverse)
+    assert all(abs(v) < 1e-9 for v in by_reason["signal"])
+    # stop loss: tidak pernah menguntungkan; nol hanya saat open sudah di bawah stop (gap),
+    # karena keduanya lalu mengisi di open
+    assert all(v >= -1e-9 for v in by_reason["stop_loss"]), by_reason["stop_loss"]
+    assert any(v > 0 for v in by_reason["stop_loss"]), by_reason["stop_loss"]
+    assert all(v >= -1e-9 for v in by_reason["take_profit"]), by_reason["take_profit"]
+    text, _ = format_comparison(comparison, min_trades=1, adverse_share=0.75)
+    assert "stop_loss" in text and "selisih +" in text

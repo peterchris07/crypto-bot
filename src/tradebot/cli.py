@@ -35,6 +35,8 @@ EXIT_EXCHANGE_ERROR = 3
 EXIT_LEDGER_PENDING = 4
 EXIT_DATA_ERROR = 5
 EXIT_KILL_SWITCH = 6
+EXIT_BIAS_DETECTED = 7
+EXIT_CHECKLIST_INCOMPLETE = 8
 
 
 def _add_live_flag(parser: argparse.ArgumentParser) -> None:
@@ -131,7 +133,128 @@ def build_parser() -> argparse.ArgumentParser:
         help="Berhenti setelah N iterasi (uji coba). Default: jalan terus sampai kill switch.",
     )
     _add_live_flag(run)
+
+    compare = sub.add_parser(
+        "compare-paper",
+        help=(
+            "Bandingkan harga isi paper (ledger) dengan backtest di periode yang sama, per "
+            "trade, dengan tanda. Bias satu arah berarti exit code 7."
+        ),
+    )
+    compare.add_argument("--start", default=None, help="Awal periode; default: fill pertama.")
+    compare.add_argument(
+        "--end", default=None, help="Akhir periode; default: setelah fill terakhir."
+    )
+
+    sub.add_parser(
+        "paper-checklist",
+        help=(
+            "Periksa dari log, jurnal, dan ledger apakah paper run sudah memperlihatkan restart "
+            "di tengah posisi, kegagalan jaringan, kill switch, dan trade yang tertelusuri."
+        ),
+    )
     return parser
+
+
+def _compare_paper(settings: Settings, start: str | None, end: str | None) -> int:
+    from datetime import datetime
+
+    from tradebot.backtest import run_backtest
+    from tradebot.backtest.compare import (
+        backtest_fills,
+        compare_fills,
+        format_comparison,
+        paper_fills,
+    )
+    from tradebot.data.cache import OhlcvCache
+    from tradebot.data.errors import DataError
+    from tradebot.data.ohlcv import floor_to_bar, parse_utc_ms, stamp_of, timeframe_to_ms
+    from tradebot.ledger import Ledger
+    from tradebot.live.journal import OrderJournal
+    from tradebot.risk import RiskError, RiskManager
+    from tradebot.strategy import build_strategy
+
+    symbol, timeframe = settings.exchange.symbol, settings.exchange.timeframe
+    timeframe_ms = timeframe_to_ms(timeframe)
+    ledger = Ledger(settings.root / settings.live.trades_csv)
+    journal = OrderJournal(settings.root / settings.live.journal_path)
+    fills = paper_fills(ledger.rows(), journal.entries(), symbol, timeframe)
+    if not fills:
+        print(f"DATA ERROR: ledger {ledger.path} belum punya fill untuk {symbol}", file=sys.stderr)
+        return EXIT_DATA_ERROR
+    try:
+        start_ms = (
+            parse_utc_ms(start) if start else min(int(f.bar.value // 1_000_000) for f in fills)
+        )
+        end_ms = (
+            parse_utc_ms(end)
+            if end
+            else max(int(f.bar.value // 1_000_000) for f in fills) + timeframe_ms
+        )
+    except ValueError as exc:
+        print(f"CONFIG ERROR: {exc}", file=sys.stderr)
+        return EXIT_CONFIG_ERROR
+
+    strategy = build_strategy(settings.strategy)
+    cache = OhlcvCache(settings.root / settings.data.cache_dir)
+    try:
+        bars = cache.load(cache.path_for(settings.exchange.live.id, symbol, timeframe))
+    except DataError as exc:
+        print(f"DATA ERROR: {exc}", file=sys.stderr)
+        return EXIT_DATA_ERROR
+    warmup_ms = strategy.lookback_bars * timeframe_ms
+    window = bars[
+        (bars["timestamp"] >= stamp_of(floor_to_bar(start_ms, timeframe_ms) - warmup_ms))
+        & (bars["timestamp"] < stamp_of(end_ms))
+    ].reset_index(drop=True)
+    if len(window) <= max(1, strategy.lookback_bars):
+        print(
+            f"DATA ERROR: cache hanya punya {len(window)} bar untuk periode fill (butuh lebih dari "
+            f"{max(1, strategy.lookback_bars)}); jalankan fetch-data dulu",
+            file=sys.stderr,
+        )
+        return EXIT_DATA_ERROR
+    try:
+        result = run_backtest(
+            window,
+            strategy,
+            RiskManager(settings.risk, settings.costs),
+            settings.costs,
+            initial_equity=settings.backtest.initial_equity,
+            bars_per_year=settings.backtest.bars_per_year,
+            symbol=symbol,
+            timeframe=timeframe,
+        )
+    except (RiskError, ValueError) as exc:
+        print(f"BACKTEST ERROR: {exc}", file=sys.stderr)
+        return EXIT_DATA_ERROR
+    comparison = compare_fills(fills, backtest_fills(result))
+    text, biased = format_comparison(
+        comparison,
+        min_trades=settings.live.bias_min_trades,
+        adverse_share=settings.live.bias_adverse_share,
+    )
+    print(
+        f"compare-paper {symbol} {timeframe}: {stamp_of(start_ms).isoformat()} .. "
+        f"{stamp_of(end_ms).isoformat()}, {len(fills)} fill paper, {len(result.trades)} trade "
+        f"backtest (dibuat {datetime.now().astimezone().isoformat(timespec='seconds')})"
+    )
+    print(text)
+    return EXIT_BIAS_DETECTED if biased else EXIT_OK
+
+
+def _paper_checklist(settings: Settings) -> int:
+    from tradebot.live.checklist import format_checklist, run_checklist
+
+    items = run_checklist(
+        settings.root,
+        log_dir=settings.logging.dir,
+        journal_path=settings.live.journal_path,
+        trades_csv=settings.live.trades_csv,
+        min_fills=settings.live.checklist_min_fills,
+    )
+    print(format_checklist(items))
+    return EXIT_OK if all(item.ok for item in items) else EXIT_CHECKLIST_INCOMPLETE
 
 
 def _run(settings: Settings, iterations: int | None) -> int:
@@ -438,6 +561,10 @@ def main(argv: Sequence[str] | None = None) -> int:
         return _backtest(settings, args.start, args.end, args.stress)
     if args.command == "run":
         return _run(settings, args.iterations)
+    if args.command == "compare-paper":
+        return _compare_paper(settings, args.start, args.end)
+    if args.command == "paper-checklist":
+        return _paper_checklist(settings)
 
     parser.error(f"perintah tidak dikenal: {args.command}")
     return EXIT_CONFIG_ERROR
