@@ -27,6 +27,8 @@ from typing import Any, TypeVar, get_type_hints
 import yaml
 from dotenv import dotenv_values
 
+from tradebot.data.ohlcv import timeframe_to_ms
+
 MODE_ENV_VAR = "TRADING_MODE"
 LIVE_FLAG = "--i-know-what-im-doing"
 DEFAULT_CONFIG_PATH = Path("config") / "default.yaml"
@@ -78,10 +80,24 @@ def resolve_mode(env_value: str | None, i_know_what_im_doing: bool) -> TradingMo
     return mode
 
 
-CREDENTIAL_ENV_VARS: dict[TradingMode, tuple[str, str]] = {
-    TradingMode.TESTNET: ("BINANCE_TESTNET_API_KEY", "BINANCE_TESTNET_API_SECRET"),
-    TradingMode.LIVE: ("TOKOCRYPTO_API_KEY", "TOKOCRYPTO_API_SECRET"),
+# Nama variabel kunci terikat ke venue dan jenisnya, bukan ke mode. Kunci Tokocrypto
+# tidak boleh sampai terkirim ke Binance hanya karena exchange.live.id diganti.
+CREDENTIAL_ENV_VARS: dict[tuple[str, bool], tuple[str, str]] = {
+    ("binance", True): ("BINANCE_TESTNET_API_KEY", "BINANCE_TESTNET_API_SECRET"),
+    ("binance", False): ("BINANCE_API_KEY", "BINANCE_API_SECRET"),
+    ("tokocrypto", False): ("TOKOCRYPTO_API_KEY", "TOKOCRYPTO_API_SECRET"),
 }
+
+
+def credential_env_vars(venue_id: str, sandbox: bool) -> tuple[str, str]:
+    try:
+        return CREDENTIAL_ENV_VARS[(venue_id, sandbox)]
+    except KeyError:
+        kind = "testnet" if sandbox else "mainnet"
+        raise ConfigError(
+            f"venue {venue_id!r} ({kind}) tidak punya pemetaan variabel kunci di .env; "
+            f"yang dikenal: {sorted(CREDENTIAL_ENV_VARS)}"
+        ) from None
 
 
 def mask_secret(value: str) -> str:
@@ -106,16 +122,18 @@ class Credentials:
         return (self.api_key, self.api_secret)
 
 
-def load_credentials(mode: TradingMode, env: Mapping[str, str]) -> Credentials | None:
+def load_credentials(
+    mode: TradingMode, env: Mapping[str, str], venue_id: str
+) -> Credentials | None:
     if not mode.needs_credentials:
         return None
-    key_var, secret_var = CREDENTIAL_ENV_VARS[mode]
+    key_var, secret_var = credential_env_vars(venue_id, mode.is_sandbox)
     key = (env.get(key_var) or "").strip()
     secret = (env.get(secret_var) or "").strip()
     missing = [name for name, value in ((key_var, key), (secret_var, secret)) if not value]
     if missing:
         raise ConfigError(
-            f"Mode {mode.value} butuh {' dan '.join(missing)} di file .env. "
+            f"Mode {mode.value} (venue {venue_id}) butuh {' dan '.join(missing)} di file .env. "
             "Nilainya tidak boleh ditulis di file lain mana pun."
         )
     return Credentials(api_key=key, api_secret=secret)
@@ -393,6 +411,13 @@ def validate(settings: Settings) -> None:
         f"costs: total biaya per sisi {c.cost_per_side_rate} tidak masuk akal, cek satuannya",
     )
     _check(c.stress_multiplier > 1, "costs.stress_multiplier harus > 1")
+    # Batas 5% per sisi setelah stress: cukup longgar untuk uji sensitivitas yang wajar,
+    # cukup ketat untuk menangkap salah ketik pengali (20 alih-alih 2.0).
+    _check(
+        c.stressed().cost_per_side_rate < 0.05,
+        f"costs: biaya per sisi setelah stress {c.stressed().cost_per_side_rate:.4f} tidak masuk "
+        f"akal (batas 0.05); cek stress_multiplier {c.stress_multiplier}",
+    )
 
     _check(s.fast_period >= 1, "strategy.fast_period harus >= 1")
     _check(s.fast_period < s.slow_period, "strategy.fast_period harus lebih kecil dari slow_period")
@@ -401,11 +426,27 @@ def validate(settings: Settings) -> None:
         e.symbol.count("/") == 1 and all(e.symbol.split("/")),
         f"exchange.symbol harus berformat BASE/QUOTE, dapat {e.symbol!r}",
     )
+    try:
+        timeframe_ms = timeframe_to_ms(e.timeframe)
+    except ValueError as exc:
+        raise ConfigError(f"exchange.timeframe: {exc}") from None
+    expected_bars = round(365 * 86_400_000 / timeframe_ms)
+    _check(
+        b.bars_per_year == expected_bars,
+        f"backtest.bars_per_year harus {expected_bars} untuk timeframe {e.timeframe}, "
+        f"dapat {b.bars_per_year}",
+    )
     for venue_name, venue in (("testnet", e.testnet), ("live", e.live)):
         _check(bool(venue.id.strip()), f"exchange.{venue_name}.id tidak boleh kosong")
+        url = venue.market_data_url
         _check(
-            venue.market_data_url == "" or venue.market_data_url.startswith("https://"),
+            url == "" or url.startswith("https://"),
             f"exchange.{venue_name}.market_data_url harus kosong atau diawali https://",
+        )
+        _check(
+            not url.endswith("/"),
+            f"exchange.{venue_name}.market_data_url tidak boleh berakhir dengan '/': "
+            "ccxt menambahkan '/' sendiri dan '//' ditolak server",
         )
     _check(e.retry.max_attempts >= 1, "exchange.retry.max_attempts harus >= 1")
     _check(e.retry.base_delay_seconds > 0, "exchange.retry.base_delay_seconds harus > 0")
@@ -413,7 +454,10 @@ def validate(settings: Settings) -> None:
         e.retry.max_delay_seconds >= e.retry.base_delay_seconds,
         "exchange.retry.max_delay_seconds harus >= base_delay_seconds",
     )
-    _check(e.recv_window_ms > 0, "exchange.recv_window_ms harus > 0")
+    _check(
+        0 < e.recv_window_ms < 60_000,
+        "exchange.recv_window_ms harus di antara 1 dan 59999 (server menolak >= 60000)",
+    )
     _check(e.max_time_drift_ms > 0, "exchange.max_time_drift_ms harus > 0")
     _check(
         e.max_time_drift_ms < e.recv_window_ms,
@@ -452,7 +496,6 @@ def load_settings(
 
     env = read_env(root_path, environ)
     mode = resolve_mode(env.get(MODE_ENV_VAR), i_know_what_im_doing)
-    credentials = load_credentials(mode, env)
 
     try:
         raw = yaml.safe_load(config_path.read_text(encoding="utf-8"))
@@ -481,6 +524,9 @@ def load_settings(
         raise ConfigError(f"config: section wajib hilang: {', '.join(missing)}")
 
     built = {name: _build(cls, raw[name], name) for name, cls in sections.items()}
+    exchange: ExchangeConfig = built["exchange"]
+    venue_id = exchange.testnet.id if mode is TradingMode.TESTNET else exchange.live.id
+    credentials = load_credentials(mode, env, venue_id)
     settings = Settings(
         root=root_path,
         config_path=config_path,

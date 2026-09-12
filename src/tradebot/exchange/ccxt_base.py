@@ -41,6 +41,7 @@ from tradebot.exchange.base import (
     OrderStatus,
     OrderType,
     Ticker,
+    Trade,
 )
 from tradebot.exchange.errors import (
     AuthenticationError,
@@ -61,6 +62,8 @@ ClientFactory = Callable[[dict[str, Any]], Any]
 
 _STATUS_MAP = {
     "open": OrderStatus.OPEN,
+    # Pembatalan sedang diproses: aset masih terkunci sampai exchange mengonfirmasi.
+    "canceling": OrderStatus.OPEN,
     "closed": OrderStatus.CLOSED,
     "canceled": OrderStatus.CANCELED,
     "cancelled": OrderStatus.CANCELED,
@@ -95,10 +98,26 @@ def float_or_none(value: Any) -> float | None:
         return None
 
 
-def translate_error(exc: ccxt.BaseError) -> ExchangeError:
-    """Petakan exception ccxt ke taksonomi kita. Dipakai semua adapter berbasis ccxt."""
+def translate_error(exc: ccxt.BaseError, headers: dict[str, Any] | None = None) -> ExchangeError:
+    """Petakan exception ccxt ke taksonomi kita. Dipakai semua adapter berbasis ccxt.
+
+    headers adalah header respons terakhir (ccxt: client.last_response_headers), dipakai
+    untuk membaca Retry-After saat IP di-ban.
+    """
     text = str(exc)
     lowered = text.lower()
+    if isinstance(exc, ccxt.DDoSProtection) and " 418" in f" {text}":
+        # 418 dari Binance/Tokocrypto berarti IP di-ban karena terus mengirim setelah 429.
+        # Mencoba ulang memperpanjang ban. Berhenti, dan sebut durasinya kalau server memberi tahu.
+        retry_after = None
+        for key, value in (headers or {}).items():
+            if str(key).lower() == "retry-after":
+                retry_after = value
+        durasi = f"Retry-After {retry_after} detik" if retry_after else "durasi tidak diberitahu"
+        return FatalExchangeError(
+            f"IP di-ban rate limit oleh exchange (HTTP 418, {durasi}). Bot berhenti; jangan "
+            f"kirim request apa pun sampai ban lewat. Detail: {text}"
+        )
     if isinstance(exc, ccxt.InvalidNonce) or any(h in lowered for h in _TIME_DRIFT_HINTS):
         return TimeDriftError(
             f"exchange menolak timestamp request: {text}. "
@@ -196,6 +215,7 @@ class CcxtBase(ExchangeAdapter):
 
     def _order_request(
         self,
+        symbol: str,
         order_type: OrderType,
         side: OrderSide,
         amount: float,
@@ -205,6 +225,16 @@ class CcxtBase(ExchangeAdapter):
     ) -> tuple[str, float | None, dict[str, Any]]:
         """Kembalikan (tipe ccxt, harga ccxt, params) untuk create_order di venue ini."""
         raise NotImplementedError
+
+    def _fetch_order_by_id(self, symbol: str, order_id: str) -> Order:
+        raw = self._call("fetch_order", self._client.fetch_order, order_id, symbol, {})
+        return self._parse_order(raw, lookup=f"order_id={order_id}")
+
+    def _price_band_down_from_market(self, market: dict[str, Any]) -> float | None:
+        for item in (market.get("info") or {}).get("filters") or []:
+            if str(item.get("filterType", "")).upper() == "PERCENT_PRICE_BY_SIDE":
+                return float_or_none(item.get("bidMultiplierDown"))
+        return None
 
     def _order_type_from_raw(self, raw: dict[str, Any]) -> OrderType | None:
         """Tentukan tipe order dari respons mentah. None berarti tidak bisa ditentukan."""
@@ -275,7 +305,8 @@ class CcxtBase(ExchangeAdapter):
             try:
                 return fn(*args, **kwargs)
             except ccxt.BaseError as exc:
-                translated = translate_error(exc)
+                headers = getattr(self._client, "last_response_headers", None)
+                translated = translate_error(exc, headers if isinstance(headers, dict) else None)
                 if not isinstance(translated, RetryableExchangeError):
                     log.error("%s gagal (tidak dicoba ulang): %s", name, translated)
                     raise translated from exc
@@ -374,6 +405,7 @@ class CcxtBase(ExchangeAdapter):
             amount_step=float_or_none(precision.get("amount")),
             min_cost=self._min_cost_from_market(market),
             price_step=float_or_none(precision.get("price")),
+            price_band_down=self._price_band_down_from_market(market),
         )
 
     def fetch_ohlcv(
@@ -426,8 +458,27 @@ class CcxtBase(ExchangeAdapter):
         }
         return Balance(assets=assets)
 
-    def _parse_order(self, raw: dict[str, Any], requested_type: OrderType | None = None) -> Order:
+    def _parse_order(
+        self,
+        raw: dict[str, Any],
+        requested_type: OrderType | None = None,
+        lookup: str = "",
+    ) -> Order:
+        if not isinstance(raw, dict) or (raw.get("id") is None and raw.get("side") is None):
+            # ccxt bisa mengembalikan order kosong (semua None) alih-alih exception.
+            raise OrderNotFoundError(
+                f"exchange mengembalikan order kosong untuk {lookup or 'permintaan ini'}"
+            )
         order_type = self._order_type_from_raw(raw) or requested_type or OrderType.LIMIT
+        raw_status = str(raw.get("status") or "").lower()
+        status = _STATUS_MAP.get(raw_status)
+        if status is None:
+            log.warning(
+                "status order tidak dikenal %r pada order id=%s; diperlakukan UNKNOWN",
+                raw.get("status"),
+                raw.get("id"),
+            )
+            status = OrderStatus.UNKNOWN
         fee = raw.get("fee") or {}
         fee_cost = float_or_none(fee.get("cost")) if isinstance(fee, dict) else None
         fee_currency = fee.get("currency") if isinstance(fee, dict) else None
@@ -449,7 +500,7 @@ class CcxtBase(ExchangeAdapter):
             amount=float(raw.get("amount") or 0.0),
             price=float_or_none(raw.get("price")),
             stop_price=stop_price,
-            status=_STATUS_MAP.get(str(raw.get("status") or "").lower(), OrderStatus.UNKNOWN),
+            status=status,
             filled=float(raw.get("filled") or 0.0),
             average=float_or_none(raw.get("average")),
             cost=float_or_none(raw.get("cost")),
@@ -493,7 +544,7 @@ class CcxtBase(ExchangeAdapter):
         self._require_trading("create_order")
         self._validate_order_request(order_type, amount, price, stop_price)
         ccxt_type, ccxt_price, params = self._order_request(
-            order_type, side, amount, price, stop_price, client_order_id
+            symbol, order_type, side, amount, price, stop_price, client_order_id
         )
 
         # Aturan keras 5: niat order tercatat SEBELUM request keluar.
@@ -616,6 +667,30 @@ class CcxtBase(ExchangeAdapter):
         if not order_id and not client_order_id:
             raise InvalidOrderError("fetch_order butuh order_id atau client_order_id")
         if order_id:
-            raw = self._call("fetch_order", self._client.fetch_order, order_id, symbol, {})
-            return self._parse_order(raw)
+            return self._fetch_order_by_id(symbol, str(order_id))
         return self._fetch_order_by_client_id(symbol, str(client_order_id))
+
+    def fetch_my_trades(
+        self, symbol: str, *, since_ms: int | None = None, limit: int | None = None
+    ) -> list[Trade]:
+        self._require_connected()
+        self._require_trading("fetch_my_trades")
+        raw = self._call("fetch_my_trades", self._client.fetch_my_trades, symbol, since_ms, limit)
+        trades: list[Trade] = []
+        for item in raw:
+            fee = item.get("fee") or {}
+            trades.append(
+                Trade(
+                    id=str(item["id"]) if item.get("id") is not None else None,
+                    order_id=str(item["order"]) if item.get("order") is not None else None,
+                    symbol=str(item.get("symbol") or symbol),
+                    side=OrderSide(str(item.get("side")).lower()),
+                    amount=float(item.get("amount") or 0.0),
+                    price=float(item.get("price") or 0.0),
+                    cost=float(item.get("cost") or 0.0),
+                    fee=float_or_none(fee.get("cost")) if isinstance(fee, dict) else None,
+                    fee_currency=fee.get("currency") if isinstance(fee, dict) else None,
+                    timestamp=to_datetime(item.get("timestamp")),
+                )
+            )
+        return trades

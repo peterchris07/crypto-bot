@@ -41,7 +41,8 @@ def _add_live_flag(parser: argparse.ArgumentParser) -> None:
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="tradebot",
-        description="Bot trading crypto spot Binance. Default mode: paper.",
+        description="Bot trading crypto spot: develop di Binance Testnet, live di Tokocrypto. "
+        "Default mode: paper.",
     )
     parser.add_argument("--version", action="version", version=f"tradebot {__version__}")
     parser.add_argument(
@@ -65,7 +66,30 @@ def build_parser() -> argparse.ArgumentParser:
         ),
     )
     _add_live_flag(check_exchange)
+
+    sub.add_parser(
+        "ledger-status",
+        help="Laporkan ledger trade: jumlah baris, order yang fee-nya masih pending.",
+    )
     return parser
+
+
+def _ledger_status(settings: Settings) -> int:
+    from tradebot.ledger import Ledger
+
+    ledger = Ledger(settings.root / settings.live.trades_csv)
+    rows = ledger.rows()
+    pending = ledger.pending_rows()
+    print(f"ledger: {ledger.path}")
+    print(f"baris: {len(rows)}")
+    print(f"order dengan fee pending: {len(pending)}")
+    for row in pending:
+        print(
+            f"  order_id={row['order_id']} {row['side']} {row['amount']} {row['pair']} "
+            f"@ {row['price']} ({row['timestamp']})"
+        )
+    print("status: LENGKAP" if ledger.is_complete() else "status: BELUM LENGKAP, ada fee pending")
+    return EXIT_OK if ledger.is_complete() else 4
 
 
 def _check_exchange(settings: Settings) -> int:
@@ -149,6 +173,8 @@ def main(argv: Sequence[str] | None = None) -> int:
         return EXIT_OK
     if args.command == "check-exchange":
         return _check_exchange(settings)
+    if args.command == "ledger-status":
+        return _ledger_status(settings)
 
     parser.error(f"perintah tidak dikenal: {args.command}")
     return EXIT_CONFIG_ERROR

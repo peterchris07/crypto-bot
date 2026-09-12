@@ -1,7 +1,7 @@
 [project]
 name = "tradebot"
 version = "0.1.0"
-description = "Bot trading crypto spot Binance dengan mode paper, testnet, dan live"
+description = "Bot trading crypto spot: develop di Binance Testnet, live di Tokocrypto"
 requires-python = ">=3.11"
 dependencies = [
     "ccxt>=4.4,<5",

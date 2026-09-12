@@ -560,3 +560,83 @@ def test_adapter_never_logs_secrets(exchange_config, caplog):
     adapter.create_order("BTC/USDT", OrderSide.BUY, OrderType.MARKET, 0.01, client_order_id="x")
     assert KEY not in caplog.text
     assert SECRET not in caplog.text
+
+
+def test_empty_order_from_exchange_becomes_order_not_found(exchange_config):
+    """Hipotesis review #7: ccxt bisa mengembalikan order kosong, bukan exception."""
+    adapter, client, _ = build(exchange_config)
+    client.fetch_order = lambda id, symbol=None, params=None: {
+        "id": None,
+        "clientOrderId": None,
+        "symbol": None,
+        "side": None,
+        "type": None,
+        "status": None,
+        "amount": None,
+        "info": {},
+    }
+    with pytest.raises(OrderNotFoundError, match="999"):
+        adapter.fetch_order("BTC/USDT", order_id="999")
+
+
+def test_canceling_status_is_still_open_and_unknown_status_warns(exchange_config, caplog):
+    caplog.set_level(logging.WARNING, logger="tradebot")
+    adapter, client, _ = build(exchange_config)
+    placed = adapter.create_order("BTC/USDT", OrderSide.BUY, OrderType.LIMIT, 0.01, price=40_000.0)
+    client.orders[placed.id]["status"] = "canceling"
+    assert adapter.fetch_order("BTC/USDT", order_id=placed.id).status is OrderStatus.OPEN
+    client.orders[placed.id]["status"] = "weird"
+    assert adapter.fetch_order("BTC/USDT", order_id=placed.id).status is OrderStatus.UNKNOWN
+    assert "weird" in caplog.text
+
+
+def test_http_418_ban_is_fatal_and_reports_retry_after(exchange_config):
+    """Hipotesis review #11: 418 adalah ban IP; mencoba ulang memperpanjang ban."""
+    adapter, client, sleeps = build(exchange_config)
+    client.last_response_headers = {"Retry-After": "120"}
+    client.fail_next(
+        "fetch_ticker", ccxt.DDoSProtection("binance GET https://x/api/v3/ticker 418 I'm a teapot")
+    )
+    with pytest.raises(FatalExchangeError, match="418.*120") as exc:
+        adapter.fetch_ticker("BTC/USDT")
+    assert not isinstance(exc.value, RetryableExchangeError)
+    assert client.count("fetch_ticker") == 1
+    assert sleeps == []
+
+
+def test_http_429_is_still_retried(exchange_config):
+    adapter, client, sleeps = build(exchange_config)
+    client.fail_next(
+        "fetch_ticker", ccxt.RateLimitExceeded("binance GET https://x 429 Too Many Requests")
+    )
+    adapter.fetch_ticker("BTC/USDT")
+    assert client.count("fetch_ticker") == 2
+
+
+def test_fetch_my_trades_maps_fee(exchange_config):
+    adapter, client, _ = build(exchange_config)
+    client.trades = [
+        {
+            "id": "t1",
+            "order": "9",
+            "symbol": "BTC/USDT",
+            "side": "buy",
+            "amount": 0.01,
+            "price": 50_000.0,
+            "cost": 500.0,
+            "fee": {"cost": 0.5, "currency": "USDT"},
+            "timestamp": BASE_MS,
+        }
+    ]
+    trades = adapter.fetch_my_trades("BTC/USDT", since_ms=BASE_MS - 1000)
+    assert len(trades) == 1
+    assert trades[0].order_id == "9"
+    assert trades[0].fee == 0.5 and trades[0].fee_currency == "USDT"
+    assert trades[0].side is OrderSide.BUY
+    args, _ = client.last_call("fetch_my_trades")
+    assert args == ("BTC/USDT", BASE_MS - 1000, None)
+
+
+def test_market_limits_expose_price_band(exchange_config):
+    adapter, _, _ = build(exchange_config)
+    assert adapter.fetch_market_limits("BTC/USDT").price_band_down == 0.2

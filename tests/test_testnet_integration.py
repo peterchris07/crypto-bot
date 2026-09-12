@@ -13,13 +13,13 @@ from __future__ import annotations
 import logging
 import os
 from datetime import UTC, datetime
-from decimal import ROUND_DOWN, ROUND_UP, Decimal
 from pathlib import Path
 from uuid import uuid4
 
 import pandas as pd
 import pytest
 
+from tests.helpers import ROUND_UP, price_far_below_market, quantize
 from tradebot.config import Settings, load_settings
 from tradebot.data.ohlcv import timeframe_to_ms
 from tradebot.exchange import OrderNotFoundError, OrderSide, OrderStatus, OrderType
@@ -42,15 +42,6 @@ def testnet() -> tuple[CcxtAdapter, Settings]:
     )
     adapter.connect()
     return adapter, settings
-
-
-def _quantize(value: float, step: float | None, rounding: str) -> float:
-    """Bulatkan ke kelipatan step exchange (tickSize / stepSize) tanpa error float."""
-    if not step:
-        return value
-    quantum = Decimal(str(step))
-    units = (Decimal(str(value)) / quantum).quantize(Decimal(1), rounding=rounding)
-    return float(units * quantum)
 
 
 def test_connect_reports_clock_within_limit(testnet):
@@ -129,10 +120,11 @@ def test_limit_order_roundtrip_far_from_market(testnet):
     limits = adapter.fetch_market_limits(symbol)
     ticker = adapter.fetch_ticker(symbol)
 
-    # 50 persen di bawah harga pasar: tidak akan pernah terisi selama test berjalan.
-    price = _quantize(ticker.last * 0.5, limits.price_step, ROUND_DOWN)
+    # Jauh di bawah harga pasar tapi masih di dalam band PERCENT_PRICE_BY_SIDE exchange,
+    # dihitung dari filter yang dilaporkan exchange, bukan faktor tetap.
+    price = price_far_below_market(ticker.last, limits)
     min_cost = (limits.min_cost or 5.0) * 1.5
-    amount = _quantize(min_cost / price, limits.amount_step, ROUND_UP)
+    amount = quantize(min_cost / price, limits.amount_step, ROUND_UP)
     if limits.min_amount:
         amount = max(amount, limits.min_amount)
     client_order_id = f"tb-test-{uuid4().hex[:16]}"

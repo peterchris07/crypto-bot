@@ -38,6 +38,7 @@ class CcxtAdapter(CcxtBase):
 
     def _order_request(
         self,
+        symbol: str,
         order_type: OrderType,
         side: OrderSide,
         amount: float,
@@ -61,4 +62,4 @@ class CcxtAdapter(CcxtBase):
             symbol,
             {"clientOrderId": client_order_id},
         )
-        return self._parse_order(raw)
+        return self._parse_order(raw, lookup=f"client_order_id={client_order_id}")

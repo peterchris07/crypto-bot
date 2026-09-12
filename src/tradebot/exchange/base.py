@@ -7,7 +7,7 @@ Urutan pemakaian: buat adapter, panggil connect() sekali (cek jam, muat
 pasar), baru method lain. Method yang butuh kunci gagal lokal tanpa
 menyentuh jaringan kalau adapter dibuat tanpa kunci.
 
-Stop loss dua lapis (lihat SPEC.md addendum):
+Stop loss dua lapis (lihat SPEC.md, Keputusan Desain):
   lapis 1 sisi bot     runner memantau harga, kirim create_order MARKET
   lapis 2 sisi exchange create_order dengan OrderType.STOP_LOSS_LIMIT dan
                         stop_price, dipasang setelah posisi terbentuk. Stop
@@ -57,6 +57,8 @@ class MarketLimits:
     amount_step: float | None
     min_cost: float | None
     price_step: float | None
+    # Batas bawah band harga untuk bid (PERCENT_PRICE_BY_SIDE.bidMultiplierDown); None = tanpa band.
+    price_band_down: float | None = None
 
 
 @dataclass(frozen=True)
@@ -114,6 +116,22 @@ class Order:
     @property
     def remaining(self) -> float:
         return max(self.amount - self.filled, 0.0)
+
+
+@dataclass(frozen=True)
+class Trade:
+    """Satu eksekusi (fill). Sumber fee yang sebenarnya; respons order tidak selalu memuatnya."""
+
+    id: str | None
+    order_id: str | None
+    symbol: str
+    side: OrderSide
+    amount: float
+    price: float
+    cost: float
+    fee: float | None
+    fee_currency: str | None
+    timestamp: datetime | None
 
 
 class ExchangeAdapter(ABC):
@@ -188,3 +206,9 @@ class ExchangeAdapter(ABC):
         client_order_id: str | None = None,
     ) -> Order:
         """Cari satu order berdasarkan id exchange atau client_order_id. Dipakai rekonsiliasi."""
+
+    @abstractmethod
+    def fetch_my_trades(
+        self, symbol: str, *, since_ms: int | None = None, limit: int | None = None
+    ) -> list[Trade]:
+        """Eksekusi akun sendiri, untuk mengisi fee di ledger setelah order terisi."""

@@ -165,7 +165,7 @@ def test_connect_rejects_pair_without_required_order_types(exchange_config):
 
 def test_connect_rejects_spot_disabled(exchange_config):
     def disable(client):
-        client.markets["BTC/USDT"]["info"]["spotTradingEnable"] = False
+        client.markets["BTC/USDT"]["info"]["spotTradingEnable"] = 0  # server mengirim 0/1
 
     with pytest.raises(FatalExchangeError, match="spot trading dimatikan"):
         build(exchange_config, mutate_market=disable)
@@ -300,13 +300,54 @@ def test_fetch_order_by_client_id_scans_open_orders_then_history(exchange_config
         adapter.fetch_order("BTC/USDT", client_order_id="nope")
 
 
-def test_fetch_order_by_id_uses_order_id(exchange_config):
+def test_fetch_order_by_id_uses_detail_endpoint_not_order_list(exchange_config):
+    """Hipotesis review #6: ccxt fetch_order memakai daftar order tanpa symbol."""
     adapter, client, _ = trading(exchange_config)
     placed = adapter.create_order("BTC/USDT", OrderSide.BUY, OrderType.LIMIT, 0.01, price=40_000.0)
     found = adapter.fetch_order("BTC/USDT", order_id=placed.id)
-    args, _ = client.last_call("fetch_order")
-    assert args[0] == placed.id
     assert found.id == placed.id
+    assert client.count("fetch_order") == 0
+    args, _ = client.last_call("privateGetOpenV1OrdersDetail")
+    assert args[0]["orderId"] == placed.id
+
+
+def test_fetch_order_by_unknown_id_is_order_not_found(exchange_config):
+    adapter, _, _ = trading(exchange_config)
+    with pytest.raises(OrderNotFoundError, match="999"):
+        adapter.fetch_order("BTC/USDT", order_id="999")
+
+
+def test_history_scan_requests_all_order_types(exchange_config):
+    """Hipotesis review #9: tanpa type, semantik endpoint tidak terdokumentasi."""
+    adapter, client, _ = trading(exchange_config)
+    with pytest.raises(OrderNotFoundError):
+        adapter.fetch_order("BTC/USDT", client_order_id="nope")
+    args, _ = client.last_call("fetch_orders")
+    assert args[3].get("type") == -1
+
+
+def test_market_buy_uses_ticker_of_the_order_symbol(exchange_config):
+    """Hipotesis review #17."""
+    adapter, client, _ = trading(exchange_config)
+    client.markets["ETH/USDT"] = {
+        **client.markets["BTC/USDT"],
+        "symbol": "ETH/USDT",
+        "id": "ETH_USDT",
+    }
+    adapter.create_order("ETH/USDT", OrderSide.BUY, OrderType.MARKET, 0.5)
+    args, _ = client.last_call("fetch_ticker")
+    assert args[0] == "ETH/USDT"
+
+
+def test_tokocrypto_orders_carry_no_fee_but_trades_do(exchange_config):
+    """Hipotesis review #8: fee hanya tersedia lewat fetch_my_trades."""
+    adapter, _, _ = trading(exchange_config)
+    order = adapter.create_order("BTC/USDT", OrderSide.SELL, OrderType.MARKET, 0.02)
+    assert order.fee is None
+    trades = adapter.fetch_my_trades("BTC/USDT")
+    assert len(trades) == 1
+    assert trades[0].order_id == order.id
+    assert trades[0].fee == pytest.approx(order.cost * 0.0015)
 
 
 def test_public_adapter_refuses_private_calls(exchange_config):

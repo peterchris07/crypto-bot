@@ -56,7 +56,7 @@ CcxtAdapter untuk Binance (testnet lewat set_sandbox_mode; mainnet Binance masih
 
 Kedua adapter ccxt berbagi satu kerangka (retry, terjemahan error, cek jam, gerbang mainnet, pencatatan niat order) lewat kelas dasar, bukan lewat percabangan per-exchange di satu kelas.
 
-Gerbang dua kunci: klien mainnet berkunci hanya bisa dibuat lewat factory dalam mode live, dan mode live hanya lahir dari TRADING_MODE=live plus flag. Konstruksi langsung tanpa gerbang ditolak sebelum klien sempat dibuat.
+Gerbang dua kunci: konstruktor adapter menolak klien mainnet berkunci kecuali pemanggil secara eksplisit memberi allow_mainnet_trading=True, dan di dalam src/ hanya factory yang melakukannya, hanya dalam mode live, yang sendiri hanya lahir dari TRADING_MODE=live plus flag. Konstruksi langsung tanpa argumen itu ditolak sebelum klien sempat dibuat.
 
 ### Adapter Tokocrypto lebih defensif
 
@@ -101,10 +101,10 @@ TRADING_MODE punya tiga nilai: paper (default), testnet, live. Testnet tidak but
 ├── src/tradebot/
 │   ├── config.py            # YAML + .env + flag -> Settings, resolusi mode, dua venue
 │   ├── logging_setup.py     # console + file berputar, UTC, penyamar kunci
-│   ├── ledger.py            # CSV trade untuk rekonsiliasi dan pajak, append-only
+│   ├── ledger.py            # CSV trade dua fase (pending -> reconciled), append-only
 │   ├── exchange/
 │   │   ├── base.py          # interface ExchangeAdapter + tipe Order, Balance, Ticker, MarketLimits
-│   │   ├── errors.py        # RetryableError vs FatalError, OrderStateUnknownError
+│   │   ├── errors.py        # RetryableExchangeError vs FatalExchangeError, OrderStateUnknownError
 │   │   ├── ccxt_base.py     # kerangka bersama adapter ccxt
 │   │   ├── ccxt_adapter.py  # Binance (testnet, dan mainnet kalau diminta)
 │   │   ├── tokocrypto_adapter.py  # Tokocrypto mainnet, venue live
@@ -134,7 +134,7 @@ TRADING_MODE punya tiga nilai: paper (default), testnet, live. Testnet tidak but
 
 ### ExchangeAdapter (interface)
 
-Semua kode lain hanya bicara ke interface ini, tidak pernah langsung ke ccxt. Ini yang bikin pindah antara testnet, paper, dan live jadi sekadar ganti config, dan bikin pindah exchange jadi nulis satu file, bukan tulis ulang bot. Pindah dari Binance ke Tokocrypto membuktikan itu: yang ditulis adalah satu adapter baru, sisanya tidak berubah.
+Semua kode lain hanya bicara ke interface ini, tidak pernah langsung ke ccxt. Ini yang bikin pindah antara testnet, paper, dan live jadi sekadar ganti config, dan bikin pindah exchange jadi nulis satu file, bukan tulis ulang bot. Pindah dari Binance ke Tokocrypto menguji itu: yang ditulis adalah satu adapter baru, satu kelas dasar bersama, factory, dan skema config dua venue. Strategy, risk, dan backtest belum ada saat itu, jadi belum bisa diklaim tidak tersentuh.
 
 Method: connect, fetch_server_time_ms, fetch_market_limits, fetch_ohlcv, fetch_ticker, fetch_balance, create_order, cancel_order, cancel_all_orders, fetch_open_orders, fetch_order.
 
@@ -194,7 +194,11 @@ Tokocrypto (PT Aset Digital Berkat) berizin OJK sebagai Pedagang Aset Keuangan D
 * Pajak dipotong di sumber oleh Tokocrypto: PPh 22 final 0,21% atas penjualan aset kripto, dan di pasangan USDT/kripto dikenakan di kedua sisi. PPN atas aset kripto dihapus sejak 1 Agustus 2025 (PMK 50/2025). Sejak 1 Januari 2026 exchange melaporkan data agregat pengguna ke DJP (PMK 108/2025), jadi aktivitas bot ikut terlapor. Pelaporan tahunan tetap kewajiban saya.
 * Off-ramp ke IDR lewat penarikan bank biasa, bukan P2P.
 
-Ledger CSV tetap wajib dan tetap append-only, karena saya tetap butuh catatan sendiri untuk rekonsiliasi dengan laporan Tokocrypto. Kolom: timestamp, pair, sisi, jumlah, harga, nilai dalam quote currency, fee, dan fee currency. File ini bukan log debug; harus rapi, berurutan, dan tidak pernah ditimpa.
+Ledger CSV tetap wajib dan tetap append-only, karena saya tetap butuh catatan sendiri untuk rekonsiliasi dengan laporan Tokocrypto. Kolom: timestamp, pair, sisi, jumlah, harga, nilai dalam quote currency, fee, fee currency, order id, client order id, status fee, dan waktu pencatatan. File ini bukan log debug; harus rapi, berurutan, dan tidak pernah ditimpa.
+
+Ledger bekerja dua fase karena respons order Tokocrypto tidak memuat fee. Fase pertama: begitu order terisi, barisnya ditulis segera dengan fee kosong dan status pending. Fase kedua: rekonsiliasi lewat fetch_my_trades menjumlahkan fee per order dan menambahkan baris baru berstatus reconciled; baris lama tidak pernah diubah. Perintah ledger-status melaporkan berapa order yang masih pending, dan bot tidak pernah menyatakan ledger lengkap selama ada baris pending.
+
+Sumber: lisensi dari daftar OJK "Daftar Penyelenggara Perdagangan Aset Keuangan Digital Posisi 21 April 2026" dan siaran pers OJK SP 226/GKPB/OJK/XII/2025 (19 Desember 2025); migrasi bursa dan kliring dari pengumuman Tokocrypto "Pemeliharaan Sistem dan Migrasi Pengalihan Keanggotaan Bursa dan Kliring" (11 Juni 2026); pajak dari artikel DJP tentang PMK 50/2025 (31 Juli 2025) dan pengumuman Tokocrypto tentang penerapannya (31 Juli 2025); migrasi 31 pair IDR dari "API Integration Alert: IDR Migration Impacting 31 Trading Pairs" (14 November 2025). Semua diakses 12 September 2026.
 
 ## Definition of Done per Tahap
 

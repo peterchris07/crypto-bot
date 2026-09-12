@@ -60,6 +60,12 @@ uv run tradebot check-exchange
 
 Kalau jam mesin melenceng lebih dari batas di config, perintah gagal dengan pesan yang menyebut selisihnya dalam milidetik; sinkronkan jam sistem lalu ulangi. Kalau pair di config tidak ada lagi di venue, perintah gagal dengan pesan yang menyebut pair dan jumlah pasar per quote yang tersedia.
 
+Cek ledger trade: jumlah baris dan order yang fee-nya masih pending. Exit code bukan nol selama ada yang pending.
+
+```bash
+uv run tradebot ledger-status
+```
+
 Perintah fetch-data, backtest, backtest --stress, dan run ditambahkan di tahap berikutnya sesuai urutan di SPEC.md.
 
 ## Menjalankan test
@@ -80,7 +86,7 @@ uv run pytest -m "not network"
 
 Default di config/default.yaml adalah biaya Tokocrypto untuk pasangan USDT, dari artikel resmi Informasi Biaya Transaksi di Tokocrypto yang berlaku sejak 18 Juni 2026: taker 0,15 persen, PPh 22 final 0,21 persen yang dipungut di kedua sisi, dan biaya bursa ICEx 0,0444 persen. Jumlahnya 0,4044 persen per sisi, ditambah asumsi slippage 0,15 persen. Satu putaran masuk-keluar sekitar 1,11 persen. Angka fee ini realistis dari exchange, bukan margin aman. Yang pesimistis adalah perintah backtest --stress, yang menggandakan fee, biaya bursa, dan slippage; pajak tidak digandakan karena angkanya pasti.
 
-Komponen biaya bursa paling sering berubah, tiga kali dalam 2026 saja. Cek ulang setiap kali Tokocrypto mengumumkan penyesuaian biaya, dan perbarui komentar tanggal di config.
+Komponen biaya bursa paling sering berubah: untuk pasangan USDT 0,0444 persen sampai Februari 2026, turun ke 0,0222 persen pada 1 Maret 2026, lalu kembali ke 0,0444 persen pada 18 Juni 2026 saat pindah bursa. Cek ulang setiap kali Tokocrypto mengumumkan penyesuaian biaya, dan perbarui komentar tanggal di config.
 
 Semua backtest yang pernah memakai asumsi fee Binance (0,1 persen per sisi tanpa pajak dan biaya bursa) tidak berlaku lagi. Angka lamanya tinggal sebagai komentar di config.
 

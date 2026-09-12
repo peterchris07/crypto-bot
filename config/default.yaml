@@ -79,8 +79,9 @@ costs:
   # di kedua sisi (beli dan jual). Dasar: PMK 50/2025, berlaku 1 Agustus 2025.
   tax_rate: 0.0021
   # Biaya bursa dan kliring (ICEx fee) 0,0444% untuk pasangan USDT/kripto, berlaku 18 Juni 2026.
-  # Komponen yang paling sering berubah: 0,0222% -> 0,0111% (1 Mar 2026) -> 0,0222% (18 Jun 2026)
-  # untuk pasangan IDR; cek ulang setiap kali ada pengumuman biaya.
+  # Komponen yang paling sering berubah. Riwayat pasangan USDT: 0,0444% (sampai Feb 2026)
+  # -> 0,0222% (1 Mar 2026, CFX) -> 0,0444% (18 Jun 2026, ICEx). Pasangan IDR: 0,0222% -> 0,0111%
+  # -> 0,0222% pada tanggal yang sama. Cek ulang setiap kali ada pengumuman biaya.
   exchange_fee_rate: 0.000444
   # Dinaikkan dari asumsi Binance 0,1%. Buku BTC/USDT di Tokocrypto adalah buku Binance yang
   # dibagi, tapi venue berbeda dan eksekusinya belum diamati, jadi diberi ruang lebih.

@@ -13,6 +13,7 @@ from tradebot.exchange.base import (
     OrderStatus,
     OrderType,
     Ticker,
+    Trade,
 )
 from tradebot.exchange.errors import (
     AuthenticationError,
@@ -47,4 +48,5 @@ __all__ = [
     "RetryableExchangeError",
     "Ticker",
     "TimeDriftError",
+    "Trade",
 ]

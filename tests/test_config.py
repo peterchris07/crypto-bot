@@ -62,12 +62,12 @@ def test_unknown_mode_is_refused(env_value):
 
 
 def test_paper_needs_no_credentials():
-    assert load_credentials(TradingMode.PAPER, {}) is None
+    assert load_credentials(TradingMode.PAPER, {}, "tokocrypto") is None
 
 
 def test_testnet_missing_keys_names_the_variables():
     with pytest.raises(ConfigError) as exc:
-        load_credentials(TradingMode.TESTNET, {})
+        load_credentials(TradingMode.TESTNET, {}, "binance")
     message = str(exc.value)
     assert "BINANCE_TESTNET_API_KEY" in message
     assert "BINANCE_TESTNET_API_SECRET" in message
@@ -77,7 +77,7 @@ def test_testnet_missing_keys_names_the_variables():
 def test_live_missing_secret_only_names_the_secret():
     env = {"TOKOCRYPTO_API_KEY": "k" * 20}
     with pytest.raises(ConfigError) as exc:
-        load_credentials(TradingMode.LIVE, env)
+        load_credentials(TradingMode.LIVE, env, "tokocrypto")
     message = str(exc.value)
     assert "TOKOCRYPTO_API_SECRET" in message
     assert "TOKOCRYPTO_API_KEY " not in message
@@ -90,8 +90,8 @@ def test_testnet_and_live_use_different_variables():
         "TOKOCRYPTO_API_KEY": "tokocrypto-key-1234567890",
         "TOKOCRYPTO_API_SECRET": "tokocrypto-secret-1234567890",
     }
-    testnet = load_credentials(TradingMode.TESTNET, env)
-    live = load_credentials(TradingMode.LIVE, env)
+    testnet = load_credentials(TradingMode.TESTNET, env, "binance")
+    live = load_credentials(TradingMode.LIVE, env, "tokocrypto")
     assert testnet.api_key.startswith("testnet")
     assert live.api_key.startswith("tokocrypto")
 
@@ -311,4 +311,50 @@ def test_venue_market_data_url_must_be_https(project_dir: Path):
 def test_venue_id_must_not_be_empty(project_dir: Path):
     path = _write_config(project_dir, lambda raw: raw["exchange"]["testnet"].__setitem__("id", " "))
     with pytest.raises(ConfigError, match="exchange.testnet.id"):
+        load_settings(path, environ={})
+
+
+def test_credentials_follow_venue_not_mode():
+    """Hipotesis review #1: kunci Tokocrypto tidak boleh terkirim ke Binance mainnet."""
+    env = {
+        "TOKOCRYPTO_API_KEY": "toko-key-1234567890",
+        "TOKOCRYPTO_API_SECRET": "toko-secret-1234567890",
+        "BINANCE_API_KEY": "bnb-key-1234567890",
+        "BINANCE_API_SECRET": "bnb-secret-1234567890",
+    }
+    assert load_credentials(TradingMode.LIVE, env, "binance").api_key.startswith("bnb")
+    assert load_credentials(TradingMode.LIVE, env, "tokocrypto").api_key.startswith("toko")
+    with pytest.raises(ConfigError, match="BINANCE_API_KEY"):
+        load_credentials(TradingMode.LIVE, {k: v for k, v in env.items() if "TOKO" in k}, "binance")
+    with pytest.raises(ConfigError, match="tidak punya pemetaan"):
+        load_credentials(TradingMode.LIVE, env, "indodax")
+
+
+@pytest.mark.parametrize(
+    ("mutate", "fragment"),
+    [
+        (
+            lambda raw: raw["exchange"]["live"].__setitem__(
+                "market_data_url", "https://x.example/api/v3/"
+            ),
+            "berakhir",
+        ),
+        (lambda raw: raw["exchange"].__setitem__("timeframe", "1H"), "exchange.timeframe"),
+        (lambda raw: raw["exchange"].__setitem__("timeframe", ""), "exchange.timeframe"),
+        (lambda raw: raw["backtest"].__setitem__("bars_per_year", 365), "bars_per_year harus 8760"),
+        (lambda raw: raw["costs"].__setitem__("stress_multiplier", 20.0), "setelah stress"),
+        (lambda raw: raw["exchange"].__setitem__("recv_window_ms", 60000), "recv_window_ms"),
+        (
+            lambda raw: (
+                raw["exchange"].__setitem__("recv_window_ms", 5000)
+                or raw["exchange"].__setitem__("max_time_drift_ms", 4999)
+                or raw["exchange"].__setitem__("timeframe", "4h")
+            ),
+            "bars_per_year harus 2190",
+        ),
+    ],
+)
+def test_review_validations(project_dir: Path, mutate, fragment):
+    path = _write_config(project_dir, mutate)
+    with pytest.raises(ConfigError, match=fragment):
         load_settings(path, environ={})

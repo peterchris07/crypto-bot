@@ -77,3 +77,15 @@ def test_unknown_venue_id_is_fatal(project_dir: Path, config_path: Path):
     settings = load_settings(config_path, environ={})
     with pytest.raises(FatalExchangeError, match="indodax"):
         build_adapter(settings)
+
+
+def test_live_binance_venue_uses_binance_keys_not_tokocrypto(project_dir: Path, config_path: Path):
+    raw = yaml.safe_load(config_path.read_text())
+    raw["exchange"]["live"]["id"] = "binance"
+    raw["exchange"]["live"]["market_data_url"] = ""
+    config_path.write_text(yaml.safe_dump(raw))
+    (project_dir / ".env").write_text(
+        f"TRADING_MODE=live\nTOKOCRYPTO_API_KEY={KEY}\nTOKOCRYPTO_API_SECRET={SECRET}\n"
+    )
+    with pytest.raises(ConfigError, match="BINANCE_API_KEY"):
+        load_settings(config_path, environ={}, i_know_what_im_doing=True)

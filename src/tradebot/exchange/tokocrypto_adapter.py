@@ -86,7 +86,9 @@ class TokocryptoAdapter(CcxtBase):
                 f"mendukung jenis MBX ({MBX_MARKET_TYPE}) yang datanya di "
                 f"{self._venue.market_data_url}"
             )
-        if info.get("spotTradingEnable") is False:
+        # Server mengirim 0/1 (int atau string), bukan boolean.
+        spot_flag = str(info.get("spotTradingEnable", "1")).strip().lower()
+        if spot_flag in ("0", "false"):
             raise FatalExchangeError(f"pair {symbol!r}: spot trading dimatikan oleh Tokocrypto")
         advertised = {str(t).upper() for t in (info.get("orderTypes") or [])}
         if advertised:
@@ -123,6 +125,7 @@ class TokocryptoAdapter(CcxtBase):
 
     def _order_request(
         self,
+        symbol: str,
         order_type: OrderType,
         side: OrderSide,
         amount: float,
@@ -136,7 +139,7 @@ class TokocryptoAdapter(CcxtBase):
         if order_type is OrderType.MARKET:
             if side is OrderSide.BUY:
                 # Tokocrypto menerima market buy hanya dalam jumlah quote (quoteOrderQty).
-                ticker = self.fetch_ticker(self._exchange.symbol)
+                ticker = self.fetch_ticker(symbol)
                 reference = ticker.ask or ticker.last
                 params["cost"] = amount * reference
                 log.info(
@@ -144,7 +147,7 @@ class TokocryptoAdapter(CcxtBase):
                     amount,
                     reference,
                     params["cost"],
-                    self._exchange.quote,
+                    symbol.split("/", 1)[-1],
                 )
             return "market", None, params
         if order_type is OrderType.STOP_LOSS_LIMIT:
@@ -166,12 +169,38 @@ class TokocryptoAdapter(CcxtBase):
             return OrderType.LIMIT
         return super()._order_type_from_raw(raw)
 
+    def _fetch_order_by_id(self, symbol: str, order_id: str) -> Order:
+        """ccxt fetch_order Tokocrypto memakai endpoint daftar order tanpa symbol dan
+        mengembalikan order kosong kalau tidak ketemu. Endpoint detail (GET
+        /open/v1/orders/detail) menerima orderId langsung."""
+        detail = getattr(self._client, "privateGetOpenV1OrdersDetail", None)
+        if detail is None:
+            raise FatalExchangeError(
+                f"{self.name}: klien ccxt tidak punya privateGetOpenV1OrdersDetail; "
+                "struktur API ccxt tokocrypto berubah"
+            )
+        response = self._call("fetch_order_detail", detail, {"orderId": order_id})
+        data = (response or {}).get("data") if isinstance(response, dict) else None
+        if not data:
+            raise OrderNotFoundError(
+                f"order {order_id} tidak ditemukan di {symbol} (detail kosong)"
+            )
+        unified = self._client.parse_order(data)
+        return self._parse_order(unified, lookup=f"order_id={order_id}")
+
     def _fetch_order_by_client_id(self, symbol: str, client_order_id: str) -> Order:
         for order in self.fetch_open_orders(symbol):
             if order.client_order_id == client_order_id:
                 return order
+        # type -1 = semua order; tanpa parameter ini semantik endpoint tidak terdokumentasi.
+        # Urutan hasil belum diverifikasi dengan kunci asli.
         raw_history = self._call(
-            "fetch_orders", self._client.fetch_orders, symbol, None, ORDER_HISTORY_LIMIT
+            "fetch_orders",
+            self._client.fetch_orders,
+            symbol,
+            None,
+            ORDER_HISTORY_LIMIT,
+            {"type": -1},
         )
         for item in raw_history:
             order = self._parse_order(item)

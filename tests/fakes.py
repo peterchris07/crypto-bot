@@ -19,6 +19,18 @@ DEFAULT_MARKET: dict[str, Any] = {
         "cost": {"min": 5.0, "max": None},
         "price": {"min": 0.01, "max": 1_000_000.0},
     },
+    "info": {
+        "filters": [
+            {
+                "filterType": "PERCENT_PRICE_BY_SIDE",
+                "bidMultiplierUp": "5",
+                "bidMultiplierDown": "0.2",
+                "askMultiplierUp": "5",
+                "askMultiplierDown": "0.2",
+                "avgPriceMins": 5,
+            }
+        ]
+    },
 }
 
 BASE_MS = 1_700_000_000_000
@@ -58,6 +70,8 @@ class FakeCcxtClient:
         }
         self.open_orders: list[dict[str, Any]] = []
         self.orders: dict[str, dict[str, Any]] = {}
+        self.trades: list[dict[str, Any]] = []
+        self.last_response_headers: dict[str, str] = {}
         self._next_id = 1
 
     # -- alat test ---------------------------------------------------------
@@ -170,6 +184,10 @@ class FakeCcxtClient:
         self._record("fetch_open_orders", symbol)
         return [dict(o) for o in self.open_orders if symbol is None or o["symbol"] == symbol]
 
+    def fetch_my_trades(self, symbol=None, since=None, limit=None, params=None):
+        self._record("fetch_my_trades", symbol, since, limit)
+        return [dict(t) for t in self.trades if symbol is None or t["symbol"] == symbol]
+
     def fetch_order(self, id, symbol=None, params=None):
         params = dict(params or {})
         self._record("fetch_order", id, symbol, params)
@@ -204,7 +222,7 @@ TOKO_MARKET: dict[str, Any] = {
     "info": {
         "type": 1,
         "symbol": "BTC_USDT",
-        "spotTradingEnable": True,
+        "spotTradingEnable": 1,
         "orderTypes": [
             "LIMIT",
             "LIMIT_MAKER",
@@ -218,6 +236,11 @@ TOKO_MARKET: dict[str, Any] = {
             {"filterType": "PRICE_FILTER", "minPrice": "0.01000000", "tickSize": "0.01000000"},
             {"filterType": "LOT_SIZE", "minQty": "0.00001000", "stepSize": "0.00001000"},
             {"filterType": "NOTIONAL", "minNotional": "5.00000000", "maxNotional": "9000000"},
+            {
+                "filterType": "PERCENT_PRICE_BY_SIDE",
+                "bidMultiplierDown": "0.2",
+                "askMultiplierUp": "5",
+            },
         ],
     },
 }
@@ -280,21 +303,76 @@ class FakeTokocryptoClient(FakeCcxtClient):
             "filled": filled,
             "average": average,
             "cost": cost,
-            "fee": {"cost": cost * 0.0015, "currency": "USDT"} if is_market else None,
+            # ccxt tokocrypto tidak pernah mengisi fee: respons order tidak memuat fills.
+            "fee": None,
             "timestamp": self.server_time_ms,
             "info": {"type": type_code, "clientId": params.get("clientId"), "orderId": order_id},
         }
         self.orders[order_id] = order
         if status == "open":
             self.open_orders.append(order)
+        else:
+            self.trades.append(
+                {
+                    "id": f"t{order_id}",
+                    "order": order_id,
+                    "symbol": symbol,
+                    "side": side,
+                    "amount": filled,
+                    "price": average,
+                    "cost": cost,
+                    "fee": {"cost": cost * 0.0015, "currency": "USDT"},
+                    "timestamp": self.server_time_ms,
+                }
+            )
         return dict(order)
+
+    def fetch_order(self, id, symbol=None, params=None):
+        """Meniru ccxt tokocrypto: daftar order difilter orderId; kalau kosong, order kosong."""
+        params = dict(params or {})
+        self._record("fetch_order", id, symbol, params)
+        order = self.orders.get(str(id))
+        if order is None:
+            return {
+                key: None
+                for key in (
+                    "id",
+                    "clientOrderId",
+                    "symbol",
+                    "side",
+                    "type",
+                    "status",
+                    "amount",
+                    "price",
+                    "filled",
+                    "average",
+                    "cost",
+                    "fee",
+                    "timestamp",
+                )
+            } | {"info": {}}
+        return dict(order)
+
+    def privateGetOpenV1OrdersDetail(self, params=None):  # noqa: N802 (nama implicit ccxt)
+        params = dict(params or {})
+        self._record("privateGetOpenV1OrdersDetail", params)
+        order = self.orders.get(str(params.get("orderId")))
+        if order is None:
+            return {"code": 0, "msg": "Success", "data": None}
+        return {"code": 0, "msg": "Success", "data": dict(order["info"]) | {"symbol": "BTC_USDT"}}
+
+    def parse_order(self, raw, market=None):
+        """ccxt.parse_order: dari data mentah detail ke struktur unified."""
+        order = self.orders.get(str(raw.get("orderId")))
+        return dict(order) if order else {}
 
     def cancel_all_orders(self, symbol=None, params=None):
         self._record("cancel_all_orders", symbol)
         raise ccxt.NotSupported("tokocrypto cancelAllOrders() is not supported yet")
 
     def fetch_orders(self, symbol=None, since=None, limit=None, params=None):
-        self._record("fetch_orders", symbol, since, limit)
+        params = dict(params or {})
+        self._record("fetch_orders", symbol, since, limit, params)
         if symbol is None:
             raise ccxt.ArgumentsRequired("tokocrypto fetchOrders() requires a symbol argument")
         orders = [dict(o) for o in self.orders.values() if o["symbol"] == symbol]
