@@ -125,6 +125,16 @@ uv run tradebot run --iterations 10
 
 Loop berhenti sendiri hanya karena kill switch (exit code 6) atau error fatal. Setiap iterasi: cek file STOP, ambil harga dan saldo, cek batas rugi harian, cek stop lapis 1 dari harga, lalu satu keputusan per bar yang sudah tutup. Bar yang masih berjalan tidak pernah dipakai; bar yang stale atau datang setelah lubang data dilewati dan dicatat di log. Setiap order dicatat ke state/orders.jsonl sebelum dikirim; saat start, order yang jawabannya hilang dicari lewat client order id dan tidak pernah dikirim ulang. Catatan posisi (harga masuk, stop, target) dan bar terakhir yang sudah diputuskan ada di state/position.json, dicocokkan dengan saldo saat start; kalau catatan hilang, harga masuk diambil dari pembelian terakhir di ledger. Bot yang mulai di tengah jam tetap memutuskan bar yang baru tutup; yang disebut stale hanya bar yang belum diberikan exchange lebih lama dari live.stale_bar_tolerance_seconds. Jalankan paper beberapa hari, lalu bandingkan dengan backtest di periode yang sama lewat dua perintah di bawah.
 
+## Menjalankan dari Finder (file .command)
+
+Setiap perintah di atas juga tersedia sebagai file `.command` di root repo yang bisa dibuka dua kali klik dari Finder: status, preflight, paper-start, paper-stop, paper-checklist, compare-paper, backtest, fetch-data, tests, live-size. File-file itu TIDAK di-commit (dikecualikan lewat `.git/info/exclude`); yang di-commit adalah pemasangnya. Pasang atau tambah yang hilang dengan:
+
+```bash
+scripts/install-commands.sh
+```
+
+Pemasang melewati file yang sudah ada kecuali diberi `--force`. Kalau macOS menolak membuka, klik kanan lalu Open sekali. Detail di scripts/commands/README.md.
+
 ## Menjalankan paper berhari-hari di macOS
 
 Pilihan: LaunchAgent launchd yang menjalankan skrip supervisor, bukan nohup, karena launchd hidup lagi setelah login dan supervisor bisa memulai ulang bot yang mati karena error sementara tanpa pernah menimpa keputusan kill switch. Bot dibungkus `caffeinate -i -s` supaya Mac tidak tidur karena idle selama tersambung listrik, tetapi menutup tutup laptop TETAP membuat Mac tidur; caffeinate tidak bisa mencegahnya, jadi kalau tutupnya ingin ditutup, jalankan sekali `sudo pmset -a disablesleep 1` saat di listrik (kembalikan dengan `sudo pmset -a disablesleep 0`), atau biarkan tutupnya terbuka.
