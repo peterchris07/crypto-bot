@@ -371,10 +371,17 @@ def test_tokocrypto_orders_carry_no_fee_but_trades_do(exchange_config):
 
 
 def test_public_adapter_refuses_private_calls(exchange_config):
+    """Sifat yang sama diuji di jaringan sungguhan oleh test_tokocrypto_public_network."""
     adapter, client, _ = build(exchange_config)
     with pytest.raises(FatalExchangeError, match="kunci"):
         adapter.create_order("BTC/USDT", OrderSide.BUY, OrderType.MARKET, 0.01)
+    with pytest.raises(FatalExchangeError, match="kunci"):
+        adapter.fetch_balance()
+    with pytest.raises(FatalExchangeError, match="kunci"):
+        adapter.fetch_my_trades("BTC/USDT")
     assert client.count("create_order") == 0
+    assert client.count("fetch_balance") == 0
+    assert client.count("fetch_my_trades") == 0
 
 
 def test_retry_config_is_shared_with_base(exchange_config):

@@ -169,7 +169,7 @@ uv run pytest
 
 Test yang butuh kunci testnet ditandai testnet. Kalau kunci belum ada di .env, test itu dilewati, dan di akhir run selalu tercetak ringkasan berapa yang dilewati dan alasannya. Hasil hijau tanpa membaca ringkasan itu tidak berarti semuanya teruji. Salah satu test testnet memasang limit order jauh di bawah harga pasar lalu membatalkannya; uang testnet palsu, dan kalau test gagal di tengah order itu tetap dibersihkan.
 
-Test yang memanggil endpoint publik Tokocrypto sungguhan ditandai network. Salah satunya, test tahap 3, mengunduh satu tahun penuh BTC/USDT 1h ke folder sementara, lalu menanyakan ulang setiap gap yang dilaporkan langsung ke exchange: gap hanya sah kalau exchange memang tidak punya bar di rentang itu, jadi bar yang dijatuhkan fetcher sendiri akan ketahuan. Saat bekerja offline, lewati dengan:
+Test yang memanggil endpoint publik Tokocrypto sungguhan ditandai network. Di awal sesi pytest mengecek sekali apakah host Tokocrypto terjangkau lewat jalur HTTP yang sama dengan ccxt; kalau tidak, test network ditandai GAGAL DIJALANKAN dan dilaporkan di bagian merah tersendiri, terpisah dari yang dilewati karena kunci, karena angka "passed" tidak pernah mencakupnya. Baris ringkasan pytest sendiri tetap menghitungnya sebagai skipped; bagian di atasnya yang membedakan. Salah satunya, test tahap 3, mengunduh satu tahun penuh BTC/USDT 1h ke folder sementara, lalu menanyakan ulang setiap gap yang dilaporkan langsung ke exchange: gap hanya sah kalau exchange memang tidak punya bar di rentang itu, jadi bar yang dijatuhkan fetcher sendiri akan ketahuan. Saat bekerja offline, lewati dengan:
 
 ```bash
 uv run pytest -m "not network"

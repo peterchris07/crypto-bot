@@ -1,10 +1,17 @@
 """Fixture bersama dan aturan pytest untuk seluruh project.
 
-Dua hal yang diatur di sini:
+Tiga hal yang diatur di sini:
 
-1. Test bertanda @pytest.mark.testnet dilewati kalau kunci testnet tidak ada.
-2. Test yang dilewati tidak boleh tersembunyi di balik hasil hijau: di akhir
-   run selalu dicetak ringkasan berapa yang dilewati dan kenapa.
+1. Test bertanda @pytest.mark.testnet atau @pytest.mark.tokocrypto dilewati kalau
+   kuncinya tidak ada.
+2. Test bertanda @pytest.mark.network ditandai GAGAL DIJALANKAN kalau host
+   Tokocrypto tidak terjangkau dari mesin ini (diperiksa sekali di awal sesi
+   lewat jalur HTTP yang sama dengan ccxt). Ini bukan skip kunci dan bukan lulus:
+   di container tanpa jaringan, suite pernah tampak hijau padahal test jaringan
+   yang rusak tidak pernah dijalankan.
+3. Apa pun yang tidak dijalankan tidak boleh tersembunyi di balik hasil hijau:
+   di akhir run selalu dicetak ringkasan terpisah untuk skip kunci, gagal
+   dijalankan karena jaringan, dan test network yang tidak dipilih (-m).
 """
 
 from __future__ import annotations
@@ -101,6 +108,27 @@ MINIMAL_CONFIG = textwrap.dedent(
 ).lstrip()
 
 
+NETWORK_PROBE_URLS = (
+    "https://www.tokocrypto.com/open/v1/common/time",
+    "https://www.tokocrypto.site/api/v3/time",
+)
+NETWORK_UNREACHABLE_PREFIX = "GAGAL DIJALANKAN karena jaringan: "
+
+
+def network_unreachable_reason() -> str | None:
+    """None kalau semua host bisa dihubungi lewat jalur yang sama dengan ccxt (requests,
+    proxy dan CA dari environment). Kalau tidak, satu kalimat penyebabnya."""
+    import requests
+
+    for url in NETWORK_PROBE_URLS:
+        try:
+            requests.get(url, timeout=8)
+        except requests.RequestException as exc:
+            detail = str(exc).splitlines()[0]
+            return f"{url} tidak terjangkau dari mesin ini ({type(exc).__name__}: {detail[:160]})"
+    return None
+
+
 def keys_present(names: tuple[str, ...]) -> bool:
     """Apakah semua variabel ada di .env project atau environment proses. Nilai tidak dicetak."""
     from_file = {}
@@ -124,22 +152,66 @@ def pytest_collection_modifyitems(config: pytest.Config, items: list[pytest.Item
             if item.get_closest_marker(marker_name) is not None:
                 item.add_marker(skip)
 
+    network_items = [item for item in items if item.get_closest_marker("network") is not None]
+    if network_items:
+        reason = network_unreachable_reason()
+        config.stash[NETWORK_REASON_KEY] = reason
+        if reason is not None:
+            skip = pytest.mark.skip(reason=NETWORK_UNREACHABLE_PREFIX + reason)
+            for item in network_items:
+                item.add_marker(skip)
+
+
+NETWORK_REASON_KEY = pytest.StashKey[str | None]()
+
 
 def pytest_terminal_summary(terminalreporter, exitstatus: int, config: pytest.Config) -> None:
     skipped = terminalreporter.stats.get("skipped", [])
-    if not skipped:
-        return
-    reasons: Counter[str] = Counter()
+    deselected = terminalreporter.stats.get("deselected", [])
+    key_reasons: Counter[str] = Counter()
+    network_reasons: Counter[str] = Counter()
     for report in skipped:
         longrepr = report.longrepr
         reason = longrepr[2] if isinstance(longrepr, tuple) else str(longrepr)
-        reasons[reason.removeprefix("Skipped: ")] += 1
-    terminalreporter.section("PERHATIAN: ada test yang dilewati", sep="=", yellow=True, bold=True)
-    terminalreporter.write_line(
-        f"{len(skipped)} test dilewati. Hasil hijau di atas TIDAK mencakup test ini."
+        reason = reason.removeprefix("Skipped: ")
+        if reason.startswith(NETWORK_UNREACHABLE_PREFIX):
+            network_reasons[reason.removeprefix(NETWORK_UNREACHABLE_PREFIX)] += 1
+        else:
+            key_reasons[reason] += 1
+    network_deselected = sum(
+        1
+        for item in deselected
+        if getattr(item, "get_closest_marker", None)
+        and item.get_closest_marker("network") is not None
     )
-    for reason, count in reasons.most_common():
-        terminalreporter.write_line(f"  {count} test: {reason}")
+
+    if network_reasons:
+        total = sum(network_reasons.values())
+        terminalreporter.section(
+            "PERHATIAN: test GAGAL DIJALANKAN karena jaringan", sep="=", red=True, bold=True
+        )
+        terminalreporter.write_line(
+            f"{total} test network TIDAK dijalankan: host tidak terjangkau dari mesin ini. "
+            "Ini bukan lulus dan bukan skip kunci; hasilnya belum diketahui."
+        )
+        for reason, count in network_reasons.most_common():
+            terminalreporter.write_line(f"  {count} test: {reason}")
+    if key_reasons:
+        total = sum(key_reasons.values())
+        terminalreporter.section(
+            "PERHATIAN: ada test yang dilewati", sep="=", yellow=True, bold=True
+        )
+        terminalreporter.write_line(
+            f"{total} test dilewati karena kunci. Hasil hijau di atas TIDAK mencakup test ini."
+        )
+        for reason, count in key_reasons.most_common():
+            terminalreporter.write_line(f"  {count} test: {reason}")
+    if network_deselected:
+        terminalreporter.section("test network tidak dipilih", sep="-", yellow=True)
+        terminalreporter.write_line(
+            f"{network_deselected} test network tidak dipilih (-m). Jalankan tanpa -m untuk "
+            "hasil sungguhan di mesin yang punya jaringan ke Tokocrypto."
+        )
 
 
 @pytest.fixture(autouse=True)
