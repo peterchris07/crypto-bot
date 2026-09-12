@@ -122,7 +122,7 @@ def _backtest(settings: Settings, start: str | None, end: str | None, stress: bo
     from tradebot.backtest import format_report, run_backtest
     from tradebot.data.cache import OhlcvCache
     from tradebot.data.errors import DataError
-    from tradebot.data.ohlcv import parse_utc_ms, stamp_of
+    from tradebot.data.ohlcv import parse_utc_ms, stamp_of, timeframe_to_ms
     from tradebot.risk import RiskError, RiskManager
     from tradebot.strategy import build_strategy
 
@@ -145,21 +145,35 @@ def _backtest(settings: Settings, start: str | None, end: str | None, stress: bo
     if bars.empty:
         print(f"DATA ERROR: cache {path} belum ada; jalankan fetch-data dulu", file=sys.stderr)
         return EXIT_DATA_ERROR
-    if start_ms is not None:
-        bars = bars[bars["timestamp"] >= stamp_of(start_ms)]
-    if end_ms is not None:
-        bars = bars[bars["timestamp"] < stamp_of(end_ms)]
-    bars = bars.reset_index(drop=True)
-    if len(bars) < 2:
-        print(
-            f"DATA ERROR: hanya {len(bars)} bar di periode yang diminta; butuh minimal 2",
-            file=sys.stderr,
-        )
-        return EXIT_DATA_ERROR
-
     costs = settings.costs.stressed() if stress else settings.costs
     strategy = build_strategy(settings.strategy)
     risk = RiskManager(settings.risk, costs)
+    if start_ms is not None:
+        # Sertakan lookback_bars bar SEBELUM --start sebagai warmup, supaya periode yang
+        # diminta bisa diperdagangkan penuh oleh strategi maupun buy-and-hold.
+        warmup_ms = strategy.lookback_bars * timeframe_to_ms(timeframe)
+        bars = bars[bars["timestamp"] >= stamp_of(start_ms - warmup_ms)]
+    if end_ms is not None:
+        bars = bars[bars["timestamp"] < stamp_of(end_ms)]
+    bars = bars.reset_index(drop=True)
+    warmup = max(1, strategy.lookback_bars)
+    if len(bars) <= warmup:
+        print(
+            f"DATA ERROR: hanya {len(bars)} bar di periode yang diminta (termasuk warmup); "
+            f"butuh lebih dari {warmup}",
+            file=sys.stderr,
+        )
+        return EXIT_DATA_ERROR
+    if start_ms is not None:
+        before = int((bars["timestamp"] < stamp_of(start_ms)).sum())
+        if before < strategy.lookback_bars:
+            shifted = bars["timestamp"].iloc[warmup]
+            print(
+                f"PERINGATAN: hanya {before} bar sebelum --start untuk warmup "
+                f"{strategy.lookback_bars} bar; bar pertama yang diperdagangkan bergeser ke "
+                f"{shifted.isoformat()}",
+                file=sys.stderr,
+            )
     try:
         result = run_backtest(
             bars,

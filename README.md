@@ -87,6 +87,8 @@ uv run tradebot backtest --start 2026-01-01 --end 2026-07-01
 
 `--stress` menggandakan fee, biaya bursa, dan slippage dengan costs.stress_multiplier; pajak tetap. Kalau strategi hanya untung di angka default, laporan --stress yang memberi tahu. Cache yang belum ada berarti exit code 5 dengan pesan untuk menjalankan fetch-data dulu.
 
+Strategi butuh jendela warmup (250 bar untuk EMA 20/50 dengan pengali 5) sebelum bisa memberi sinyal. Perintah backtest menyertakan bar sebanyak itu sebelum --start, dan buy-and-hold masuk di bar pertama yang bisa diperdagangkan strategi, bukan di bar pertama data, supaya pembandingnya adil. Kalau histori sebelum --start tidak cukup, bar pertama yang diperdagangkan bergeser dan ada peringatan di stderr. Bar yang datang setelah lubang data tidak mendapat keputusan strategi, sama seperti runner live nanti, dan jumlahnya dicetak di laporan.
+
 Perintah run ditambahkan di tahap 7 sesuai urutan di SPEC.md.
 
 ## Menjalankan test

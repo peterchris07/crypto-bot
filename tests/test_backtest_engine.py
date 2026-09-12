@@ -321,3 +321,95 @@ def test_equity_curve_marks_open_position_to_close(settings):
     # close naik 100 -> 101 -> 102: equity ikut naik sampai ditutup di close terakhir
     assert curve.iloc[2] > curve.iloc[1]
     assert curve.iloc[3] == pytest.approx(result.final_equity)
+
+
+# --------------------------------------------------------------------------- #
+# Temuan review: gap harga menembus level, warmup adil, bar bolong, hitungan tangan
+# --------------------------------------------------------------------------- #
+
+
+class Lookback(Always):
+    def __init__(self, signal: Signal, lookback: int) -> None:
+        super().__init__(signal, name="lookback")
+        self._lookback = lookback
+
+    @property
+    def lookback_bars(self) -> int:
+        return self._lookback
+
+
+def test_gap_down_through_stop_fills_at_open_not_at_stop(settings):
+    # masuk di open bar 2 (100), stop 98.15; bar 3 dibuka 90: bot live jual di sekitar open
+    ohlc = [(100, 100, 100, 100), (100, 100, 100, 100), (100, 101, 99, 100), (90, 92, 88, 91)]
+    ohlc += [(91, 91, 91, 91)] * 2
+    result = run(
+        bars_from(ohlc), Scripted({2: Signal.LONG, 3: Signal.LONG, 4: Signal.FLAT}), settings
+    )
+    trade = result.trades[0]
+    assert trade.exit_reason is ExitReason.STOP_LOSS
+    assert trade.exit_price == pytest.approx(90 * (1 - settings.costs.slippage_rate))
+    assert trade.exit_price <= 92, "fill tidak boleh di harga yang tidak pernah ada di bar"
+
+
+def test_gap_up_through_target_fills_at_open_not_at_target(settings):
+    ohlc = [(100, 100, 100, 100), (100, 100, 100, 100), (100, 101, 99, 100), (110, 112, 109, 111)]
+    ohlc += [(111, 111, 111, 111)] * 2
+    result = run(
+        bars_from(ohlc), Scripted({2: Signal.LONG, 3: Signal.LONG, 4: Signal.LONG}), settings
+    )
+    trade = result.trades[0]
+    assert trade.exit_reason is ExitReason.TAKE_PROFIT
+    assert trade.exit_price == pytest.approx(110 * (1 - settings.costs.slippage_rate))
+    assert trade.exit_price >= 109
+
+
+def test_benchmark_starts_at_first_tradable_bar_after_warmup(settings):
+    closes = [100.0 + i for i in range(12)]
+    bars = bars_from([(c, c + 1, c - 1, c) for c in closes])
+    strategy = Lookback(Signal.LONG, lookback=5)
+    result = run(bars, strategy, settings, risk_config=all_in_no_stops(settings))
+    assert result.warmup_bars == 5
+    assert result.tradable_start == bars["timestamp"].iloc[5]
+    assert result.trades[0].entry_time == bars["timestamp"].iloc[5]
+    assert result.equity_curve.index[0] == bars["timestamp"].iloc[4]
+    assert len(result.equity_curve) == 12 - 4
+    # buy-and-hold masuk di bar yang sama, jadi always-LONG tetap identik dengannya
+    assert result.final_equity == pytest.approx(result.benchmark_final_equity)
+    assert result.raw_price_return == pytest.approx(closes[-1] / closes[5] - 1)
+    with pytest.raises(ValueError, match="warmup"):
+        run(bars.iloc[:5], strategy, settings)
+
+
+def test_bar_after_data_hole_gets_no_decision_and_holding_is_time_based(settings):
+    rows = [[T0 + i * HOUR, 100.0, 101.0, 99.0, 100.0, 10.0] for i in range(4)]
+    rows += [
+        [T0 + (i + 9) * HOUR, 100.0, 101.0, 99.0, 100.0, 10.0] for i in range(4)
+    ]  # lubang 5 jam
+    bars = frame_from_rows(rows)
+    strategy = Scripted({2: Signal.LONG, 3: Signal.LONG, 4: Signal.FLAT, 5: Signal.FLAT})
+    result = run(bars, strategy, settings, risk_config=all_in_no_stops(settings))
+    # keputusan untuk bar indeks 4 (bar pertama setelah lubang) dilewati: FLAT dari skrip
+    # len=4 tidak pernah ditanyakan, jadi posisi baru ditutup di open bar indeks 5.
+    assert result.bars_after_gap == 1
+    assert len(strategy.seen) == 6  # 7 bar keputusan (indeks 1..7) dikurangi satu yang dilewati
+    assert bars["timestamp"].iloc[3] not in strategy.seen[3:]  # frame len=4 tidak pernah diminta
+    trade = result.trades[0]
+    assert trade.entry_time == bars["timestamp"].iloc[2]  # T0+2h
+    assert trade.exit_time == bars["timestamp"].iloc[5]  # T0+10h
+    assert trade.bars_held == 8, "dari selisih waktu (8 jam), bukan 3 baris"
+
+
+def test_always_long_final_equity_hand_computed(settings):
+    ohlc = [(100, 100, 100, 100), (100, 100, 100, 100), (100, 110, 100, 110), (110, 120, 110, 120)]
+    result = run(
+        bars_from(ohlc), Always(Signal.LONG), settings, risk_config=all_in_no_stops(settings)
+    )
+    c = settings.costs
+    equity0 = settings.backtest.initial_equity
+    fill_in = 100 * (1 + c.slippage_rate)
+    amount = equity0 / (fill_in * (1 + c.total_fee_rate))
+    cash_after_buy = equity0 - amount * fill_in * (1 + c.total_fee_rate)
+    fill_out = 120 * (1 - c.slippage_rate)
+    expected = cash_after_buy + amount * fill_out * (1 - c.total_fee_rate)
+    assert result.final_equity == pytest.approx(expected)
+    assert cash_after_buy == pytest.approx(0.0, abs=1e-9)

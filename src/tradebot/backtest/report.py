@@ -34,8 +34,10 @@ def format_report(result: BacktestResult, *, stressed: bool) -> str:
     lines = [
         f"backtest {result.symbol} {result.timeframe}: {result.start.isoformat()} .. "
         f"{result.end.isoformat()} ({result.bars} bar)",
-        f"strategi: {result.strategy_name}, jendela {result.lookback_bars} bar "
-        f"(keputusan pertama setelah jendela penuh)",
+        f"strategi: {result.strategy_name}, jendela {result.lookback_bars} bar; warmup "
+        f"{result.warmup_bars} bar, bar pertama yang diperdagangkan (strategi maupun "
+        f"buy-and-hold) {result.tradable_start.isoformat()}",
+        f"bar setelah lubang data, tanpa keputusan strategi: {result.bars_after_gap}",
         f"biaya per sisi{' (STRESS)' if stressed else ''}: fee {c.taker_fee_rate:.4%} + pajak "
         f"{c.tax_rate:.4%} + bursa {c.exchange_fee_rate:.4%} + slippage {c.slippage_rate:.4%} "
         f"= {c.cost_per_side_rate:.4%}; all-in per putaran {c.round_trip_rate:.4%}",

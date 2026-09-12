@@ -63,14 +63,38 @@ def test_backtest_stress_reports_doubled_costs(project_dir: Path, config_path: P
 
 def test_backtest_period_slicing_and_too_few_bars(project_dir: Path, config_path: Path, capsys):
     write_cache(project_dir)
+    # cache dimulai 2023-11-14T22:00; --start 300 bar kemudian, --end 120 bar setelahnya
     code = cli.main(
-        ["--config", str(config_path), "backtest", "--start", "2023-11-15", "--end", "2023-11-20"]
+        [
+            "--config",
+            str(config_path),
+            "backtest",
+            "--start",
+            "2023-11-27T10:00:00Z",
+            "--end",
+            "2023-12-02T10:00:00Z",
+        ]
     )
     out = capsys.readouterr().out
+    assert code == cli.EXIT_OK, out
+    # 250 bar warmup disertakan sebelum --start; periode yang diperdagangkan tetap dari --start
+    assert "2023-11-17T00:00:00+00:00 .. 2023-12-02T09:00:00+00:00 (370 bar)" in out
+    assert (
+        "bar pertama yang diperdagangkan (strategi maupun buy-and-hold) "
+        "2023-11-27T10:00:00+00:00" in out
+    )
+    assert "bar setelah lubang data, tanpa keputusan strategi: 0" in out
+    # --start terlalu dekat awal cache: warmup tidak cukup; jalan, tapi pergeserannya dilaporkan
+    code = cli.main(["--config", str(config_path), "backtest", "--start", "2023-11-15"])
+    captured = capsys.readouterr()
     assert code == cli.EXIT_OK
-    assert "2023-11-15T00:00:00+00:00 .. 2023-11-19T23:00:00+00:00 (120 bar)" in out
+    assert "PERINGATAN: hanya 2 bar sebelum --start untuk warmup 250 bar" in captured.err
+    assert "bergeser ke 2023-11-25T08:00:00+00:00" in captured.err
+    assert "bar pertama yang diperdagangkan (strategi maupun buy-and-hold) 2023-11-25T08:00:00" in (
+        captured.out
+    )
     code = cli.main(["--config", str(config_path), "backtest", "--start", "2030-01-01"])
     assert code == cli.EXIT_DATA_ERROR
-    assert "minimal 2" in capsys.readouterr().err
+    assert "warmup" in capsys.readouterr().err
     code = cli.main(["--config", str(config_path), "backtest", "--start", "kemarin"])
     assert code == cli.EXIT_CONFIG_ERROR
