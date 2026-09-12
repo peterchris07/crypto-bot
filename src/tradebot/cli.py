@@ -280,6 +280,26 @@ def _status(settings: Settings) -> int:
         print(f"proses: supervisor pid {pid} {'HIDUP' if alive else 'MATI (pid file basi)'}")
     else:
         print("proses: supervisor tidak berjalan (tidak ada state/paper_supervisor.pid)")
+    supervisor_state = root / "state" / "paper_supervisor.json"
+    if supervisor_state.exists():
+        try:
+            sup = json.loads(supervisor_state.read_text(encoding="utf-8"))
+            restarts = int(sup.get("restarts", 0))
+            last_exit = sup.get("last_exit_code")
+            line = (
+                f"supervisor: mulai ulang {restarts} kali (batas {sup.get('max_restarts')}), "
+                f"terakhir {sup.get('last_restart') or 'tidak pernah'}, exit terakhir "
+                f"{'belum ada' if last_exit is None else last_exit}, mulai "
+                f"{sup.get('started_at')}, {'berjalan' if sup.get('running') else 'berhenti'}"
+            )
+            if restarts > 0:
+                line += (
+                    "; PERHATIAN: mulai ulang berarti bot pernah mati karena error, "
+                    "lihat logs/paper.out"
+                )
+            print(line)
+        except (OSError, ValueError) as exc:
+            print(f"supervisor: state tidak terbaca ({exc})")
     if settings.stop_file_path.exists():
         print(f"proses: file STOP ada di {settings.stop_file_path}; bot tidak akan jalan")
     log_file = root / settings.logging.dir / "tradebot.log"

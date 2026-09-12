@@ -191,5 +191,26 @@ def test_status_combines_everything_in_one_command(
     assert code == cli.EXIT_OK
     assert "MATI (pid file basi)" in out
     assert "file STOP ada" in out
+    # hitungan mulai ulang supervisor terlihat tanpa membaca log
+    import json
+
+    (project_dir / "state" / "paper_supervisor.json").write_text(
+        json.dumps(
+            {
+                "started_at": "2026-09-12T10:00:00Z",
+                "restarts": 3,
+                "max_restarts": 10,
+                "last_restart": "2026-09-12T12:34:56Z",
+                "last_exit_code": 3,
+                "updated_at": "2026-09-12T12:34:56Z",
+                "running": True,
+            }
+        )
+    )
+    code = cli.main(["--config", str(config_path), "status"])
+    out = capsys.readouterr().out
+    assert code == cli.EXIT_OK
+    assert "supervisor: mulai ulang 3 kali (batas 10), terakhir 2026-09-12T12:34:56Z" in out
+    assert "exit terakhir 3" in out and "PERHATIAN: mulai ulang" in out
     assert "akun paper: 1000.0000 USDT" in out
     assert "log terakhir:" in out
