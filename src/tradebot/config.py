@@ -27,7 +27,7 @@ from typing import Any, TypeVar, get_type_hints
 import yaml
 from dotenv import dotenv_values
 
-from tradebot.data.ohlcv import timeframe_to_ms
+from tradebot.data.ohlcv import parse_utc_ms, timeframe_to_ms
 
 MODE_ENV_VAR = "TRADING_MODE"
 LIVE_FLAG = "--i-know-what-im-doing"
@@ -465,6 +465,11 @@ def validate(settings: Settings) -> None:
     )
 
     _check(d.max_gap_bars >= 0, "data.max_gap_bars harus >= 0")
+    _check(bool(d.cache_dir.strip()), "data.cache_dir tidak boleh kosong")
+    try:
+        parse_utc_ms(d.history_start)
+    except ValueError as exc:
+        raise ConfigError(f"data.history_start: {exc}") from None
     _check(b.initial_equity > 0, "backtest.initial_equity harus > 0")
     _check(b.bars_per_year >= 1, "backtest.bars_per_year harus >= 1")
     _check(lv.loop_interval_seconds >= 1, "live.loop_interval_seconds harus >= 1")

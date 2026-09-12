@@ -1,7 +1,8 @@
 """Titik masuk command line.
 
-Perintah yang ada sejauh ini: check-config (tahap 1) dan check-exchange
-(tahap 2). fetch-data, backtest, dan run ditambahkan di tahap berikutnya.
+Perintah yang ada sejauh ini: check-config (tahap 1), check-exchange dan
+ledger-status (tahap 2), fetch-data (tahap 3). backtest dan run ditambahkan di
+tahap berikutnya.
 Flag --i-know-what-im-doing hanya ada pada perintah yang bisa menyentuh
 exchange dengan kunci; keberadaannya tidak pernah cukup sendiri,
 TRADING_MODE=live juga harus ada.
@@ -27,6 +28,8 @@ from tradebot.logging_setup import log_startup_banner, setup_logging
 EXIT_OK = 0
 EXIT_CONFIG_ERROR = 2
 EXIT_EXCHANGE_ERROR = 3
+EXIT_LEDGER_PENDING = 4
+EXIT_DATA_ERROR = 5
 
 
 def _add_live_flag(parser: argparse.ArgumentParser) -> None:
@@ -71,6 +74,27 @@ def build_parser() -> argparse.ArgumentParser:
         "ledger-status",
         help="Laporkan ledger trade: jumlah baris, order yang fee-nya masih pending.",
     )
+
+    fetch = sub.add_parser(
+        "fetch-data",
+        help=(
+            "Unduh OHLCV historis dari data publik venue live ke cache parquet di data.cache_dir. "
+            "Tidak butuh kunci, tidak peduli mode. Inkremental: hanya bar yang belum ada."
+        ),
+    )
+    fetch.add_argument(
+        "--start",
+        default=None,
+        help="Awal rentang, tanggal ISO UTC (contoh 2025-09-01). Default: data.history_start.",
+    )
+    fetch.add_argument(
+        "--end",
+        default=None,
+        help=(
+            "Akhir rentang (eksklusif), tanggal ISO UTC. Default dan batas atas: bar yang sedang "
+            "berjalan menurut jam server; bar itu tidak pernah disimpan."
+        ),
+    )
     return parser
 
 
@@ -89,7 +113,73 @@ def _ledger_status(settings: Settings) -> int:
             f"@ {row['price']} ({row['timestamp']})"
         )
     print("status: LENGKAP" if ledger.is_complete() else "status: BELUM LENGKAP, ada fee pending")
-    return EXIT_OK if ledger.is_complete() else 4
+    return EXIT_OK if ledger.is_complete() else EXIT_LEDGER_PENDING
+
+
+def _fetch_data(settings: Settings, start: str | None, end: str | None) -> int:
+    from tradebot.data.cache import OhlcvCache
+    from tradebot.data.errors import DataError
+    from tradebot.data.fetch import update_cache
+    from tradebot.data.ohlcv import parse_utc_ms
+    from tradebot.exchange.errors import ExchangeError
+    from tradebot.exchange.factory import build_public_adapter
+
+    symbol = settings.exchange.symbol
+    timeframe = settings.exchange.timeframe
+    venue_id = settings.exchange.live.id
+    try:
+        start_ms = parse_utc_ms(start if start is not None else settings.data.history_start)
+        end_requested_ms = parse_utc_ms(end) if end is not None else None
+    except ValueError as exc:
+        print(f"CONFIG ERROR: {exc}", file=sys.stderr)
+        return EXIT_CONFIG_ERROR
+
+    try:
+        adapter = build_public_adapter(settings)
+        adapter.connect()
+        server_now_ms = adapter.fetch_server_time_ms()
+        # Batas atas selalu jam server: --end di masa depan tidak boleh melahirkan gap palsu.
+        end_ms = min(end_requested_ms, server_now_ms) if end_requested_ms else server_now_ms
+        cache = OhlcvCache(settings.root / settings.data.cache_dir)
+        report = update_cache(
+            adapter,
+            cache,
+            venue_id=venue_id,
+            symbol=symbol,
+            timeframe=timeframe,
+            start_ms=start_ms,
+            end_ms=end_ms,
+            max_gap_bars=settings.data.max_gap_bars,
+        )
+    except ExchangeError as exc:
+        print(f"EXCHANGE ERROR: {exc}", file=sys.stderr)
+        return EXIT_EXCHANGE_ERROR
+    except DataError as exc:
+        print(f"DATA ERROR: {exc}", file=sys.stderr)
+        return EXIT_DATA_ERROR
+
+    print(f"venue: {adapter.name} (data publik, tanpa kunci)")
+    print(f"pasangan: {symbol} {timeframe}")
+    print(
+        f"rentang diminta: {report.requested_start.isoformat()} .. "
+        f"{report.requested_end.isoformat()} (eksklusif)"
+    )
+    print(f"cache: {report.path}")
+    print(
+        f"bar di cache: {len(report.frame)} ({report.first.isoformat()} .. "
+        f"{report.last.isoformat()}), {report.new_bars} baru, {report.requests} permintaan"
+    )
+    if report.leading_missing_bars:
+        print(
+            f"PERHATIAN: data dimulai {report.leading_missing_bars} bar setelah awal yang diminta; "
+            "bukan gap kalau pair memang baru tercatat setelah itu"
+        )
+    print(
+        f"gap: {len(report.gaps)} ({report.missing_bars} bar hilang), laporan: {report.gaps_path}"
+    )
+    for gap in report.gaps:
+        print(f"  {gap.describe()}")
+    return EXIT_OK
 
 
 def _check_exchange(settings: Settings) -> int:
@@ -175,6 +265,8 @@ def main(argv: Sequence[str] | None = None) -> int:
         return _check_exchange(settings)
     if args.command == "ledger-status":
         return _ledger_status(settings)
+    if args.command == "fetch-data":
+        return _fetch_data(settings, args.start, args.end)
 
     parser.error(f"perintah tidak dikenal: {args.command}")
     return EXIT_CONFIG_ERROR

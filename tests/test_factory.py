@@ -89,3 +89,23 @@ def test_live_binance_venue_uses_binance_keys_not_tokocrypto(project_dir: Path, 
     )
     with pytest.raises(ConfigError, match="BINANCE_API_KEY"):
         load_settings(config_path, environ={}, i_know_what_im_doing=True)
+
+
+def test_public_adapter_ignores_mode_and_keys(project_dir: Path, config_path: Path):
+    """fetch-data memakai venue live tanpa kunci walau .env berisi mode testnet dan kunci."""
+    from tradebot.exchange.factory import build_public_adapter
+
+    env = {
+        "TRADING_MODE": "testnet",
+        "BINANCE_TESTNET_API_KEY": "testnet-key-0123456789",
+        "BINANCE_TESTNET_API_SECRET": "testnet-secret-0123456789",
+        "TOKOCRYPTO_API_KEY": "toko-key-0123456789",
+        "TOKOCRYPTO_API_SECRET": "toko-secret-0123456789",
+    }
+    settings = load_settings(config_path, environ=env)
+    assert settings.mode is TradingMode.TESTNET
+    adapter = build_public_adapter(settings, client_factory=FakeTokocryptoClient)
+    assert isinstance(adapter, TokocryptoAdapter)
+    assert adapter.name == "tokocrypto-mainnet-public"
+    assert not adapter.can_trade
+    assert "apiKey" not in adapter._client.params

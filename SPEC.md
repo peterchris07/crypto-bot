@@ -72,7 +72,11 @@ Project ada di ~/dev/crypto-bot, bukan di Documents, karena Documents bisa ikut 
 
 ### Gap data
 
-Fetcher tidak mengarang bar. Setiap gap dilaporkan. Gap juga ditangani saat runtime: kalau loop live menerima bar yang stale atau bolong, strategi tidak mengambil keputusan atas bar itu. Iterasi dilewati dan dicatat di log. Toleransi ada di config (live.stale_bar_tolerance_seconds, data.max_gap_bars).
+Fetcher tidak mengarang bar. Setiap gap dilaporkan: di log, di output fetch-data, dan di file laporan gap di samping parquet-nya (BTC-USDT_1h.gaps.json), supaya backtest dan orang yang membacanya tahu bar mana yang tidak ada. Gap lebih panjang dari data.max_gap_bars dianggap data rusak, bukan downtime exchange: fetch-data berhenti dengan DataGapError dan tidak menulis apa pun. Menaikkan batas itu adalah keputusan eksplisit di config setelah downtime-nya terkonfirmasi. Bar sebelum bar pertama yang dikembalikan exchange bukan gap, karena pair bisa saja baru tercatat setelah tanggal yang diminta; ini dilaporkan sebagai peringatan terpisah.
+
+Bar yang masih berjalan tidak pernah disimpan. Batas akhir unduhan dipotong ke waktu buka bar saat ini menurut jam server, jadi cache hanya berisi bar yang sudah tutup. Setiap kali ada bar baru, bar terakhir di cache diambil ulang dan versi barunya menimpa yang lama. Cache ditulis atomik: ke file sementara, fsync, lalu ganti nama.
+
+Gap juga ditangani saat runtime: kalau loop live menerima bar yang stale atau bolong, strategi tidak mengambil keputusan atas bar itu. Iterasi dilewati dan dicatat di log. Toleransi ada di config (live.stale_bar_tolerance_seconds, data.max_gap_bars).
 
 ### Minimum notional
 
@@ -115,9 +119,10 @@ TRADING_MODE punya tiga nilai: paper (default), testnet, live. Testnet tidak but
 │   │   ├── factory.py       # build_adapter: mode -> venue, kunci, izin mainnet
 │   │   └── paper.py         # simulasi eksekusi di atas harga Tokocrypto asli
 │   ├── data/
-│   │   ├── ohlcv.py         # skema DataFrame OHLCV, parser timeframe
-│   │   ├── fetch.py         # download OHLCV historis, simpan ke parquet
-│   │   └── cache.py
+│   │   ├── ohlcv.py         # skema DataFrame OHLCV, parser timeframe, deteksi gap
+│   │   ├── errors.py        # DataError, DataGapError, CacheError
+│   │   ├── fetch.py         # download OHLCV historis inkremental, kebijakan gap
+│   │   └── cache.py         # parquet per venue/pasangan/timeframe, tulis atomik, laporan gap
 │   ├── strategy/
 │   │   ├── base.py          # interface Strategy
 │   │   └── ema_cross.py     # strategi awal
@@ -185,7 +190,7 @@ Kerjakan berurutan. Setiap tahap harus punya test yang lulus sebelum lanjut.
 
 1. Setup project, config loader, logging, .env handling, .gitignore. Selesai.
 2. ExchangeAdapter interface + CcxtAdapter untuk Binance testnet + TokocryptoAdapter untuk venue live. Test: fetch OHLCV dan saldo testnet, satu putaran limit order jauh dari harga di testnet (muncul di open orders dengan client id, dibatalkan, hilang), data publik Tokocrypto dari host resmi, dan terbukti menolak jalan kalau config minta mainnet tanpa dua syarat mode live. Selesai, kecuali test testnet yang menunggu kunci.
-3. Data fetcher historis + cache parquet, dari data publik Tokocrypto. Test: download 1 tahun data BTC/USDT 1h, verifikasi tidak ada bar bolong selain downtime yang tercatat.
+3. Data fetcher historis + cache parquet, dari data publik Tokocrypto. Test: download 1 tahun data BTC/USDT 1h, verifikasi tidak ada bar bolong selain downtime yang tercatat. Selesai. Test unit memakai klien palsu dengan lubang yang diketahui posisinya (paginasi, bar berjalan, kebijakan gap, inkremental, tulis atomik); test network mengunduh satu tahun penuh ke folder sementara dan mencocokkan jumlah bar dengan rentang dikurangi gap yang tercatat.
 4. Strategy interface + EMA crossover. Test: pakai data buatan dengan crossover yang sudah diketahui posisinya, pastikan signal muncul persis di bar yang benar.
 5. Backtest engine + metrik. Test: strategi dummy yang selalu FLAT harus menghasilkan return 0 dan 0 trade. Strategi yang selalu LONG harus mendekati buy-and-hold dikurangi biaya.
 6. RiskManager + semua kill switch. Test: setiap kondisi kill switch dipicu secara sintetis dan terbukti menghentikan bot; sizing di bawah minimum notional menghentikan bot dengan pesan jelas.

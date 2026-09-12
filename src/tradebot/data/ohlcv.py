@@ -9,13 +9,15 @@ sampai runner:
 terurut naik menurut timestamp dan tanpa duplikat. frame_from_rows membangun
 bentuk itu dari baris mentah ccxt, validate_frame memastikannya sebelum bar
 dipakai untuk keputusan apa pun. Tidak ada fungsi di sini yang mengisi bar
-yang hilang; gap dilaporkan, bukan dikarang.
+yang hilang; gap dilaporkan, bukan dikarang (lihat find_gaps).
 """
 
 from __future__ import annotations
 
 import re
-from collections.abc import Sequence
+from collections.abc import Iterable, Sequence
+from dataclasses import dataclass
+from datetime import UTC, datetime
 from typing import Any
 
 import pandas as pd
@@ -48,6 +50,31 @@ def timeframe_to_ms(timeframe: str) -> int:
 def floor_to_bar(ms: int, timeframe_ms: int) -> int:
     """Waktu buka bar yang memuat ms. Bar dihitung dari epoch, sama dengan Binance."""
     return ms - (ms % timeframe_ms)
+
+
+def ms_of(stamp: pd.Timestamp) -> int:
+    """Milidetik epoch dari Timestamp pandas, apa pun unit internalnya."""
+    return int(stamp.value // 1_000_000)
+
+
+def stamp_of(ms: int) -> pd.Timestamp:
+    return pd.Timestamp(int(ms), unit="ms", tz="UTC")
+
+
+def parse_utc_ms(text: str) -> int:
+    """Tanggal atau waktu ISO 8601 ke milidetik epoch. Tanpa zona waktu dianggap UTC."""
+    raw = str(text).strip()
+    if not raw:
+        raise ValueError("tanggal kosong")
+    try:
+        parsed = datetime.fromisoformat(raw.replace("Z", "+00:00"))
+    except ValueError:
+        raise ValueError(
+            f"tanggal {text!r} bukan ISO 8601 (contoh 2025-09-01 atau 2025-09-01T06:00:00Z)"
+        ) from None
+    if parsed.tzinfo is None:
+        parsed = parsed.replace(tzinfo=UTC)
+    return int(parsed.timestamp() * 1000)
 
 
 def empty_frame() -> pd.DataFrame:
@@ -99,3 +126,64 @@ def validate_frame(frame: pd.DataFrame) -> None:
             raise ValueError(f"kolom {column} harus float64, dapat {frame[column].dtype}")
     if frame[list(PRICE_COLUMNS)].isna().any().any():
         raise ValueError("ada harga NaN; bar yang tidak lengkap tidak boleh dipakai")
+
+
+def merge_frames(frames: Iterable[pd.DataFrame]) -> pd.DataFrame:
+    """Gabungkan beberapa frame berskema: urut naik, satu baris per timestamp.
+
+    Kalau timestamp yang sama ada di lebih dari satu frame, baris dari frame yang
+    datang BELAKANGAN yang dipakai. Pemanggil mengandalkan ini: cache lama dulu,
+    unduhan baru kemudian, supaya bar yang diambil ulang menimpa versi lama.
+    """
+    parts = [frame for frame in frames if len(frame)]
+    if not parts:
+        return empty_frame()
+    merged = pd.concat(parts, ignore_index=True)
+    merged = merged.sort_values("timestamp", kind="stable")
+    merged = merged.drop_duplicates(subset="timestamp", keep="last").reset_index(drop=True)
+    validate_frame(merged)
+    return merged
+
+
+@dataclass(frozen=True)
+class Gap:
+    """Rentang bar yang seharusnya ada tapi tidak ada. start dan end adalah waktu buka
+    bar pertama dan terakhir yang hilang (inklusif), bars jumlah bar yang hilang."""
+
+    start: pd.Timestamp
+    end: pd.Timestamp
+    bars: int
+
+    def describe(self) -> str:
+        return f"{self.bars} bar hilang: {self.start.isoformat()} .. {self.end.isoformat()}"
+
+
+def find_gaps(frame: pd.DataFrame, timeframe: str) -> list[Gap]:
+    """Cari bar yang hilang di antara bar pertama dan terakhir frame.
+
+    Tidak menebak apa pun di luar rentang frame: bar sebelum bar pertama atau
+    setelah bar terakhir bukan urusan fungsi ini. Pemanggil yang tahu rentang
+    yang diminta memeriksanya sendiri (lihat data.fetch).
+    """
+    validate_frame(frame)
+    if len(frame) < 2:
+        return []
+    step = pd.Timedelta(timeframe_to_ms(timeframe), unit="ms")
+    stamps = frame["timestamp"]
+    diffs = stamps.diff()
+    gaps: list[Gap] = []
+    for position in diffs[diffs > step].index:
+        previous = stamps.loc[position - 1] if position - 1 in stamps.index else None
+        current = stamps.loc[position]
+        if previous is None:
+            continue
+        missing = int((current - previous) / step) - 1
+        if (current - previous) % step != pd.Timedelta(0):
+            # Jarak bukan kelipatan timeframe: bar tidak sejajar grid. Ini data rusak,
+            # bukan downtime, dan tidak boleh disamarkan sebagai gap biasa.
+            raise ValueError(
+                f"jarak antar bar {previous.isoformat()} -> {current.isoformat()} bukan "
+                f"kelipatan {timeframe}"
+            )
+        gaps.append(Gap(start=previous + step, end=current - step, bars=missing))
+    return gaps

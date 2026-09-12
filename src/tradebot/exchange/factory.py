@@ -4,6 +4,10 @@ mode testnet  venue exchange.testnet, sandbox, kunci testnet
 mode paper    venue exchange.live, tanpa kunci, hanya data (dibungkus PaperAdapter di tahap 7)
 mode live     venue exchange.live, kunci live, allow_mainnet_trading=True
 
+build_public_adapter mengabaikan mode: selalu venue exchange.live tanpa kunci.
+Dipakai fetch-data, karena data historis selalu dari venue live (Tokocrypto),
+bukan dari testnet yang harganya menyimpang dari pasar asli.
+
 Ini satu-satunya kode yang pernah memberikan allow_mainnet_trading=True, dan
 hanya ketika settings.mode adalah LIVE, yang sendiri hanya lahir dari
 TRADING_MODE=live plus flag --i-know-what-im-doing.
@@ -35,6 +39,13 @@ def adapter_class(venue_id: str) -> type[CcxtBase]:
         ) from None
 
 
+def build_public_adapter(settings: Settings, **kwargs: Any) -> ExchangeAdapter:
+    """Adapter data publik venue live, tanpa kunci, apa pun mode-nya. Tidak bisa order."""
+    exchange = settings.exchange
+    cls = adapter_class(exchange.live.id)
+    return cls(exchange, exchange.live, None, sandbox=False, **kwargs)
+
+
 def build_adapter(settings: Settings, **kwargs: Any) -> ExchangeAdapter:
     mode = settings.mode
     exchange = settings.exchange
@@ -42,8 +53,7 @@ def build_adapter(settings: Settings, **kwargs: Any) -> ExchangeAdapter:
         cls = adapter_class(exchange.testnet.id)
         return cls(exchange, exchange.testnet, settings.credentials, sandbox=True, **kwargs)
     if mode is TradingMode.PAPER:
-        cls = adapter_class(exchange.live.id)
-        return cls(exchange, exchange.live, None, sandbox=False, **kwargs)
+        return build_public_adapter(settings, **kwargs)
     if mode is TradingMode.LIVE:
         cls = adapter_class(exchange.live.id)
         return cls(

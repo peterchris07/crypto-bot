@@ -66,7 +66,16 @@ Cek ledger trade: jumlah baris dan order yang fee-nya masih pending. Exit code b
 uv run tradebot ledger-status
 ```
 
-Perintah fetch-data, backtest, backtest --stress, dan run ditambahkan di tahap berikutnya sesuai urutan di SPEC.md.
+Unduh data historis ke cache parquet. Sumbernya selalu data publik venue live (Tokocrypto), apa pun TRADING_MODE, dan tidak butuh kunci. Rentang default dari data.history_start di config sampai bar yang sedang berjalan menurut jam server; bar yang belum tutup tidak pernah disimpan. Perintah ini inkremental: menjalankannya lagi hanya mengambil bar yang belum ada, plus bar terakhir yang diambil ulang untuk memastikan nilainya final.
+
+```bash
+uv run tradebot fetch-data
+uv run tradebot fetch-data --start 2017-08-17
+```
+
+Output menyebut jumlah bar di cache, bar baru, jumlah permintaan, dan setiap gap. Fetcher tidak pernah mengarang bar: bar yang hilang dilaporkan di layar, di log, dan di file laporan gap di samping parquet-nya. Gap yang lebih panjang dari data.max_gap_bars dianggap data rusak, bukan downtime: perintah berhenti dengan exit code 5 dan tidak menulis apa pun. Kalau gap itu memang downtime exchange yang terkonfirmasi, naikkan data.max_gap_bars, lalu jalankan lagi. Kalau data dimulai lebih lambat dari tanggal yang diminta, itu dilaporkan sebagai peringatan, bukan gap, karena pair bisa saja baru tercatat setelah tanggal itu.
+
+Perintah backtest, backtest --stress, dan run ditambahkan di tahap berikutnya sesuai urutan di SPEC.md.
 
 ## Menjalankan test
 
@@ -76,7 +85,7 @@ uv run pytest
 
 Test yang butuh kunci testnet ditandai testnet. Kalau kunci belum ada di .env, test itu dilewati, dan di akhir run selalu tercetak ringkasan berapa yang dilewati dan alasannya. Hasil hijau tanpa membaca ringkasan itu tidak berarti semuanya teruji. Salah satu test testnet memasang limit order jauh di bawah harga pasar lalu membatalkannya; uang testnet palsu, dan kalau test gagal di tengah order itu tetap dibersihkan.
 
-Test yang memanggil endpoint publik Tokocrypto sungguhan ditandai network. Saat bekerja offline, lewati dengan:
+Test yang memanggil endpoint publik Tokocrypto sungguhan ditandai network. Salah satunya, test tahap 3, mengunduh satu tahun penuh BTC/USDT 1h ke folder sementara dan memastikan tidak ada bar bolong selain gap yang tercatat di laporannya. Saat bekerja offline, lewati dengan:
 
 ```bash
 uv run pytest -m "not network"
@@ -98,7 +107,7 @@ Satu hal penting soal ccxt: implementasi tokocrypto di ccxt 4.5.78 merutekan tic
 
 ## Struktur folder saat runtime
 
-Folder data, logs, state, dan trades dibuat otomatis dan tidak masuk git. Folder state berisi jurnal order (ditulis sebelum order dikirim) dan state harian risk manager. Folder trades berisi CSV yang mencatat setiap trade untuk rekonsiliasi dan pajak; file ini hanya ditambah, tidak pernah ditimpa. Simpan cadangannya di luar mesin ini.
+Folder data, logs, state, dan trades dibuat otomatis dan tidak masuk git; pola di .gitignore dijangkar ke root supaya paket sumber src/tradebot/data tidak ikut terabaikan. Folder data berisi cache OHLCV, satu file per venue, pasangan, dan timeframe, misalnya data/tokocrypto/BTC-USDT_1h.parquet, dengan laporan gap di sampingnya (BTC-USDT_1h.gaps.json). File ditulis atomik lewat file sementara lalu diganti nama, jadi proses yang mati di tengah tidak meninggalkan parquet setengah jadi. Folder state berisi jurnal order (ditulis sebelum order dikirim) dan state harian risk manager. Folder trades berisi CSV yang mencatat setiap trade untuk rekonsiliasi dan pajak; file ini hanya ditambah, tidak pernah ditimpa. Simpan cadangannya di luar mesin ini.
 
 File bernama STOP di root project adalah kill switch manual. Membuat file itu menghentikan bot pada iterasi berikutnya.
 
@@ -108,4 +117,6 @@ Tahap 1 selesai: setup project, config loader, logging, penanganan .env, gitigno
 
 Tahap 2 selesai: interface ExchangeAdapter, CcxtAdapter untuk Binance testnet, TokocryptoAdapter untuk venue live, dan factory yang memetakan mode ke venue. Adapter mencoba ulang gangguan jaringan dengan backoff dari config, tidak pernah mencoba ulang error autentikasi atau saldo, tidak pernah mengirim ulang order yang jawabannya hilang, memvalidasi pair saat connect, dan menolak membuat klien mainnet berkunci di luar jalur mode live. Test integrasi testnet, termasuk satu putaran order sungguhan, dilewati dengan ringkasan sampai kunci testnet ada di .env.
 
-Tahap 3 sampai 8 menyusul berurutan, masing-masing dengan test yang lulus sebelum tahap berikutnya dimulai.
+Tahap 3 selesai: fetcher OHLCV historis dari data publik Tokocrypto, cache parquet dengan penulisan atomik, laporan gap, dan perintah fetch-data yang inkremental. Gap dilaporkan dan tidak pernah diisi; yang lebih panjang dari data.max_gap_bars menghentikan proses tanpa menulis cache. Test unit memakai klien palsu dengan lubang yang diketahui posisinya; test network mengunduh satu tahun penuh dan memverifikasi tidak ada bar bolong selain yang tercatat.
+
+Tahap 4 sampai 8 menyusul berurutan, masing-masing dengan test yang lulus sebelum tahap berikutnya dimulai.

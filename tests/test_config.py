@@ -358,3 +358,19 @@ def test_review_validations(project_dir: Path, mutate, fragment):
     path = _write_config(project_dir, mutate)
     with pytest.raises(ConfigError, match=fragment):
         load_settings(path, environ={})
+
+
+@pytest.mark.parametrize(
+    ("value", "fragment"),
+    [("kemarin", "data.history_start"), ("", "data.history_start"), ("2025-13-01", "ISO 8601")],
+)
+def test_history_start_must_be_iso_date(project_dir: Path, value, fragment):
+    path = _write_config(project_dir, lambda raw: raw["data"].__setitem__("history_start", value))
+    with pytest.raises(ConfigError, match=fragment):
+        load_settings(path, environ={})
+
+
+def test_cache_dir_must_not_be_empty(project_dir: Path):
+    path = _write_config(project_dir, lambda raw: raw["data"].__setitem__("cache_dir", "  "))
+    with pytest.raises(ConfigError, match="data.cache_dir"):
+        load_settings(path, environ={})
