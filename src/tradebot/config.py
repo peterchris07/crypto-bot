@@ -205,6 +205,8 @@ class StrategyConfig:
     name: str
     fast_period: int
     slow_period: int
+    # Jendela tetap strategi: slow_period x lookback_multiplier bar terakhir (strategy/base.py).
+    lookback_multiplier: int
 
 
 @dataclass(frozen=True)
@@ -421,6 +423,7 @@ def validate(settings: Settings) -> None:
 
     _check(s.fast_period >= 1, "strategy.fast_period harus >= 1")
     _check(s.fast_period < s.slow_period, "strategy.fast_period harus lebih kecil dari slow_period")
+    _check(s.lookback_multiplier >= 1, "strategy.lookback_multiplier harus >= 1")
 
     _check(
         e.symbol.count("/") == 1 and all(e.symbol.split("/")),

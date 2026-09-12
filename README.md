@@ -121,4 +121,6 @@ Tahap 2 selesai: interface ExchangeAdapter, CcxtAdapter untuk Binance testnet, T
 
 Tahap 3 selesai: fetcher OHLCV historis dari data publik Tokocrypto, cache parquet dengan penulisan atomik, laporan gap, dan perintah fetch-data yang inkremental. Gap dilaporkan dan tidak pernah diisi; yang lebih panjang dari data.max_gap_bars menghentikan proses tanpa menulis cache. Test unit memakai klien palsu dengan lubang yang diketahui posisinya; test network mengunduh satu tahun penuh dan menanyakan ulang setiap gap ke exchange.
 
-Tahap 4 sampai 8 menyusul berurutan, masing-masing dengan test yang lulus sebelum tahap berikutnya dimulai.
+Tahap 4 selesai: interface Strategy dengan Signal sebagai state target, EMA crossover dengan periode dari config, dan registry strategy.name. Sinyal adalah fungsi murni dari jendela tetap slow_period x lookback_multiplier bar terakhir, supaya backtest dan live identik; sebelum jendela penuh sinyalnya FLAT. Test memakai EMA acuan yang ditulis terpisah dari pandas dan data buatan dengan crossover yang diketahui posisinya.
+
+Tahap 5 sampai 8 menyusul berurutan, masing-masing dengan test yang lulus sebelum tahap berikutnya dimulai.

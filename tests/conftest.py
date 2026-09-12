@@ -58,6 +58,7 @@ MINIMAL_CONFIG = textwrap.dedent(
       name: ema_cross
       fast_period: 20
       slow_period: 50
+      lookback_multiplier: 5
     risk:
       position_fraction: 0.10
       max_position_fraction: 0.25

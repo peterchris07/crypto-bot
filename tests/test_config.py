@@ -374,3 +374,11 @@ def test_cache_dir_must_not_be_empty(project_dir: Path):
     path = _write_config(project_dir, lambda raw: raw["data"].__setitem__("cache_dir", "  "))
     with pytest.raises(ConfigError, match="data.cache_dir"):
         load_settings(path, environ={})
+
+
+def test_lookback_multiplier_must_be_positive(project_dir: Path):
+    path = _write_config(
+        project_dir, lambda raw: raw["strategy"].__setitem__("lookback_multiplier", 0)
+    )
+    with pytest.raises(ConfigError, match="strategy.lookback_multiplier"):
+        load_settings(path, environ={})

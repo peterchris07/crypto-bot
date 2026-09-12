@@ -39,6 +39,10 @@ strategy:
   name: ema_cross
   fast_period: 20
   slow_period: 50
+  # Strategi hanya membaca slow_period x lookback_multiplier bar terakhir, dan FLAT sebelum
+  # bar sebanyak itu tersedia. Jendela tetap ini yang membuat sinyal backtest dan live identik
+  # untuk bar yang sama. Bobot EMA yang terbuang di luar jendela sekitar e^(-2 x multiplier).
+  lookback_multiplier: 5
 
 risk:
   # Ukuran posisi sebagai pecahan dari equity saat ini.

@@ -126,8 +126,9 @@ TRADING_MODE punya tiga nilai: paper (default), testnet, live. Testnet tidak but
 │   │   ├── fetch.py         # download OHLCV historis inkremental, kebijakan gap
 │   │   └── cache.py         # parquet per venue/pasangan/timeframe, tulis atomik, laporan gap
 │   ├── strategy/
-│   │   ├── base.py          # interface Strategy
-│   │   └── ema_cross.py     # strategi awal
+│   │   ├── base.py          # interface Strategy, Signal, kontrak jendela tetap
+│   │   ├── ema_cross.py     # strategi awal
+│   │   └── registry.py      # strategy.name -> kelas
 │   ├── risk/
 │   │   ├── manager.py       # position sizing, kill switch, batas harian
 │   │   └── state.py         # state harian dipersist
@@ -163,7 +164,9 @@ Adapter harus menangani rate limit (enableRateLimit di ccxt) dan retry dengan ba
 
 Satu method: terima DataFrame OHLCV, kembalikan signal (LONG, FLAT, atau SHORT kalau nanti perlu). Strategi tidak boleh tahu soal ukuran posisi, saldo, atau exchange. Itu urusan risk manager.
 
-Strategi awal: EMA crossover. EMA cepat di atas EMA lambat jadi LONG, selain itu FLAT. Periodenya dari config, jangan hardcode.
+Strategi awal: EMA crossover. EMA cepat di atas EMA lambat jadi LONG, selain itu FLAT (sama tinggi berarti FLAT). Periodenya dari config, jangan hardcode.
+
+Jendela tetap. EMA bergantung pada seluruh histori, jadi nilainya hanya identik antara backtest dan live kalau keduanya menghitung dari jendela yang sama. Setiap strategi menyatakan lookback_bars, dan sinyalnya adalah fungsi murni dari lookback_bars bar terakhir yang diberikan: bar sebelumnya diabaikan, dan kalau bar yang tersedia kurang dari itu sinyalnya FLAT. Untuk EMA crossover, lookback_bars = slow_period x strategy.lookback_multiplier (default 5, bobot EMA yang terbuang di luar jendela sekitar e^(-10)). Backtest dan runner sama-sama boleh memberi lebih dari itu; hasilnya tidak berubah.
 
 ### RiskManager
 
@@ -193,7 +196,7 @@ Kerjakan berurutan. Setiap tahap harus punya test yang lulus sebelum lanjut.
 1. Setup project, config loader, logging, .env handling, .gitignore. Selesai.
 2. ExchangeAdapter interface + CcxtAdapter untuk Binance testnet + TokocryptoAdapter untuk venue live. Test: fetch OHLCV dan saldo testnet, satu putaran limit order jauh dari harga di testnet (muncul di open orders dengan client id, dibatalkan, hilang), data publik Tokocrypto dari host resmi, dan terbukti menolak jalan kalau config minta mainnet tanpa dua syarat mode live. Selesai, kecuali test testnet yang menunggu kunci.
 3. Data fetcher historis + cache parquet, dari data publik Tokocrypto. Test: download 1 tahun data BTC/USDT 1h, verifikasi tidak ada bar bolong selain downtime yang tercatat. Selesai. Test unit memakai klien palsu dengan lubang yang diketahui posisinya (paginasi, bar berjalan, grid mingguan, kebijakan gap, data rusak dari venue, gangguan jaringan di tengah unduhan, inkremental, tulis atomik dan penulis bersamaan); test network mengunduh satu tahun penuh ke folder sementara, menanyakan ulang setiap gap yang dilaporkan langsung ke exchange supaya bar yang dijatuhkan fetcher sendiri ketahuan, dan mencocokkan laporan gap di parquet dengan isinya.
-4. Strategy interface + EMA crossover. Test: pakai data buatan dengan crossover yang sudah diketahui posisinya, pastikan signal muncul persis di bar yang benar.
+4. Strategy interface + EMA crossover. Test: pakai data buatan dengan crossover yang sudah diketahui posisinya, pastikan signal muncul persis di bar yang benar. Selesai. Test memakai EMA acuan yang ditulis sebagai rekursi polos, terpisah dari pandas, plus data lompatan dan bentuk V; juga membuktikan sinyal adalah fungsi murni dari jendela tetap.
 5. Backtest engine + metrik. Test: strategi dummy yang selalu FLAT harus menghasilkan return 0 dan 0 trade. Strategi yang selalu LONG harus mendekati buy-and-hold dikurangi biaya.
 6. RiskManager + semua kill switch. Test: setiap kondisi kill switch dipicu secara sintetis dan terbukti menghentikan bot; sizing di bawah minimum notional menghentikan bot dengan pesan jelas.
 7. PaperAdapter di atas harga Tokocrypto + live runner di mode paper. Jalankan minimal beberapa hari, bandingkan dengan hasil backtest di periode sama.
