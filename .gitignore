@@ -3,12 +3,14 @@
 .env.*
 !.env.example
 
-# Artefak runtime, semuanya bisa dibuat ulang atau bersifat pribadi
-data/
-logs/
-state/
-trades/
-STOP
+# Artefak runtime, semuanya bisa dibuat ulang atau bersifat pribadi.
+# Dijangkar ke root dengan '/' di depan: pola 'data/' tanpa jangkar ikut mengabaikan
+# src/tradebot/data/, dan paket itu pernah hilang dari git karenanya.
+/data/
+/logs/
+/state/
+/trades/
+/STOP
 
 # Python
 .venv/

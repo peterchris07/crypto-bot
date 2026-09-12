@@ -26,8 +26,9 @@ def test_env_is_in_gitignore():
     assert "!.env.example" in lines, ".env.example justru harus masuk git"
 
 
-@pytest.mark.parametrize("folder", ["data/", "logs/", "state/", "trades/"])
+@pytest.mark.parametrize("folder", ["/data/", "/logs/", "/state/", "/trades/"])
 def test_runtime_folders_are_ignored(folder: str):
+    """Pola dijangkar ke root: 'data/' tanpa jangkar ikut mengabaikan src/tradebot/data/."""
     assert folder in _gitignore_lines()
 
 
@@ -68,6 +69,23 @@ def test_git_ignores_env_file():
     assert _git("check-ignore", "-q", ".env").returncode == 0
     assert _git("check-ignore", "-q", "state/orders.jsonl").returncode == 0
     assert _git("check-ignore", "-q", ".env.example").returncode == 1
+
+
+def test_runtime_folders_ignored_only_at_root():
+    """Folder runtime diabaikan di root, tapi paket sumber dengan nama sama tidak.
+
+    Paket src/tradebot/data pernah hilang dari git karena pola 'data/' tanpa jangkar,
+    sehingga clone baru gagal import padahal test di mesin pengembang hijau.
+    """
+    if not _in_git_repo():
+        pytest.fail("project belum berupa repositori git")
+    for path in ("data/x.parquet", "logs/tradebot.log", "state/risk_state.json", "trades/t.csv"):
+        assert _git("check-ignore", "-q", path).returncode == 0, f"{path} harus diabaikan"
+    for path in ("src/tradebot/data/ohlcv.py", "src/tradebot/data/__init__.py"):
+        assert _git("check-ignore", "-q", path).returncode == 1, f"{path} tidak boleh diabaikan"
+    tracked = _git("ls-files", "src/tradebot/data").stdout.splitlines()
+    assert "src/tradebot/data/ohlcv.py" in tracked, "paket data harus dilacak git"
+    assert "src/tradebot/data/__init__.py" in tracked
 
 
 def test_env_file_is_never_tracked():
