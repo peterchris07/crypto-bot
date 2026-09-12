@@ -73,5 +73,6 @@ def test_banner_states_mode_symbol_and_costs(config_path: Path):
     text = stream.getvalue()
     assert "mode=paper" in text
     assert "symbol=BTC/USDT" in text
-    assert "taker_fee_rate=0.001" in text
+    assert "taker_fee_rate=0.0015" in text
+    assert "venue=tokocrypto" in text
     assert "MODE LIVE" not in text

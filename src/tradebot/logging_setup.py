@@ -79,17 +79,22 @@ def setup_logging(
 def log_startup_banner(logger: logging.Logger, settings: Settings) -> None:
     """Baris pertama yang harus terbaca tanpa buka kode: mode apa, pair apa, biaya berapa."""
     logger.info(
-        "start mode=%s exchange=%s symbol=%s timeframe=%s config=%s",
+        "start mode=%s venue=%s symbol=%s timeframe=%s config=%s",
         settings.mode.value,
-        settings.exchange.id,
+        settings.venue.id,
         settings.exchange.symbol,
         settings.exchange.timeframe,
         settings.config_path,
     )
     logger.info(
-        "biaya: taker_fee_rate=%s slippage_rate=%s (stress x%s)",
+        "biaya per sisi: taker_fee_rate=%s tax_rate=%s exchange_fee_rate=%s slippage_rate=%s "
+        "total=%.6f putaran=%.6f (stress x%s pada fee, bursa, slippage)",
         settings.costs.taker_fee_rate,
+        settings.costs.tax_rate,
+        settings.costs.exchange_fee_rate,
         settings.costs.slippage_rate,
+        settings.costs.cost_per_side_rate,
+        settings.costs.round_trip_rate,
         settings.costs.stress_multiplier,
     )
     logger.info(
@@ -107,7 +112,9 @@ def log_startup_banner(logger: logging.Logger, settings: Settings) -> None:
     if settings.mode.needs_credentials:
         logger.info("kunci API: %r", settings.credentials)
     if settings.mode is settings.mode.LIVE:
-        logger.warning("MODE LIVE: order akan dikirim ke Binance mainnet dengan uang asli.")
+        logger.warning(
+            "MODE LIVE: order akan dikirim ke %s mainnet dengan uang asli.", settings.venue.id
+        )
 
 
 def log_file_path(settings: Settings) -> Path:

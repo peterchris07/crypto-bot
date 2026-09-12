@@ -75,25 +75,25 @@ def test_testnet_missing_keys_names_the_variables():
 
 
 def test_live_missing_secret_only_names_the_secret():
-    env = {"BINANCE_API_KEY": "k" * 20}
+    env = {"TOKOCRYPTO_API_KEY": "k" * 20}
     with pytest.raises(ConfigError) as exc:
         load_credentials(TradingMode.LIVE, env)
     message = str(exc.value)
-    assert "BINANCE_API_SECRET" in message
-    assert "BINANCE_API_KEY " not in message
+    assert "TOKOCRYPTO_API_SECRET" in message
+    assert "TOKOCRYPTO_API_KEY " not in message
 
 
 def test_testnet_and_live_use_different_variables():
     env = {
         "BINANCE_TESTNET_API_KEY": "testnet-key-1234567890",
         "BINANCE_TESTNET_API_SECRET": "testnet-secret-1234567890",
-        "BINANCE_API_KEY": "mainnet-key-1234567890",
-        "BINANCE_API_SECRET": "mainnet-secret-1234567890",
+        "TOKOCRYPTO_API_KEY": "tokocrypto-key-1234567890",
+        "TOKOCRYPTO_API_SECRET": "tokocrypto-secret-1234567890",
     }
     testnet = load_credentials(TradingMode.TESTNET, env)
     live = load_credentials(TradingMode.LIVE, env)
     assert testnet.api_key.startswith("testnet")
-    assert live.api_key.startswith("mainnet")
+    assert live.api_key.startswith("tokocrypto")
 
 
 def test_credentials_repr_and_str_never_contain_secret():
@@ -143,6 +143,10 @@ def test_load_settings_defaults_to_paper_with_isolated_environment(config_path: 
     assert settings.risk.flatten_on.connection_failures is False
     assert settings.risk.flatten_on.stop_file is False
     assert settings.stop_file_path == config_path.parent.parent / "STOP"
+    assert settings.venue.id == "tokocrypto"
+    assert settings.exchange.testnet.id == "binance"
+    assert settings.exchange.base == "BTC"
+    assert settings.exchange.quote == "USDT"
 
 
 def test_load_settings_reads_mode_and_keys_from_dotenv_in_root(
@@ -162,7 +166,7 @@ def test_load_settings_live_from_dotenv_without_flag_is_refused(
     project_dir: Path, config_path: Path
 ):
     (project_dir / ".env").write_text(
-        "TRADING_MODE=live\nBINANCE_API_KEY=k1234567890\nBINANCE_API_SECRET=s1234567890\n"
+        "TRADING_MODE=live\nTOKOCRYPTO_API_KEY=k1234567890\nTOKOCRYPTO_API_SECRET=s1234567890\n"
     )
     with pytest.raises(ConfigError, match="menolak"):
         load_settings(config_path, environ={})
@@ -170,12 +174,21 @@ def test_load_settings_live_from_dotenv_without_flag_is_refused(
     assert settings.mode is TradingMode.LIVE
 
 
-def test_stressed_costs_double_fee_and_slippage(config_path: Path):
+def test_cost_components_sum_per_side(config_path: Path):
+    costs = load_settings(config_path, environ={}).costs
+    assert costs.total_fee_rate == pytest.approx(0.0015 + 0.0021 + 0.000444)
+    assert costs.cost_per_side_rate == pytest.approx(0.004044 + 0.0015)
+    assert costs.round_trip_rate == pytest.approx(2 * (0.004044 + 0.0015))
+
+
+def test_stressed_costs_double_fee_exchange_fee_and_slippage_but_not_tax(config_path: Path):
     costs = load_settings(config_path, environ={}).costs
     stressed = costs.stressed()
     assert stressed.taker_fee_rate == pytest.approx(costs.taker_fee_rate * 2)
+    assert stressed.exchange_fee_rate == pytest.approx(costs.exchange_fee_rate * 2)
     assert stressed.slippage_rate == pytest.approx(costs.slippage_rate * 2)
-    assert costs.taker_fee_rate == pytest.approx(0.001), "objek asli tidak boleh berubah"
+    assert stressed.tax_rate == pytest.approx(costs.tax_rate), "pajak adalah angka pasti"
+    assert costs.taker_fee_rate == pytest.approx(0.0015), "objek asli tidak boleh berubah"
 
 
 def test_real_default_yaml_loads_in_paper_mode():
@@ -183,7 +196,10 @@ def test_real_default_yaml_loads_in_paper_mode():
     real = Path(__file__).resolve().parent.parent / "config" / "default.yaml"
     settings = load_settings(real, environ={})
     assert settings.mode is TradingMode.PAPER
-    assert settings.costs.taker_fee_rate == pytest.approx(0.001)
+    assert settings.venue.id == "tokocrypto"
+    assert settings.exchange.live.market_data_url.startswith("https://www.tokocrypto.site")
+    assert settings.costs.total_fee_rate == pytest.approx(0.004044)
+    assert settings.costs.slippage_rate == pytest.approx(0.0015)
 
 
 def _write_config(project_dir: Path, mutate) -> Path:
@@ -252,7 +268,8 @@ def test_invalid_yaml_is_refused(project_dir: Path):
         ("costs", "stress_multiplier", 1.0, "stress_multiplier"),
         ("strategy", "fast_period", 60, "lebih kecil"),
         ("exchange", "max_time_drift_ms", 9000, "recv_window_ms"),
-        ("exchange", "public_market_data_url", "http://plain.example", "https"),
+        ("exchange", "symbol", "BTCUSDT", "BASE/QUOTE"),
+        ("costs", "tax_rate", 0.5, "tax_rate"),
         ("backtest", "initial_equity", 0, "initial_equity"),
         ("logging", "level", "LOUD", "logging.level"),
     ],
@@ -280,3 +297,18 @@ def test_settings_are_immutable(config_path: Path):
     settings = load_settings(config_path, environ={})
     with pytest.raises(dataclasses.FrozenInstanceError):
         settings.risk.position_fraction = 0.9  # type: ignore[misc]
+
+
+def test_venue_market_data_url_must_be_https(project_dir: Path):
+    path = _write_config(
+        project_dir,
+        lambda raw: raw["exchange"]["live"].__setitem__("market_data_url", "http://plain.example"),
+    )
+    with pytest.raises(ConfigError, match="exchange.live.market_data_url"):
+        load_settings(path, environ={})
+
+
+def test_venue_id_must_not_be_empty(project_dir: Path):
+    path = _write_config(project_dir, lambda raw: raw["exchange"]["testnet"].__setitem__("id", " "))
+    with pytest.raises(ConfigError, match="exchange.testnet.id"):
+        load_settings(path, environ={})

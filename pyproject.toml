@@ -34,6 +34,7 @@ addopts = "-ra --strict-markers"
 filterwarnings = ["error::DeprecationWarning:tradebot.*"]
 markers = [
     "testnet: butuh kunci Binance Spot Testnet di .env; dilewati kalau tidak ada",
+    "network: memanggil endpoint publik sungguhan tanpa kunci; matikan dengan -m 'not network'",
 ]
 
 [tool.ruff]

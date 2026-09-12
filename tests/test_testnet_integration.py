@@ -1,9 +1,11 @@
 """Tahap 2: integrasi ke Binance Spot Testnet. Butuh kunci testnet di .env.
 
-Tanpa kunci, seluruh modul dilewati dan muncul di ringkasan skip. Tidak ada
-test di sini yang mengirim order: aturan keras 4 melarang order sebelum kill
-switch ada (tahap 6). Yang diuji: jam, pasar, OHLCV, ticker, saldo, order
-terbuka, dan cancel_all_orders saat tidak ada order terbuka.
+Tanpa kunci, seluruh modul dilewati dan muncul di ringkasan skip. Yang diuji:
+jam, pasar, OHLCV, ticker, saldo, order terbuka, cancel_all_orders saat kosong,
+dan satu putaran order sungguhan: limit order jauh dari harga pasar, muncul di
+open orders dengan client_order_id yang benar, dibatalkan, lalu hilang.
+Testnet memakai uang palsu; aturan keras 4 melindungi uang asli, dan justru
+testnet ada supaya jalur order bisa diuji tanpa risiko.
 """
 
 from __future__ import annotations
@@ -11,13 +13,16 @@ from __future__ import annotations
 import logging
 import os
 from datetime import UTC, datetime
+from decimal import ROUND_DOWN, ROUND_UP, Decimal
 from pathlib import Path
+from uuid import uuid4
 
 import pandas as pd
 import pytest
 
 from tradebot.config import Settings, load_settings
 from tradebot.data.ohlcv import timeframe_to_ms
+from tradebot.exchange import OrderNotFoundError, OrderSide, OrderStatus, OrderType
 from tradebot.exchange.ccxt_adapter import CcxtAdapter
 
 pytestmark = pytest.mark.testnet
@@ -32,9 +37,20 @@ def testnet() -> tuple[CcxtAdapter, Settings]:
         ROOT / "config" / "default.yaml",
         environ={**os.environ, "TRADING_MODE": "testnet"},
     )
-    adapter = CcxtAdapter.from_settings(settings)
+    adapter = CcxtAdapter(
+        settings.exchange, settings.exchange.testnet, settings.credentials, sandbox=True
+    )
     adapter.connect()
     return adapter, settings
+
+
+def _quantize(value: float, step: float | None, rounding: str) -> float:
+    """Bulatkan ke kelipatan step exchange (tickSize / stepSize) tanpa error float."""
+    if not step:
+        return value
+    quantum = Decimal(str(step))
+    units = (Decimal(str(value)) / quantum).quantize(Decimal(1), rounding=rounding)
+    return float(units * quantum)
 
 
 def test_connect_reports_clock_within_limit(testnet):
@@ -49,7 +65,7 @@ def test_fetch_ohlcv_returns_recent_contiguous_bars(testnet):
     symbol, timeframe = settings.exchange.symbol, settings.exchange.timeframe
     frame = adapter.fetch_ohlcv(symbol, timeframe, limit=48)
     assert len(frame) == 48
-    step = pd.Timedelta(milliseconds=timeframe_to_ms(timeframe))
+    step = pd.Timedelta(timeframe_to_ms(timeframe), unit="ms")
     diffs = frame["timestamp"].diff().dropna().unique()
     assert list(diffs) == [step], f"jarak antar bar tidak seragam: {diffs}"
     assert (frame["close"] > 0).all()
@@ -104,3 +120,61 @@ def test_cancel_all_orders_is_safe_when_nothing_is_open(testnet):
     if adapter.fetch_open_orders(symbol):
         pytest.skip("ada order terbuka di testnet yang bukan milik test ini; tidak disentuh")
     assert adapter.cancel_all_orders(symbol) == []
+
+
+def test_limit_order_roundtrip_far_from_market(testnet):
+    """Utang tahap 2: jalur order diuji terhadap API sungguhan dengan uang palsu."""
+    adapter, settings = testnet
+    symbol = settings.exchange.symbol
+    limits = adapter.fetch_market_limits(symbol)
+    ticker = adapter.fetch_ticker(symbol)
+
+    # 50 persen di bawah harga pasar: tidak akan pernah terisi selama test berjalan.
+    price = _quantize(ticker.last * 0.5, limits.price_step, ROUND_DOWN)
+    min_cost = (limits.min_cost or 5.0) * 1.5
+    amount = _quantize(min_cost / price, limits.amount_step, ROUND_UP)
+    if limits.min_amount:
+        amount = max(amount, limits.min_amount)
+    client_order_id = f"tb-test-{uuid4().hex[:16]}"
+    log.info(
+        "testnet order uji: %s LIMIT BUY %s @ %s client_order_id=%s",
+        symbol,
+        amount,
+        price,
+        client_order_id,
+    )
+
+    placed = None
+    try:
+        placed = adapter.create_order(
+            symbol,
+            OrderSide.BUY,
+            OrderType.LIMIT,
+            amount,
+            price=price,
+            client_order_id=client_order_id,
+        )
+        assert placed.client_order_id == client_order_id
+        assert placed.is_open, placed
+
+        matches = [
+            o for o in adapter.fetch_open_orders(symbol) if o.client_order_id == client_order_id
+        ]
+        assert len(matches) == 1, matches
+        assert matches[0].id == placed.id
+        assert matches[0].price == pytest.approx(price)
+
+        canceled = adapter.cancel_order(placed.id, symbol)
+        assert canceled.status is OrderStatus.CANCELED
+        remaining = [
+            o for o in adapter.fetch_open_orders(symbol) if o.client_order_id == client_order_id
+        ]
+        assert remaining == []
+        placed = None
+    finally:
+        # Kalau assert gagal di tengah, order uji tidak boleh tertinggal di testnet.
+        if placed is not None and placed.id:
+            try:
+                adapter.cancel_order(placed.id, symbol)
+            except OrderNotFoundError:
+                pass

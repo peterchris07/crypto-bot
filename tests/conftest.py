@@ -9,6 +9,7 @@ Dua hal yang diatur di sini:
 
 from __future__ import annotations
 
+import logging
 import os
 import textwrap
 from collections import Counter
@@ -26,17 +27,21 @@ TESTNET_SKIP_REASON = (
 MINIMAL_CONFIG = textwrap.dedent(
     """
     exchange:
-      id: binance
       symbol: BTC/USDT
       timeframe: 1h
       recv_window_ms: 5000
       max_time_drift_ms: 1000
       rate_limit: true
-      public_market_data_url: "https://data-api.binance.vision/api/v3"
       retry:
         max_attempts: 3
         base_delay_seconds: 0.01
         max_delay_seconds: 0.05
+      testnet:
+        id: binance
+        market_data_url: ""
+      live:
+        id: tokocrypto
+        market_data_url: "https://data.example/api/v3"
     data:
       cache_dir: data
       history_start: "2025-01-01"
@@ -61,8 +66,10 @@ MINIMAL_CONFIG = textwrap.dedent(
         connection_failures: false
         stop_file: false
     costs:
-      taker_fee_rate: 0.001
-      slippage_rate: 0.001
+      taker_fee_rate: 0.0015
+      tax_rate: 0.0021
+      exchange_fee_rate: 0.000444
+      slippage_rate: 0.0015
       stress_multiplier: 2.0
     backtest:
       initial_equity: 1000.0
@@ -118,6 +125,21 @@ def pytest_terminal_summary(terminalreporter, exitstatus: int, config: pytest.Co
     )
     for reason, count in reasons.most_common():
         terminalreporter.write_line(f"  {count} test: {reason}")
+
+
+@pytest.fixture(autouse=True)
+def _fresh_tradebot_logger():
+    """setup_logging mematikan propagate pada logger 'tradebot'; kembalikan setelah tiap test.
+
+    Tanpa ini, caplog di test yang berjalan setelah test_logging tidak melihat apa pun.
+    """
+    yield
+    logger = logging.getLogger("tradebot")
+    for handler in list(logger.handlers):
+        logger.removeHandler(handler)
+        handler.close()
+    logger.propagate = True
+    logger.setLevel(logging.NOTSET)
 
 
 @pytest.fixture

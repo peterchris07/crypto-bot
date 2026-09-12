@@ -69,19 +69,25 @@ def build_parser() -> argparse.ArgumentParser:
 
 
 def _check_exchange(settings: Settings) -> int:
-    from tradebot.exchange.ccxt_adapter import CcxtAdapter
     from tradebot.exchange.errors import ExchangeError
+    from tradebot.exchange.factory import build_adapter
 
     symbol = settings.exchange.symbol
     timeframe = settings.exchange.timeframe
+    costs = settings.costs
     try:
-        adapter = CcxtAdapter.from_settings(settings)
+        adapter = build_adapter(settings)
         adapter.connect()
         limits = adapter.fetch_market_limits(symbol)
         ticker = adapter.fetch_ticker(symbol)
         bars = adapter.fetch_ohlcv(symbol, timeframe, limit=3)
-        print(f"venue: {adapter.name}")
+        print(f"venue: {adapter.name} (mode {settings.mode.value})")
         print(f"jam: lokal - server = {adapter.server_offset_ms:+.0f} ms")
+        print(
+            f"biaya per sisi: fee {costs.taker_fee_rate:.4%} + pajak {costs.tax_rate:.4%} "
+            f"+ bursa {costs.exchange_fee_rate:.4%} + slippage {costs.slippage_rate:.4%} "
+            f"= {costs.cost_per_side_rate:.4%} (satu putaran {costs.round_trip_rate:.4%})"
+        )
         print(
             f"pasar {symbol}: min_amount={limits.min_amount} {limits.base} "
             f"amount_step={limits.amount_step} min_cost={limits.min_cost} {limits.quote} "
@@ -113,6 +119,10 @@ def _check_exchange(settings: Settings) -> int:
                 )
         else:
             print("tanpa kunci (mode paper): saldo dan order tidak tersedia")
+            print(
+                "lapis 2 (stop di exchange) butuh pair mengiklankan STOP_LOSS_LIMIT: "
+                "sudah dicek saat connect"
+            )
     except ExchangeError as exc:
         print(f"EXCHANGE ERROR: {exc}", file=sys.stderr)
         return EXIT_EXCHANGE_ERROR

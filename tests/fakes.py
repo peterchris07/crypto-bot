@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from collections import defaultdict
+from copy import deepcopy
 from typing import Any
 
 import ccxt
@@ -182,3 +183,119 @@ class FakeCcxtClient:
         if order is None:
             raise ccxt.OrderNotFound(f"fake order {id} not found")
         return dict(order)
+
+
+# --------------------------------------------------------------------------- #
+# Tokocrypto: struktur urls, market, dan aturan order yang berbeda dari Binance
+# --------------------------------------------------------------------------- #
+
+TOKO_MARKET: dict[str, Any] = {
+    "symbol": "BTC/USDT",
+    "id": "BTC_USDT",
+    "base": "BTC",
+    "quote": "USDT",
+    "active": True,
+    "precision": {"amount": 1e-05, "price": 0.01},
+    "limits": {
+        "amount": {"min": 1e-05, "max": 9000.0},
+        "cost": {"min": None, "max": None},  # ccxt tidak membaca filter NOTIONAL Tokocrypto
+        "price": {"min": 0.01, "max": 1_000_000.0},
+    },
+    "info": {
+        "type": 1,
+        "symbol": "BTC_USDT",
+        "spotTradingEnable": True,
+        "orderTypes": [
+            "LIMIT",
+            "LIMIT_MAKER",
+            "MARKET",
+            "STOP_LOSS",
+            "STOP_LOSS_LIMIT",
+            "TAKE_PROFIT",
+            "TAKE_PROFIT_LIMIT",
+        ],
+        "filters": [
+            {"filterType": "PRICE_FILTER", "minPrice": "0.01000000", "tickSize": "0.01000000"},
+            {"filterType": "LOT_SIZE", "minQty": "0.00001000", "stepSize": "0.00001000"},
+            {"filterType": "NOTIONAL", "minNotional": "5.00000000", "maxNotional": "9000000"},
+        ],
+    },
+}
+
+
+class FakeTokocryptoClient(FakeCcxtClient):
+    def __init__(self, params: dict[str, Any]) -> None:
+        super().__init__(params)
+        self.urls = {
+            "api": {
+                "rest": {
+                    "public": "https://www.tokocrypto.com",
+                    "binance": "https://api.binance.com/api/v3",
+                    "private": "https://www.tokocrypto.com",
+                }
+            }
+        }
+        self.markets = {"BTC/USDT": deepcopy(TOKO_MARKET)}
+        self.has = {
+            "cancelAllOrders": False,
+            "fetchTime": True,
+            "fetchOrder": True,
+            "fetchOrders": True,
+        }
+
+    def create_order(self, symbol, type, side, amount, price=None, params=None):
+        params = dict(params or {})
+        self._record("create_order", symbol, type, side, amount, price, params)
+        if type == "market" and side == "buy" and "cost" not in params and price is None:
+            raise ccxt.InvalidOrder(
+                "tokocrypto createOrder() requires the price argument for market buy orders"
+            )
+        is_stop = "stopPrice" in params
+        type_code = 4 if is_stop else (2 if type == "market" else 1)
+        order_id = str(self._next_id)
+        self._next_id += 1
+        is_market = type == "market"
+        ask = float(self.ticker["ask"])
+        if is_market and side == "buy":
+            cost = float(params["cost"])
+            filled = cost / ask
+            average = ask
+        elif is_market:
+            filled = float(amount)
+            average = float(self.ticker["bid"])
+            cost = filled * average
+        else:
+            filled, average, cost = 0.0, None, 0.0
+        status = "closed" if is_market else "open"
+        order = {
+            "id": order_id,
+            "clientOrderId": params.get("clientId"),
+            "symbol": symbol,
+            "side": side,
+            "type": "market" if type_code == 2 else "limit",  # ccxt memetakan 1/4/7 ke limit
+            "amount": filled if (is_market and side == "buy") else float(amount),
+            "price": price,
+            "stopPrice": params.get("stopPrice"),
+            "status": status,
+            "filled": filled,
+            "average": average,
+            "cost": cost,
+            "fee": {"cost": cost * 0.0015, "currency": "USDT"} if is_market else None,
+            "timestamp": self.server_time_ms,
+            "info": {"type": type_code, "clientId": params.get("clientId"), "orderId": order_id},
+        }
+        self.orders[order_id] = order
+        if status == "open":
+            self.open_orders.append(order)
+        return dict(order)
+
+    def cancel_all_orders(self, symbol=None, params=None):
+        self._record("cancel_all_orders", symbol)
+        raise ccxt.NotSupported("tokocrypto cancelAllOrders() is not supported yet")
+
+    def fetch_orders(self, symbol=None, since=None, limit=None, params=None):
+        self._record("fetch_orders", symbol, since, limit)
+        if symbol is None:
+            raise ccxt.ArgumentsRequired("tokocrypto fetchOrders() requires a symbol argument")
+        orders = [dict(o) for o in self.orders.values() if o["symbol"] == symbol]
+        return orders[-limit:] if limit else orders

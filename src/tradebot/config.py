@@ -2,13 +2,16 @@
 
 Sumber konfigurasi, dari prioritas terendah ke tertinggi:
 
-1. config/default.yaml   semua angka strategi, risk, biaya, dan path
+1. config/default.yaml   semua angka strategi, risk, biaya, path, dan venue
 2. .env di root project  TRADING_MODE dan kunci API, dibaca lewat python-dotenv
 3. environment proses    menimpa isi .env kalau variabel yang sama ada
 4. flag command line     --i-know-what-im-doing
 
 Aturan keras nomor 1 (default paper, live butuh dua syarat) dan nomor 2
 (kunci hanya dari .env, tidak pernah masuk log) ditegakkan di modul ini.
+
+Dua venue: exchange.testnet (Binance Spot Testnet, hanya untuk develop) dan
+exchange.live (Tokocrypto, untuk mode live dan sebagai sumber harga mode paper).
 """
 
 from __future__ import annotations
@@ -77,7 +80,7 @@ def resolve_mode(env_value: str | None, i_know_what_im_doing: bool) -> TradingMo
 
 CREDENTIAL_ENV_VARS: dict[TradingMode, tuple[str, str]] = {
     TradingMode.TESTNET: ("BINANCE_TESTNET_API_KEY", "BINANCE_TESTNET_API_SECRET"),
-    TradingMode.LIVE: ("BINANCE_API_KEY", "BINANCE_API_SECRET"),
+    TradingMode.LIVE: ("TOKOCRYPTO_API_KEY", "TOKOCRYPTO_API_SECRET"),
 }
 
 
@@ -145,15 +148,31 @@ class RetryConfig:
 
 
 @dataclass(frozen=True)
-class ExchangeConfig:
+class VenueConfig:
+    """Satu venue exchange. market_data_url kosong berarti memakai URL bawaan ccxt."""
+
     id: str
+    market_data_url: str
+
+
+@dataclass(frozen=True)
+class ExchangeConfig:
     symbol: str
     timeframe: str
     recv_window_ms: int
     max_time_drift_ms: int
     rate_limit: bool
-    public_market_data_url: str
     retry: RetryConfig
+    testnet: VenueConfig
+    live: VenueConfig
+
+    @property
+    def base(self) -> str:
+        return self.symbol.split("/", 1)[0]
+
+    @property
+    def quote(self) -> str:
+        return self.symbol.split("/", 1)[1]
 
 
 @dataclass(frozen=True)
@@ -194,15 +213,42 @@ class RiskConfig:
 
 @dataclass(frozen=True)
 class CostConfig:
+    """Biaya per sisi di venue live, dipecah per komponen karena berubah terpisah.
+
+    taker_fee_rate     biaya taker exchange
+    tax_rate           PPh 22 final yang dipungut exchange di sumber
+    exchange_fee_rate  biaya bursa dan kliring (ICEx fee)
+    slippage_rate      asumsi selisih harga eksekusi terhadap harga acuan
+    """
+
     taker_fee_rate: float
+    tax_rate: float
+    exchange_fee_rate: float
     slippage_rate: float
     stress_multiplier: float
 
+    @property
+    def total_fee_rate(self) -> float:
+        """Semua potongan exchange per sisi, tanpa slippage."""
+        return self.taker_fee_rate + self.tax_rate + self.exchange_fee_rate
+
+    @property
+    def cost_per_side_rate(self) -> float:
+        return self.total_fee_rate + self.slippage_rate
+
+    @property
+    def round_trip_rate(self) -> float:
+        return 2 * self.cost_per_side_rate
+
     def stressed(self) -> CostConfig:
-        """Versi untuk backtest --stress: fee dan slippage dikalikan stress_multiplier."""
+        """Versi backtest --stress: fee, biaya bursa, dan slippage dikalikan; pajak tetap.
+
+        Pajak adalah angka pasti dari peraturan, bukan asumsi yang bisa meleset.
+        """
         return dataclasses.replace(
             self,
             taker_fee_rate=self.taker_fee_rate * self.stress_multiplier,
+            exchange_fee_rate=self.exchange_fee_rate * self.stress_multiplier,
             slippage_rate=self.slippage_rate * self.stress_multiplier,
         )
 
@@ -246,6 +292,11 @@ class Settings:
     @property
     def stop_file_path(self) -> Path:
         return self.root / self.risk.stop_file
+
+    @property
+    def venue(self) -> VenueConfig:
+        """Venue yang dipakai mode ini: testnet untuk develop, live untuk paper dan live."""
+        return self.exchange.testnet if self.mode is TradingMode.TESTNET else self.exchange.live
 
 
 T = TypeVar("T")
@@ -332,23 +383,35 @@ def validate(settings: Settings) -> None:
 
     for name, value in (
         ("costs.taker_fee_rate", c.taker_fee_rate),
+        ("costs.tax_rate", c.tax_rate),
+        ("costs.exchange_fee_rate", c.exchange_fee_rate),
         ("costs.slippage_rate", c.slippage_rate),
     ):
         _check(0 <= value < 0.1, f"{name} harus pecahan di antara 0 dan 0.1, dapat {value}")
+    _check(
+        c.cost_per_side_rate < 0.1,
+        f"costs: total biaya per sisi {c.cost_per_side_rate} tidak masuk akal, cek satuannya",
+    )
     _check(c.stress_multiplier > 1, "costs.stress_multiplier harus > 1")
 
     _check(s.fast_period >= 1, "strategy.fast_period harus >= 1")
     _check(s.fast_period < s.slow_period, "strategy.fast_period harus lebih kecil dari slow_period")
 
+    _check(
+        e.symbol.count("/") == 1 and all(e.symbol.split("/")),
+        f"exchange.symbol harus berformat BASE/QUOTE, dapat {e.symbol!r}",
+    )
+    for venue_name, venue in (("testnet", e.testnet), ("live", e.live)):
+        _check(bool(venue.id.strip()), f"exchange.{venue_name}.id tidak boleh kosong")
+        _check(
+            venue.market_data_url == "" or venue.market_data_url.startswith("https://"),
+            f"exchange.{venue_name}.market_data_url harus kosong atau diawali https://",
+        )
     _check(e.retry.max_attempts >= 1, "exchange.retry.max_attempts harus >= 1")
     _check(e.retry.base_delay_seconds > 0, "exchange.retry.base_delay_seconds harus > 0")
     _check(
         e.retry.max_delay_seconds >= e.retry.base_delay_seconds,
         "exchange.retry.max_delay_seconds harus >= base_delay_seconds",
-    )
-    _check(
-        e.public_market_data_url == "" or e.public_market_data_url.startswith("https://"),
-        "exchange.public_market_data_url harus kosong atau diawali https://",
     )
     _check(e.recv_window_ms > 0, "exchange.recv_window_ms harus > 0")
     _check(e.max_time_drift_ms > 0, "exchange.max_time_drift_ms harus > 0")
@@ -433,9 +496,11 @@ def describe(settings: Settings) -> str:
     """Ringkasan yang aman dicetak: kunci API selalu tersamar."""
     lines = [
         f"mode: {settings.mode.value}",
+        f"venue: {settings.venue.id}",
         f"root: {settings.root}",
         f"config: {settings.config_path}",
         f"credentials: {settings.credentials!r}",
+        f"biaya per sisi (fee+pajak+bursa+slippage): {settings.costs.cost_per_side_rate:.6f}",
     ]
     for section in ("exchange", "data", "strategy", "risk", "costs", "backtest", "live", "logging"):
         lines.append(f"{section}:")
