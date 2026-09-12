@@ -4,7 +4,6 @@
 # 0.001 berarti 0,1 persen.
 
 exchange:
-  id: binance
   symbol: BTC/USDT
   timeframe: 1h
   recv_window_ms: 5000
@@ -12,15 +11,23 @@ exchange:
   # Lebih dari ini bot berhenti dan menyebut angka drift-nya.
   max_time_drift_ms: 1000
   rate_limit: true
-  # Endpoint data pasar publik resmi Binance. Dipakai HANYA oleh adapter tanpa kunci
-  # (mode paper dan pengunduh data historis). Endpoint ini melayani data mainnet yang
-  # sama dengan api.binance.com, tapi tidak melayani endpoint akun/order.
-  # Kosongkan ("") untuk memakai URL bawaan ccxt.
-  public_market_data_url: "https://data-api.binance.vision/api/v3"
   retry:
     max_attempts: 5
     base_delay_seconds: 1.0
     max_delay_seconds: 30.0
+  # Venue develop: Binance Spot Testnet, uang palsu. Hanya dipakai mode testnet.
+  testnet:
+    id: binance
+    market_data_url: ""
+  # Venue live: Tokocrypto (berizin OJK, tidak punya testnet). Dipakai mode live,
+  # dan sebagai sumber harga mode paper supaya perilaku venue terlihat sebelum uang asli masuk.
+  # Binance mainnet bukan lagi target karena api.binance.com diblokir ISP.
+  live:
+    id: tokocrypto
+    # Host data pasar RESMI Tokocrypto untuk simbol jenis MBX (type 1), dari dokumentasi API mereka.
+    # ccxt 4.5.78 merutekan ticker, OHLCV, order book, dan trades ke api.binance.com, yang
+    # diblokir ISP dan bukan host resmi Tokocrypto. Endpoint akun dan order tetap www.tokocrypto.com.
+    market_data_url: "https://www.tokocrypto.site/api/v3"
 
 data:
   cache_dir: data
@@ -60,11 +67,26 @@ risk:
     stop_file: false
 
 costs:
-  # Tarif taker standar Binance spot tanpa diskon BNB. Ini angka realistis, bukan pesimistis.
-  taker_fee_rate: 0.001
-  # Konservatif untuk BTC/USDT ukuran retail dengan market order.
-  slippage_rate: 0.001
-  # Pengali untuk perintah backtest --stress. Hasil --stress yang pesimistis.
+  # Venue live: Tokocrypto, pasangan USDT. Sumber: artikel resmi "Informasi Biaya Transaksi
+  # di Tokocrypto" dan "Aturan Perdagangan Tokocrypto" bagian 7.1, berlaku sejak 18 Juni 2026.
+  # Tiga komponen pertama dijumlahkan per sisi: 0,15% + 0,21% + 0,0444% = 0,4044%.
+  # Ini angka realistis dari exchange, bukan pesimistis. Yang pesimistis adalah --stress.
+  #
+  # Nilai lama, asumsi Binance spot, TIDAK BERLAKU LAGI dan backtest yang memakainya tidak sah:
+  #   taker_fee_rate 0.001, tanpa pajak, tanpa biaya bursa, slippage_rate 0.001.
+  taker_fee_rate: 0.0015
+  # PPh 22 final 0,21%, dipungut Tokocrypto di sumber. Untuk pasangan USDT/kripto dikenakan
+  # di kedua sisi (beli dan jual). Dasar: PMK 50/2025, berlaku 1 Agustus 2025.
+  tax_rate: 0.0021
+  # Biaya bursa dan kliring (ICEx fee) 0,0444% untuk pasangan USDT/kripto, berlaku 18 Juni 2026.
+  # Komponen yang paling sering berubah: 0,0222% -> 0,0111% (1 Mar 2026) -> 0,0222% (18 Jun 2026)
+  # untuk pasangan IDR; cek ulang setiap kali ada pengumuman biaya.
+  exchange_fee_rate: 0.000444
+  # Dinaikkan dari asumsi Binance 0,1%. Buku BTC/USDT di Tokocrypto adalah buku Binance yang
+  # dibagi, tapi venue berbeda dan eksekusinya belum diamati, jadi diberi ruang lebih.
+  slippage_rate: 0.0015
+  # backtest --stress mengalikan taker_fee_rate, exchange_fee_rate, dan slippage_rate.
+  # tax_rate tetap: pajak adalah angka pasti dari peraturan, bukan asumsi yang bisa meleset.
   stress_multiplier: 2.0
 
 backtest:

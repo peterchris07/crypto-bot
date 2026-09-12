@@ -46,8 +46,8 @@ def test_env_example_has_names_only():
         "TRADING_MODE",
         "BINANCE_TESTNET_API_KEY",
         "BINANCE_TESTNET_API_SECRET",
-        "BINANCE_API_KEY",
-        "BINANCE_API_SECRET",
+        "TOKOCRYPTO_API_KEY",
+        "TOKOCRYPTO_API_SECRET",
     } <= names
 
 
@@ -83,7 +83,9 @@ def test_no_secret_looking_values_in_tracked_files():
     if not _in_git_repo():
         pytest.fail("project belum berupa repositori git")
     # Kunci Binance asli panjangnya 64 karakter alfanumerik. Nilai palsu di test jauh lebih pendek.
-    pattern = re.compile(r"BINANCE(?:_TESTNET)?_API_(?:KEY|SECRET)\s*=\s*['\"]?[A-Za-z0-9]{32,}")
+    pattern = re.compile(
+        r"(?:BINANCE(?:_TESTNET)?|TOKOCRYPTO)_API_(?:KEY|SECRET)\s*=\s*['\"]?[A-Za-z0-9]{32,}"
+    )
     hits = []
     for rel in _git("ls-files").stdout.splitlines():
         path = ROOT / rel

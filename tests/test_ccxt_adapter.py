@@ -4,20 +4,12 @@ from __future__ import annotations
 
 import dataclasses
 import logging
-from pathlib import Path
 
 import ccxt
 import pytest
 
 from tests.fakes import BASE_MS, FakeCcxtClient
-from tradebot.config import (
-    ConfigError,
-    Credentials,
-    ExchangeConfig,
-    RetryConfig,
-    TradingMode,
-    load_settings,
-)
+from tradebot.config import Credentials, ExchangeConfig, RetryConfig, VenueConfig
 from tradebot.exchange import (
     AuthenticationError,
     FatalExchangeError,
@@ -38,19 +30,21 @@ KEY = "unit-test-key-0123456789"
 SECRET = "unit-test-secret-9876543210"
 CREDS = Credentials(api_key=KEY, api_secret=SECRET)
 LOCAL_CLOCK_S = BASE_MS / 1000  # jam lokal persis sama dengan jam server palsu
+PUBLIC_DATA_URL = "https://data.example/api/v3"
+VENUE = VenueConfig(id="binance", market_data_url=PUBLIC_DATA_URL)
 
 
 @pytest.fixture
 def exchange_config() -> ExchangeConfig:
     return ExchangeConfig(
-        id="binance",
         symbol="BTC/USDT",
         timeframe="1h",
         recv_window_ms=5000,
         max_time_drift_ms=1000,
         rate_limit=True,
-        public_market_data_url="https://data.example/api/v3",
         retry=RetryConfig(max_attempts=3, base_delay_seconds=1.0, max_delay_seconds=2.5),
+        testnet=VenueConfig(id="binance", market_data_url=""),
+        live=VenueConfig(id="tokocrypto", market_data_url="https://toko.example/api/v3"),
     )
 
 
@@ -61,6 +55,7 @@ def build(
     sandbox: bool = True,
     allow_mainnet_trading: bool = False,
     connect: bool = True,
+    venue: VenueConfig = VENUE,
 ) -> tuple[CcxtAdapter, FakeCcxtClient, list[float]]:
     holder: dict[str, FakeCcxtClient] = {}
 
@@ -71,6 +66,7 @@ def build(
     sleeps: list[float] = []
     adapter = CcxtAdapter(
         config,
+        venue,
         credentials,
         sandbox=sandbox,
         allow_mainnet_trading=allow_mainnet_trading,
@@ -113,14 +109,16 @@ def test_public_mainnet_client_has_no_keys_and_cannot_trade(exchange_config):
 def test_public_mainnet_client_uses_public_market_data_url(exchange_config):
     """ISP bisa memblokir api.binance.com; data publik lewat endpoint data resmi."""
     adapter, client, _ = build(exchange_config, credentials=None, sandbox=False, connect=False)
-    assert client.urls["api"]["public"] == "https://data.example/api/v3"
+    assert client.urls["api"]["public"] == PUBLIC_DATA_URL
     assert client.urls["api"]["private"] == "https://api.example/api/v3"
     assert client.params["options"]["fetchMarkets"] == {"types": ["spot"], "loadAllOptions": False}
 
 
 def test_public_url_override_is_optional(exchange_config):
-    config = dataclasses.replace(exchange_config, public_market_data_url="")
-    _, client, _ = build(config, credentials=None, sandbox=False, connect=False)
+    venue = VenueConfig(id="binance", market_data_url="")
+    _, client, _ = build(
+        exchange_config, credentials=None, sandbox=False, connect=False, venue=venue
+    )
     assert client.urls["api"]["public"] == "https://api.example/api/v3"
 
 
@@ -139,8 +137,10 @@ def test_keyed_clients_keep_default_urls(exchange_config, credentials, sandbox, 
 def test_mainnet_with_keys_is_refused_without_gate(exchange_config):
     factory_calls: list[dict] = []
 
-    with pytest.raises(MainnetRefusedError, match="from_settings"):
-        CcxtAdapter(exchange_config, CREDS, sandbox=False, client_factory=factory_calls.append)
+    with pytest.raises(MainnetRefusedError, match="build_adapter"):
+        CcxtAdapter(
+            exchange_config, VENUE, CREDS, sandbox=False, client_factory=factory_calls.append
+        )
     assert factory_calls == [], "klien mainnet tidak boleh sempat dibuat"
 
 
@@ -152,37 +152,6 @@ def test_mainnet_with_keys_needs_explicit_gate_and_warns(exchange_config, caplog
     assert adapter.name == "binance-mainnet-trading"
     assert client.sandbox is None
     assert "MAINNET" in caplog.text
-
-
-def test_from_settings_paper_is_public_mainnet(config_path: Path):
-    settings = load_settings(config_path, environ={})
-    adapter = CcxtAdapter.from_settings(settings, client_factory=FakeCcxtClient)
-    assert settings.mode is TradingMode.PAPER
-    assert adapter.can_trade is False
-    assert adapter.is_sandbox is False
-
-
-def test_from_settings_testnet_is_sandbox(project_dir: Path, config_path: Path):
-    (project_dir / ".env").write_text(
-        f"TRADING_MODE=testnet\nBINANCE_TESTNET_API_KEY={KEY}\nBINANCE_TESTNET_API_SECRET={SECRET}\n"
-    )
-    settings = load_settings(config_path, environ={})
-    adapter = CcxtAdapter.from_settings(settings, client_factory=FakeCcxtClient)
-    assert adapter.is_sandbox is True
-    assert adapter.can_trade is True
-
-
-def test_from_settings_live_requires_env_and_flag(project_dir: Path, config_path: Path):
-    """Aturan keras 1 sampai ke adapter: config minta mainnet, tanpa flag tidak ada klien."""
-    (project_dir / ".env").write_text(
-        f"TRADING_MODE=live\nBINANCE_API_KEY={KEY}\nBINANCE_API_SECRET={SECRET}\n"
-    )
-    with pytest.raises(ConfigError, match="menolak"):
-        load_settings(config_path, environ={})
-
-    settings = load_settings(config_path, environ={}, i_know_what_im_doing=True)
-    adapter = CcxtAdapter.from_settings(settings, client_factory=FakeCcxtClient)
-    assert adapter.name == "binance-mainnet-trading"
 
 
 # --------------------------------------------------------------------------- #
@@ -208,7 +177,12 @@ def test_connect_refuses_when_clock_drifts_beyond_limit(exchange_config):
         return holder["client"]
 
     adapter = CcxtAdapter(
-        exchange_config, CREDS, sandbox=True, client_factory=factory, clock=lambda: LOCAL_CLOCK_S
+        exchange_config,
+        VENUE,
+        CREDS,
+        sandbox=True,
+        client_factory=factory,
+        clock=lambda: LOCAL_CLOCK_S,
     )
     with pytest.raises(TimeDriftError) as exc:
         adapter.connect()
@@ -218,6 +192,29 @@ def test_connect_refuses_when_clock_drifts_beyond_limit(exchange_config):
     assert holder["client"].count("load_markets") == 0
     with pytest.raises(FatalExchangeError, match="connect"):
         adapter.fetch_ticker("BTC/USDT")
+
+
+def test_connect_fails_when_configured_pair_is_missing(exchange_config):
+    holder: dict[str, FakeCcxtClient] = {}
+
+    def factory(params):
+        client = FakeCcxtClient(params)
+        client.markets = {"ETH/USDT": {**client.markets["BTC/USDT"], "symbol": "ETH/USDT"}}
+        holder["client"] = client
+        return client
+
+    adapter = CcxtAdapter(
+        exchange_config,
+        VENUE,
+        CREDS,
+        sandbox=True,
+        client_factory=factory,
+        clock=lambda: LOCAL_CLOCK_S,
+    )
+    with pytest.raises(FatalExchangeError, match="BTC/USDT.*tidak ada"):
+        adapter.connect()
+    with pytest.raises(FatalExchangeError, match="connect"):
+        adapter.fetch_ticker("ETH/USDT")
 
 
 def test_methods_require_connect_first(exchange_config):

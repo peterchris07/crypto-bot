@@ -1,4 +1,7 @@
-"""Lapisan exchange. Kode lain hanya bicara ke ExchangeAdapter, tidak pernah ke ccxt langsung."""
+"""Lapisan exchange. Kode lain hanya bicara ke ExchangeAdapter, tidak pernah ke ccxt langsung.
+
+Adapter dibuat lewat tradebot.exchange.factory.build_adapter, bukan langsung.
+"""
 
 from tradebot.exchange.base import (
     AssetBalance,
