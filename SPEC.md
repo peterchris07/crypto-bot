@@ -86,7 +86,7 @@ Kalau hasil position sizing di bawah batas minimum nilai order exchange, bot ber
 
 ### Time drift
 
-Saat start, bot membandingkan jam lokal dengan jam server exchange memakai titik tengah round trip. Kalau selisihnya melebihi exchange.max_time_drift_ms, bot gagal dengan pesan yang menyebut angka drift-nya, bukan sebagai error autentikasi yang membingungkan.
+Saat start, bot membandingkan jam lokal dengan jam server exchange memakai titik tengah round trip. Panggilan pertama ke host memuat resolusi DNS dan jabat tangan TLS, jadi satu panggilan pemanasan dibuang dulu, lalu diambil exchange.time_sync_samples sampel dan dipakai sampel dengan rtt terkecil, karena ketidakpastian estimasi titik tengah sekitar rtt/2. Dua keadaan dipisahkan tegas. Jam melenceng: pengukuran valid (rtt/2 di bawah batas) dan selisihnya melebihi exchange.max_time_drift_ms, fatal dengan pesan yang menyebut selisih, rtt terbaik, dan jumlah sampel. Pengukuran tidak konklusif: rtt/2 lebih besar dari batas, jadi pengukuran tidak bisa memutuskan apa pun; ini jaringan yang lambat, bukan jam yang salah, dan tidak pernah dilaporkan sebagai jam yang salah. Untuk kasus kedua yang dilihat adalah batas yang benar-benar dipakai exchange, recv_window_ms: kalau batas atas selisih (|selisih| + rtt/2) masih di bawahnya, jam tidak mungkin membuat exchange menolak request dan bot lanjut dengan peringatan; kalau sudah menyentuhnya, bot berhenti dengan pesan bahwa yang gagal adalah pengukurannya. Batas max_time_drift_ms sendiri tidak dinaikkan.
 
 ### Test yang dilewati harus terlihat
 

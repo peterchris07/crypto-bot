@@ -33,6 +33,7 @@ def exchange_config() -> ExchangeConfig:
         timeframe="1h",
         recv_window_ms=5000,
         max_time_drift_ms=1000,
+        time_sync_samples=3,
         rate_limit=True,
         retry=RetryConfig(max_attempts=3, base_delay_seconds=1.0, max_delay_seconds=2.5),
         testnet=VenueConfig(id="binance", market_data_url=""),

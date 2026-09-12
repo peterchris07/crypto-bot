@@ -50,7 +50,11 @@ class OrderNotFoundError(FatalExchangeError):
 
 
 class TimeDriftError(FatalExchangeError):
-    """Jam lokal melenceng dari jam server melebihi batas config."""
+    """Jam lokal melenceng dari jam server melebihi batas config (pengukuran valid)."""
+
+
+class ClockMeasurementError(FatalExchangeError):
+    """Pengukuran jam tidak konklusif: rtt terbaik terlalu besar. Ini jaringan, bukan jam."""
 
 
 class MainnetRefusedError(FatalExchangeError):

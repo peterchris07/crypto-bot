@@ -179,6 +179,9 @@ class ExchangeConfig:
     timeframe: str
     recv_window_ms: int
     max_time_drift_ms: int
+    # Sampel pengukuran jam saat connect (setelah satu panggilan pemanasan yang dibuang);
+    # yang dipakai sampel dengan rtt terkecil.
+    time_sync_samples: int
     rate_limit: bool
     retry: RetryConfig
     testnet: VenueConfig
@@ -470,6 +473,7 @@ def validate(settings: Settings) -> None:
         "exchange.recv_window_ms harus di antara 1 dan 59999 (server menolak >= 60000)",
     )
     _check(e.max_time_drift_ms > 0, "exchange.max_time_drift_ms harus > 0")
+    _check(e.time_sync_samples >= 1, "exchange.time_sync_samples harus >= 1")
     _check(
         e.max_time_drift_ms < e.recv_window_ms,
         "exchange.max_time_drift_ms harus lebih kecil dari recv_window_ms",

@@ -58,7 +58,7 @@ Cek koneksi ke venue sesuai mode. Perintah ini membandingkan jam lokal dengan ja
 uv run tradebot check-exchange
 ```
 
-Kalau jam mesin melenceng lebih dari batas di config, perintah gagal dengan pesan yang menyebut selisihnya dalam milidetik; sinkronkan jam sistem lalu ulangi. Kalau pair di config tidak ada lagi di venue, perintah gagal dengan pesan yang menyebut pair dan jumlah pasar per quote yang tersedia.
+Kalau jam mesin melenceng lebih dari batas di config, perintah gagal dengan pesan yang menyebut selisihnya, rtt terbaik, dan jumlah sampel; sinkronkan jam sistem lalu ulangi. Kalau yang muncul adalah "pengukuran jam tidak konklusif", jam Anda tidak salah: jaringan terlalu lambat untuk mengukurnya (rtt terbaik terlalu besar), coba lagi saat koneksi lebih stabil. Pengukuran memakai satu panggilan pemanasan yang dibuang lalu beberapa sampel dengan rtt terkecil, jadi koneksi dingin tidak lagi dinilai sebagai jam yang buruk. Kalau pair di config tidak ada lagi di venue, perintah gagal dengan pesan yang menyebut pair dan jumlah pasar per quote yang tersedia.
 
 Cek ledger trade: jumlah baris dan order yang fee-nya masih pending. Exit code bukan nol selama ada yang pending.
 

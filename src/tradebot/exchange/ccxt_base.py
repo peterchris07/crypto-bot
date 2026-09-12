@@ -23,6 +23,7 @@ from __future__ import annotations
 import logging
 import time
 from collections.abc import Callable, Sequence
+from dataclasses import dataclass
 from datetime import UTC, datetime
 from typing import Any
 
@@ -45,6 +46,7 @@ from tradebot.exchange.base import (
 )
 from tradebot.exchange.errors import (
     AuthenticationError,
+    ClockMeasurementError,
     ExchangeError,
     FatalExchangeError,
     InsufficientFundsError,
@@ -148,6 +150,16 @@ def translate_error(exc: ccxt.BaseError, headers: dict[str, Any] | None = None) 
     if isinstance(exc, ccxt.NetworkError):
         return RetryableExchangeError(f"gangguan jaringan/exchange: {text}")
     return FatalExchangeError(f"error exchange: {type(exc).__name__}: {text}")
+
+
+@dataclass(frozen=True)
+class ClockMeasurement:
+    """Hasil measure_clock: sampel dengan rtt terkecil, plus semua sampel untuk log."""
+
+    drift_ms: float  # lokal - server pada sampel terbaik
+    rtt_ms: float  # rtt sampel terbaik; ketidakpastian estimasi sekitar rtt/2
+    samples: int
+    all_samples: list[tuple[float, float]]
 
 
 class CcxtBase(ExchangeAdapter):
@@ -345,23 +357,80 @@ class CcxtBase(ExchangeAdapter):
     # Koneksi: jam, pasar, validasi pair
     # ------------------------------------------------------------------ #
 
-    def connect(self) -> None:
-        t0 = self._clock()
-        server_ms = self.fetch_server_time_ms()
-        t1 = self._clock()
-        rtt_ms = (t1 - t0) * 1000
-        local_mid_ms = (t0 + t1) / 2 * 1000
-        drift_ms = local_mid_ms - server_ms
-        self._server_offset_ms = drift_ms
-        limit = self._exchange.max_time_drift_ms
-        log.info(
-            "jam: lokal - server = %+.0f ms (batas %d ms, rtt %.0f ms)", drift_ms, limit, rtt_ms
+    def measure_clock(self) -> ClockMeasurement:
+        """Ukur selisih jam lokal terhadap server dengan beberapa sampel, ambil rtt terkecil.
+
+        Panggilan pertama ke host memuat resolusi DNS dan jabat tangan TLS, jadi selalu
+        paling lambat; satu panggilan pemanasan dibuang dulu. Estimasi titik tengah punya
+        ketidakpastian sekitar rtt/2, jadi sampel dengan rtt terkecil adalah yang paling
+        akurat, bukan rata-ratanya.
+        """
+        self.fetch_server_time_ms()  # pemanasan: hasilnya tidak dipakai
+        samples: list[tuple[float, float]] = []
+        for _ in range(self._exchange.time_sync_samples):
+            t0 = self._clock()
+            server_ms = self.fetch_server_time_ms()
+            t1 = self._clock()
+            rtt_ms = (t1 - t0) * 1000
+            drift_ms = (t0 + t1) / 2 * 1000 - server_ms
+            samples.append((rtt_ms, drift_ms))
+        best_rtt, best_drift = min(samples, key=lambda s: s[0])
+        return ClockMeasurement(
+            drift_ms=best_drift, rtt_ms=best_rtt, samples=len(samples), all_samples=samples
         )
-        if abs(drift_ms) > limit:
-            raise TimeDriftError(
-                f"jam lokal melenceng {drift_ms:+.0f} ms dari jam server {self._venue.id} "
-                f"(batas {limit} ms). Sinkronkan jam sistem, lalu jalankan lagi."
+
+    def _check_clock(self) -> None:
+        """Pisahkan dua hal: jam yang melenceng (pengukuran valid, selisih melebihi batas)
+        dan pengukuran yang tidak konklusif (rtt terbaik terlalu besar untuk memutuskan).
+
+        Kalau tidak konklusif terhadap max_time_drift_ms, yang dilihat adalah batas yang
+        benar-benar dipakai exchange, recv_window_ms: kalau batas atas selisih
+        (|selisih| + rtt/2) masih di bawah recv_window, jam tidak mungkin membuat exchange
+        menolak request, jadi bot lanjut dengan peringatan. Kalau batas atas itu pun sudah
+        menyentuh recv_window, pengukuran tidak bisa menjamin apa pun dan bot berhenti dengan
+        pesan bahwa yang gagal adalah pengukurannya, bukan jam pengguna.
+        """
+        m = self.measure_clock()
+        self._server_offset_ms = m.drift_ms
+        limit = self._exchange.max_time_drift_ms
+        recv_window = self._exchange.recv_window_ms
+        uncertainty = m.rtt_ms / 2
+        detail = (
+            f"rtt terbaik {m.rtt_ms:.0f} ms, selisih di sampel itu {m.drift_ms:+.0f} ms, "
+            f"{m.samples} sampel setelah pemanasan"
+        )
+        log.info("jam: lokal - server = %+.0f ms (batas %d ms; %s)", m.drift_ms, limit, detail)
+        if uncertainty > limit:
+            worst_case = abs(m.drift_ms) + uncertainty
+            if worst_case < recv_window:
+                log.warning(
+                    "pengukuran jam TIDAK KONKLUSIF terhadap batas %d ms: ketidakpastian rtt/2 = "
+                    "%.0f ms (%s). Ini jaringan yang lambat, bukan jam yang salah. Batas atas "
+                    "selisih %.0f ms masih di bawah recv_window %d ms yang dipakai exchange, "
+                    "jadi lanjut.",
+                    limit,
+                    uncertainty,
+                    detail,
+                    worst_case,
+                    recv_window,
+                )
+                return
+            raise ClockMeasurementError(
+                f"pengukuran jam ke {self._venue.id} tidak konklusif: {detail}. Ketidakpastian "
+                f"rtt/2 = {uncertainty:.0f} ms melebihi batas {limit} ms, dan batas atas selisih "
+                f"{worst_case:.0f} ms sudah menyentuh recv_window {recv_window} ms. Yang gagal "
+                "adalah pengukurannya (jaringan terlalu lambat), bukan jam Anda. Coba lagi saat "
+                "jaringan lebih stabil."
             )
+        if abs(m.drift_ms) > limit:
+            raise TimeDriftError(
+                f"jam lokal melenceng {m.drift_ms:+.0f} ms dari jam server {self._venue.id} "
+                f"(batas {limit} ms; pengukuran valid: {detail}). Sinkronkan jam sistem, lalu "
+                "jalankan lagi."
+            )
+
+    def connect(self) -> None:
+        self._check_clock()
 
         markets = self._call("load_markets", self._client.load_markets)
         symbol = self._exchange.symbol

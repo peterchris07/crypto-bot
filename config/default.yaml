@@ -10,6 +10,10 @@ exchange:
   # Selisih jam lokal dan jam server yang masih ditoleransi saat start.
   # Lebih dari ini bot berhenti dan menyebut angka drift-nya.
   max_time_drift_ms: 1000
+  # Jumlah sampel pengukuran jam saat connect, setelah satu panggilan pemanasan yang dibuang
+  # (resolusi DNS dan jabat tangan TLS membuat panggilan pertama paling lambat). Sampel dengan
+  # rtt terkecil yang dipakai: ketidakpastian estimasinya sekitar rtt/2.
+  time_sync_samples: 5
   rate_limit: true
   retry:
     max_attempts: 5

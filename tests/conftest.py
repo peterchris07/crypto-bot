@@ -46,6 +46,7 @@ MINIMAL_CONFIG = textwrap.dedent(
       timeframe: 1h
       recv_window_ms: 5000
       max_time_drift_ms: 1000
+      time_sync_samples: 3
       rate_limit: true
       retry:
         max_attempts: 3

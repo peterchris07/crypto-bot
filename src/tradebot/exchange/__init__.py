@@ -17,6 +17,7 @@ from tradebot.exchange.base import (
 )
 from tradebot.exchange.errors import (
     AuthenticationError,
+    ClockMeasurementError,
     ExchangeError,
     FatalExchangeError,
     InsufficientFundsError,
@@ -32,6 +33,7 @@ __all__ = [
     "AssetBalance",
     "AuthenticationError",
     "Balance",
+    "ClockMeasurementError",
     "ExchangeAdapter",
     "ExchangeError",
     "FatalExchangeError",
