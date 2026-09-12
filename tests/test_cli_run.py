@@ -56,7 +56,7 @@ def test_run_stops_with_exit_6_on_stop_file(
     assert "kill switch" in capsys.readouterr().err
 
 
-def test_run_refuses_live_mode_until_stage_8(
+def test_run_refuses_live_mode_until_enabled(
     project_dir: Path, config_path: Path, capsys, monkeypatch
 ):
     monkeypatch.setenv("TRADING_MODE", "live")
@@ -66,7 +66,7 @@ def test_run_refuses_live_mode_until_stage_8(
         ["--config", str(config_path), "run", "--i-know-what-im-doing", "--iterations", "1"]
     )
     assert code == cli.EXIT_CONFIG_ERROR
-    assert "tahap 8" in capsys.readouterr().err
+    assert "live.enabled masih false" in capsys.readouterr().err
 
 
 def test_run_rejects_zero_iterations(project_dir: Path, config_path: Path, fake_public, capsys):
@@ -214,3 +214,37 @@ def test_status_combines_everything_in_one_command(
     assert "exit terakhir 3" in out and "PERHATIAN: mulai ulang" in out
     assert "akun paper: 1000.0000 USDT" in out
     assert "log terakhir:" in out
+
+
+def test_run_live_enabled_but_preflight_failing_sends_nothing(
+    project_dir: Path, config_path: Path, capsys, monkeypatch
+):
+    """live.enabled true, dua kunci ada, tetapi api_key_verified_date kosong: preflight gagal,
+    exit 9, tidak ada order."""
+    from tradebot.exchange import factory as factory_module
+
+    text = config_path.read_text().replace("enabled: false", "enabled: true")
+    config_path.write_text(text)
+    monkeypatch.setenv("TRADING_MODE", "live")
+    monkeypatch.setenv("TOKOCRYPTO_API_KEY", "k" * 24)
+    monkeypatch.setenv("TOKOCRYPTO_API_SECRET", "s" * 24)
+    holder = {}
+    original = factory_module.build_adapter
+
+    def patched(settings, **kwargs):
+        def client_factory(params):
+            holder["client"] = FakeTokocryptoClient(params)
+            return holder["client"]
+
+        return original(
+            settings, client_factory=client_factory, clock=lambda: BASE_MS / 1000, **kwargs
+        )
+
+    monkeypatch.setattr(factory_module, "build_adapter", patched)
+    code = cli.main(
+        ["--config", str(config_path), "run", "--i-know-what-im-doing", "--iterations", "1"]
+    )
+    captured = capsys.readouterr()
+    assert code == cli.EXIT_PREFLIGHT_FAILED
+    assert "PREFLIGHT GAGAL" in captured.err and "api_key_verified_date kosong" in captured.out
+    assert holder["client"].count("create_order") == 0

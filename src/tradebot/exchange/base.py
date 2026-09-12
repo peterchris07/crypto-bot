@@ -144,6 +144,11 @@ class ExchangeAdapter(ABC):
     def can_trade(self) -> bool:
         """True kalau adapter punya kunci dan boleh mengirim order."""
 
+    @property
+    def supports_exchange_stops(self) -> bool:
+        """True kalau stop order di sisi exchange (lapis 2) bisa dipasang lewat adapter ini."""
+        return False
+
     @abstractmethod
     def connect(self) -> None:
         """Cek jam server dan muat daftar pasar. Wajib sebelum method lain."""

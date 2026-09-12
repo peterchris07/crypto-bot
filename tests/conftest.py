@@ -74,6 +74,7 @@ MINIMAL_CONFIG = textwrap.dedent(
       stop_loss_fraction: 0.02
       take_profit_fraction: 0.04
       exchange_stop_multiplier: 2.0
+      exchange_stop_limit_offset_fraction: 0.005
       max_orders_per_minute: 5
       max_consecutive_failures: 5
       stop_file: STOP
@@ -102,6 +103,11 @@ MINIMAL_CONFIG = textwrap.dedent(
       bias_min_trades: 5
       bias_adverse_share: 0.75
       checklist_min_fills: 4
+      enabled: false
+      api_key_verified_date: ""
+      max_key_age_days: 90
+      min_cycles_before_normal: 3
+      stage_path: state/live_stage.json
     logging:
       dir: logs
       level: INFO

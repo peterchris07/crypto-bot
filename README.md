@@ -99,7 +99,24 @@ uv run tradebot backtest --start 2026-01-01 --end 2026-07-01
 
 Strategi butuh jendela warmup (250 bar untuk EMA 20/50 dengan pengali 5) sebelum bisa memberi sinyal. Perintah backtest menyertakan bar sebanyak itu sebelum --start, dan buy-and-hold masuk di bar pertama yang bisa diperdagangkan strategi, bukan di bar pertama data, supaya pembandingnya adil. Kalau histori sebelum --start tidak cukup, bar pertama yang diperdagangkan bergeser dan ada peringatan di stderr. Bar yang datang setelah lubang data tidak mendapat keputusan strategi, sama seperti runner live nanti, dan jumlahnya dicetak di laporan.
 
-Jalankan loop trading. Di mode paper (default) harga dari Tokocrypto, eksekusi disimulasikan, dan akun paper disimpan di state/paper_account.json dengan saldo awal backtest.initial_equity. Di mode testnet order sungguhan masuk ke Binance Spot Testnet. Mode live ditolak sampai tahap 8.
+Jalankan loop trading. Di mode paper (default) harga dari Tokocrypto, eksekusi disimulasikan, dan akun paper disimpan di state/paper_account.json dengan saldo awal backtest.initial_equity. Di mode testnet order sungguhan masuk ke Binance Spot Testnet. Mode live butuh tiga hal sekaligus: TRADING_MODE=live di .env, flag --i-know-what-im-doing, dan live.enabled true di config; lalu preflight harus lulus sebelum loop dimulai. Selama live.enabled false, run menolak dengan pesan yang menyebut syaratnya.
+
+Di live, order pertama dipaksa ke ukuran minimum exchange, bukan hasil sizing, sampai Anda menaikkannya secara sadar:
+
+```bash
+uv run tradebot live-size
+uv run tradebot live-size --normal
+```
+
+Perintah kedua ditolak sebelum live.min_cycles_before_normal siklus masuk-keluar selesai di ukuran minimum. Di testnet dan live, stop lapis 2 dipasang di exchange segera setelah posisi terbentuk, lebih lebar dari stop bot, dan dibatalkan dulu sebelum order keluar; paper tidak mensimulasikannya.
+
+Periksa kesiapan live kapan saja tanpa menjalankan bot dan tanpa mengirim order:
+
+```bash
+uv run tradebot preflight
+```
+
+Preflight memeriksa tanggal terakhir Anda memverifikasi izin kunci di halaman API Management Tokocrypto (live.api_key_verified_date, maksimal live.max_key_age_days hari), kunci bisa membaca saldo, pasangan dan minimum notional, sizing, jam, dan dukungan stop order. Exit code 9 kalau ada yang gagal.
 
 ```bash
 uv run tradebot run
@@ -233,4 +250,4 @@ Tahap 6 selesai: semua kill switch di RiskManager yang sama dengan backtest. Bat
 
 Tahap 7 kode selesai: PaperAdapter dengan akun yang dipersist, jurnal order write-ahead, runner dengan rekonsiliasi saat start, perintah run, dan test paritas yang membuktikan runner paper dan backtest menghasilkan trade yang sama untuk data yang sama. Yang belum: menjalankannya beberapa hari di jaringan sungguhan dan membandingkan dengan backtest di periode yang sama; itu pekerjaan operator sebelum tahap 8.
 
-Tahap 8 (mode live) menyusul setelah paper berjalan beberapa hari dan Anda menyatakan siap.
+Tahap 8 kode selesai, TIDAK diaktifkan: gerbang tiga kunci untuk live, lapis 2 di exchange dengan urutan batalkan-sebelum-keluar dan penanganan stop yang tereksekusi saat bot mati, preflight, ukuran minimum untuk order pertama dengan penanda dan perintah live-size, ledger dua fase di live. Yang belum: paper run sampai checklist OK, pemeriksaan halaman API Management, kunci live, dan pernyataan siap dari pemilik. Lihat SIAP-PAKAI.md.

@@ -37,6 +37,7 @@ EXIT_DATA_ERROR = 5
 EXIT_KILL_SWITCH = 6
 EXIT_BIAS_DETECTED = 7
 EXIT_CHECKLIST_INCOMPLETE = 8
+EXIT_PREFLIGHT_FAILED = 9
 
 
 def _add_live_flag(parser: argparse.ArgumentParser) -> None:
@@ -153,6 +154,26 @@ def build_parser() -> argparse.ArgumentParser:
             "ledger-status, paper-checklist, dan compare-paper kalau pasangannya cukup."
         ),
     )
+
+    preflight = sub.add_parser(
+        "preflight",
+        help=(
+            "Pemeriksaan kesiapan live tanpa mengirim order: tanggal verifikasi izin kunci, kunci "
+            "bisa membaca saldo, pasangan dan minimum notional, sizing, jam, dukungan stop."
+        ),
+    )
+    _add_live_flag(preflight)
+
+    live_size = sub.add_parser(
+        "live-size",
+        help=(
+            "Lihat atau ubah penanda ukuran order di live: minimum (order pertama dipaksa ke "
+            "minimum exchange) atau normal (hasil sizing). Naik ke normal ditolak sebelum "
+            "live.min_cycles_before_normal siklus selesai."
+        ),
+    )
+    live_size.add_argument("--normal", action="store_true", help="Naik ke ukuran normal.")
+    live_size.add_argument("--minimum", action="store_true", help="Kembali ke ukuran minimum.")
 
     sub.add_parser(
         "paper-checklist",
@@ -314,6 +335,22 @@ def _status(settings: Settings) -> int:
     # posisi dan saldo paper
     position = PositionStore(root / settings.live.position_path).load()
     print(f"posisi: {position if position else 'FLAT'}")
+    if position is not None:
+        if position.stop_order_id:
+            print(f"lapis 2: order {position.stop_order_id} stop {position.stop_price}")
+        else:
+            print("lapis 2: tidak ada stop di exchange (paper, atau belum terpasang)")
+    from tradebot.live.stage import LiveStageStore
+
+    try:
+        stage = LiveStageStore(root / settings.live.stage_path).load()
+        print(
+            f"live: enabled={settings.live.enabled}, ukuran order {stage.stage}, siklus selesai "
+            f"{stage.cycles_completed}, izin kunci diperiksa "
+            f"{settings.live.api_key_verified_date or 'BELUM PERNAH'}"
+        )
+    except ValueError as exc:
+        print(f"live: penanda ukuran tidak terbaca ({exc})")
     account_path = root / settings.live.paper_account_path
     if account_path.exists():
         try:
@@ -405,41 +442,98 @@ def _paper_checklist(settings: Settings) -> int:
     return EXIT_OK if all(item.ok for item in items) else EXIT_CHECKLIST_INCOMPLETE
 
 
+def _build_risk(settings: Settings):
+    from tradebot.risk import DailyStateStore, RiskManager
+
+    return RiskManager(
+        settings.risk,
+        settings.costs,
+        stop_file=settings.stop_file_path,
+        state_store=DailyStateStore(settings.root / settings.live.state_path),
+    )
+
+
+def _preflight(settings: Settings) -> int:
+    from tradebot.exchange.factory import build_adapter
+    from tradebot.live.preflight import format_preflight, run_preflight
+
+    adapter = build_adapter(settings)
+    checks = run_preflight(settings, adapter, _build_risk(settings))
+    print(format_preflight(checks, settings))
+    return EXIT_OK if all(c.ok for c in checks) else EXIT_PREFLIGHT_FAILED
+
+
+def _live_size(settings: Settings, normal: bool, minimum: bool) -> int:
+    from tradebot.live.stage import MINIMUM, NORMAL, LiveStageStore
+
+    store = LiveStageStore(settings.root / settings.live.stage_path)
+    if normal and minimum:
+        print("CONFIG ERROR: pilih salah satu, --normal atau --minimum", file=sys.stderr)
+        return EXIT_CONFIG_ERROR
+    try:
+        if normal:
+            stage = store.set_stage(
+                NORMAL,
+                min_cycles=settings.live.min_cycles_before_normal,
+                note="dinaikkan secara sadar lewat live-size --normal",
+            )
+        elif minimum:
+            stage = store.set_stage(MINIMUM, min_cycles=0, note="dikembalikan lewat live-size")
+        else:
+            stage = store.load()
+    except ValueError as exc:
+        print(f"LIVE-SIZE DITOLAK: {exc}", file=sys.stderr)
+        return EXIT_CONFIG_ERROR
+    print(
+        f"ukuran order live: {stage.stage} (siklus selesai di ukuran minimum: "
+        f"{stage.cycles_completed}, butuh {settings.live.min_cycles_before_normal} untuk naik; "
+        f"diperbarui {stage.updated_at}; {stage.note})"
+    )
+    return EXIT_OK
+
+
 def _run(settings: Settings, iterations: int | None) -> int:
     from tradebot.config import TradingMode
     from tradebot.exchange.factory import build_adapter
     from tradebot.ledger import Ledger
     from tradebot.live.journal import OrderJournal
+    from tradebot.live.preflight import format_preflight, run_preflight
     from tradebot.live.runner import EXIT_KILL_SWITCH as RUNNER_KILL_SWITCH
     from tradebot.live.runner import PositionStore, Runner
-    from tradebot.risk import DailyStateStore, RiskManager
+    from tradebot.live.stage import LiveStageStore
     from tradebot.strategy import build_strategy
 
-    if settings.mode is TradingMode.LIVE:
-        print(
-            "CONFIG ERROR: mode live belum diaktifkan; tahap 8 (lapis 2, urutan cancel stop, "
-            "ukuran minimum) belum dikerjakan. Jalankan paper dulu beberapa hari.",
-            file=sys.stderr,
-        )
-        return EXIT_CONFIG_ERROR
     if iterations is not None and iterations < 1:
         print("CONFIG ERROR: --iterations harus >= 1", file=sys.stderr)
         return EXIT_CONFIG_ERROR
     root = settings.root
-    risk = RiskManager(
-        settings.risk,
-        settings.costs,
-        stop_file=settings.stop_file_path,
-        state_store=DailyStateStore(root / settings.live.state_path),
-    )
+    risk = _build_risk(settings)
+    adapter = build_adapter(settings)
+    if settings.mode is TradingMode.LIVE:
+        # Kunci ketiga, di luar TRADING_MODE=live dan flag: live.enabled di config. Tetap false
+        # sampai pemilik menyatakan siap. Lalu preflight harus lulus sebelum loop dimulai.
+        if not settings.live.enabled:
+            print(
+                "CONFIG ERROR: mode live belum diaktifkan: live.enabled masih false di config. "
+                "Syaratnya: paper-checklist OK, preflight lulus, dan Anda menyatakan siap "
+                "dengan mengubah live.enabled ke true secara sadar.",
+                file=sys.stderr,
+            )
+            return EXIT_CONFIG_ERROR
+        checks = run_preflight(settings, adapter, risk)
+        print(format_preflight(checks, settings))
+        if not all(c.ok for c in checks):
+            print("PREFLIGHT GAGAL: bot live tidak dijalankan.", file=sys.stderr)
+            return EXIT_PREFLIGHT_FAILED
     runner = Runner(
         settings,
-        build_adapter(settings),
+        adapter,
         build_strategy(settings.strategy),
         risk,
         OrderJournal(root / settings.live.journal_path),
         Ledger(root / settings.live.trades_csv),
         PositionStore(root / settings.live.position_path),
+        stage_store=LiveStageStore(root / settings.live.stage_path),
     )
     code = runner.run(iterations)
     if code == RUNNER_KILL_SWITCH:
@@ -715,6 +809,10 @@ def main(argv: Sequence[str] | None = None) -> int:
         return _paper_checklist(settings)
     if args.command == "status":
         return _status(settings)
+    if args.command == "preflight":
+        return _preflight(settings)
+    if args.command == "live-size":
+        return _live_size(settings, args.normal, args.minimum)
 
     parser.error(f"perintah tidak dikenal: {args.command}")
     return EXIT_CONFIG_ERROR

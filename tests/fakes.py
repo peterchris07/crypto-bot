@@ -315,6 +315,18 @@ class FakeTokocryptoClient(FakeCcxtClient):
         if status == "open":
             self.open_orders.append(order)
         else:
+            # Saldo mengikuti fill seperti exchange sungguhan: fee dipotong dari quote.
+            fee = cost * 0.0015
+            base, quote = symbol.split("/", 1)
+            for bucket in ("free", "total"):
+                self.balance[bucket].setdefault(base, 0.0)
+                self.balance[bucket].setdefault(quote, 0.0)
+                if side == "buy":
+                    self.balance[bucket][base] += filled
+                    self.balance[bucket][quote] -= cost + fee
+                else:
+                    self.balance[bucket][base] -= filled
+                    self.balance[bucket][quote] += cost - fee
             self.trades.append(
                 {
                     "id": f"t{order_id}",
@@ -324,7 +336,7 @@ class FakeTokocryptoClient(FakeCcxtClient):
                     "amount": filled,
                     "price": average,
                     "cost": cost,
-                    "fee": {"cost": cost * 0.0015, "currency": "USDT"},
+                    "fee": {"cost": fee, "currency": "USDT"},
                     "timestamp": self.server_time_ms,
                 }
             )

@@ -35,7 +35,7 @@ from typing import Any
 
 import pandas as pd
 
-from tradebot.config import Settings
+from tradebot.config import Settings, TradingMode
 from tradebot.data.cache import atomic_write
 from tradebot.data.ohlcv import floor_to_bar, stamp_of, timeframe_to_ms, validate_frame
 from tradebot.exchange.base import (
@@ -44,6 +44,7 @@ from tradebot.exchange.base import (
     MarketLimits,
     Order,
     OrderSide,
+    OrderStatus,
     OrderType,
     Ticker,
 )
@@ -56,7 +57,15 @@ from tradebot.exchange.errors import (
 )
 from tradebot.ledger import Ledger
 from tradebot.live.journal import OrderJournal
-from tradebot.risk.manager import ExitReason, KillSwitchTriggered, RiskError, RiskManager
+from tradebot.live.preflight import minimum_order_amount
+from tradebot.live.stage import MINIMUM, LiveStageStore
+from tradebot.risk.manager import (
+    ExitReason,
+    KillSwitchTriggered,
+    RiskError,
+    RiskManager,
+    quantize_down,
+)
 from tradebot.strategy.base import Signal, Strategy
 
 log = logging.getLogger(__name__)
@@ -75,6 +84,10 @@ class PositionState:
     stop_loss: float
     take_profit: float
     client_order_id: str | None
+    # Lapis 2: stop order di exchange yang mengunci aset; harus dibatalkan sebelum order keluar.
+    stop_order_id: str | None = None
+    stop_client_order_id: str | None = None
+    stop_price: float | None = None
 
 
 class PositionStore:
@@ -131,6 +144,7 @@ class Runner:
         ledger: Ledger,
         position_store: PositionStore,
         *,
+        stage_store: LiveStageStore | None = None,
         clock: Callable[[], float] | None = None,
         sleep: Callable[[float], None] | None = None,
     ) -> None:
@@ -141,6 +155,8 @@ class Runner:
         self.journal = journal
         self.ledger = ledger
         self.position_store = position_store
+        self.stage_store = stage_store
+        self.live = settings.mode is TradingMode.LIVE
         # Dicari saat init, bukan saat definisi, supaya test bisa mengganti time.sleep.
         self._clock = clock or time.time
         self._sleep = sleep or time.sleep
@@ -170,7 +186,12 @@ class Runner:
         self._reconcile_journal()
         self.position = self.position_store.load()
         self.last_decided_bar = self.position_store.load_last_decided()
+        self._reconcile_exchange_stop_on_start()
         self._reconcile_position_with_balance()
+        if self.adapter.can_trade:
+            # Ledger dua fase: fee yang masih pending dari sesi sebelumnya diisi sekarang.
+            self.ledger.reconcile(self.adapter, self.symbol)
+        self._ensure_exchange_stop()
         self.started = True
         log.info(
             "runner siap: %s %s %s, strategi %s (jendela %d bar), posisi=%s",
@@ -319,6 +340,7 @@ class Runner:
                     levels.take_profit,
                 )
                 self._sell(reason.value)
+        self._ensure_exchange_stop()
 
     def _decide(self, now: datetime, ticker: Ticker, balance: Balance) -> None:
         closed = self._closed_bars(now)
@@ -355,10 +377,32 @@ class Runner:
         if signal is Signal.LONG and self.position is None:
             reference = ticker.ask or ticker.last
             fill = reference * (1 + self.settings.costs.slippage_rate)
-            amount = self.risk.size_position(balance.free(self.quote), fill, self.limits)
+            amount = self._entry_amount(balance.free(self.quote), fill)
             self._buy(amount)
         elif signal is Signal.FLAT and self.position is not None:
             self._sell(ExitReason.SIGNAL.value)
+
+    def _entry_amount(self, free_quote: float, fill: float) -> float:
+        """Sizing normal, KECUALI di live saat penanda ukuran masih "minimum": order pertama
+        di uang asli dipaksa ke ukuran minimum exchange, bukan hasil sizing."""
+        sized = self.risk.size_position(free_quote, fill, self.limits)
+        if not (self.live and self.stage_store is not None and self.limits is not None):
+            return sized
+        stage = self.stage_store.load()
+        if stage.stage != MINIMUM:
+            return sized
+        minimum = minimum_order_amount(self.limits, fill)
+        log.warning(
+            "LIVE ukuran minimum: order pertama %s %s (~%.2f %s), bukan hasil sizing %s; "
+            "siklus selesai %d, naikkan lewat `tradebot live-size --normal`",
+            minimum,
+            self.base,
+            minimum * fill,
+            self.quote,
+            sized,
+            stage.cycles_completed,
+        )
+        return min(sized, minimum) if sized < minimum else minimum
 
     def _mark_decided(self, bar: pd.Timestamp) -> None:
         self.last_decided_bar = bar
@@ -406,7 +450,16 @@ class Runner:
     # Order
     # ------------------------------------------------------------------ #
 
-    def _submit(self, side: OrderSide, amount: float, reason: str) -> Order | None:
+    def _submit(
+        self,
+        side: OrderSide,
+        amount: float,
+        reason: str,
+        *,
+        order_type: OrderType = OrderType.MARKET,
+        price: float | None = None,
+        stop_price: float | None = None,
+    ) -> Order | None:
         now = self.now()
         self.risk.before_order(now)
         cid = f"tb-{now:%Y%m%dT%H%M%S}-{uuid.uuid4().hex[:8]}"
@@ -414,14 +467,20 @@ class Runner:
             cid,
             symbol=self.symbol,
             side=side.value,
-            order_type=OrderType.MARKET.value,
+            order_type=order_type.value,
             amount=amount,
             reason=reason,
             time=now,
         )
         try:
             order = self.adapter.create_order(
-                self.symbol, side, OrderType.MARKET, amount, client_order_id=cid
+                self.symbol,
+                side,
+                order_type,
+                amount,
+                price=price,
+                stop_price=stop_price,
+                client_order_id=cid,
             )
         except OrderStateUnknownError as exc:
             self.journal.record_unknown(cid, str(exc), self.now())
@@ -476,9 +535,190 @@ class Runner:
             levels.stop_loss,
             levels.take_profit,
         )
+        self._ensure_exchange_stop()
+
+    # ------------------------------------------------------------------ #
+    # Lapis 2: stop order di exchange
+    # ------------------------------------------------------------------ #
+
+    def _exchange_stop_prices(self, entry_price: float) -> tuple[float, float]:
+        """(stop_price, limit_price): jarak stop = stop_loss_fraction x exchange_stop_multiplier,
+        lebih lebar dari lapis 1; limit sedikit di bawah stop supaya terisi saat terpicu."""
+        cfg = self.settings.risk
+        stop_price = entry_price * (1 - cfg.stop_loss_fraction * cfg.exchange_stop_multiplier)
+        limit_price = stop_price * (1 - cfg.exchange_stop_limit_offset_fraction)
+        step = (self.limits.price_step if self.limits else None) or 0.0
+        if step:
+            stop_price = quantize_down(stop_price, step)
+            limit_price = quantize_down(limit_price, step)
+        return stop_price, limit_price
+
+    def _ensure_exchange_stop(self) -> None:
+        """Pasang stop lapis 2 kalau ada posisi tanpa stop di exchange dan venue mendukungnya."""
+        if self.position is None or self.position.stop_order_id is not None:
+            return
+        if not self.adapter.supports_exchange_stops:
+            return
+        stop_price, limit_price = self._exchange_stop_prices(self.position.entry_price)
+        step = (self.limits.amount_step if self.limits else None) or 0.0
+        amount = quantize_down(self.position.amount, step) if step else self.position.amount
+        if amount <= 0:
+            log.error(
+                "lapis 2 tidak dipasang: jumlah posisi %s di bawah step", self.position.amount
+            )
+            return
+        try:
+            order = self._submit(
+                OrderSide.SELL,
+                amount,
+                "exchange_stop",
+                order_type=OrderType.STOP_LOSS_LIMIT,
+                price=limit_price,
+                stop_price=stop_price,
+            )
+        except (ExchangeError, RiskError) as exc:
+            log.error("lapis 2 gagal dipasang: %s; dicoba lagi iterasi berikutnya", exc)
+            return
+        if order is None or order.id is None:
+            log.error("lapis 2: tidak ada id order dari exchange; dicoba lagi iterasi berikutnya")
+            return
+        self.position = PositionState(
+            **{
+                **asdict(self.position),
+                "stop_order_id": order.id,
+                "stop_client_order_id": order.client_order_id,
+                "stop_price": stop_price,
+            }
+        )
+        self.position_store.save(self.position)
+        log.info(
+            "LAPIS 2 terpasang: stop %s limit %s untuk %s %s (order %s)",
+            stop_price,
+            limit_price,
+            amount,
+            self.base,
+            order.id,
+        )
+
+    def _cancel_exchange_stop(self) -> bool:
+        """Batalkan stop lapis 2 SEBELUM order keluar. True kalau aman mengirim order keluar.
+
+        Kalau stop ternyata sudah tereksekusi, posisi sudah tidak ada: ledger dan jurnal
+        disamakan dan posisi dihapus; False karena tidak ada lagi yang harus dijual.
+        """
+        assert self.position is not None
+        stop_id = self.position.stop_order_id
+        if stop_id is None:
+            return True
+        cid = self.position.stop_client_order_id or stop_id
+        now = self.now()
+        try:
+            self.adapter.cancel_order(stop_id, self.symbol)
+        except OrderNotFoundError:
+            return not self._absorb_executed_stop(stop_id, cid, "cancel_not_found")
+        except ExchangeError as exc:
+            self.journal.record_cancel(cid, stop_id, f"gagal: {exc}", now)
+            log.error(
+                "pembatalan stop lapis 2 %s gagal: %s; order keluar TIDAK dikirim supaya tidak "
+                "ditolak karena saldo terkunci",
+                stop_id,
+                exc,
+            )
+            return False
+        self.journal.record_cancel(cid, stop_id, "canceled", now)
+        self.position = PositionState(
+            **{**asdict(self.position), "stop_order_id": None, "stop_client_order_id": None}
+        )
+        self.position_store.save(self.position)
+        log.info("LAPIS 2 dibatalkan sebelum order keluar: %s", stop_id)
+        return True
+
+    def _absorb_executed_stop(self, stop_id: str, cid: str, context: str) -> bool:
+        """Periksa stop lapis 2 yang tidak bisa dibatalkan. True kalau ternyata sudah tereksekusi
+        dan posisi sudah diselesaikan (ledger, jurnal, catatan posisi)."""
+        assert self.position is not None
+        now = self.now()
+        try:
+            order = self.adapter.fetch_order(self.symbol, order_id=stop_id)
+        except OrderNotFoundError:
+            self.journal.record_cancel(cid, stop_id, f"{context}: tidak ada di exchange", now)
+            log.warning("stop lapis 2 %s tidak ada di exchange; dianggap sudah hilang", stop_id)
+            self.position = PositionState(
+                **{**asdict(self.position), "stop_order_id": None, "stop_client_order_id": None}
+            )
+            self.position_store.save(self.position)
+            return False
+        if order.filled > 0:
+            self.journal.record_reconciled(cid, "executed", now, order)
+            if not self._ledger_has(cid) and order.client_order_id:
+                self.ledger.record_fill(order)
+            elif not self._ledger_has(cid):
+                self.ledger.record_fill(order)
+            self.ledger.reconcile(self.adapter, self.symbol)
+            remaining = self.position.amount - order.filled
+            log.warning(
+                "STOP LAPIS 2 TEREKSEKUSI di exchange: %s terjual @ %s (%s); posisi %s",
+                order.filled,
+                order.average,
+                context,
+                "sebagian" if remaining > 1e-12 else "ditutup",
+            )
+            if remaining > 1e-12:
+                self.position = PositionState(
+                    **{
+                        **asdict(self.position),
+                        "amount": remaining,
+                        "stop_order_id": None,
+                        "stop_client_order_id": None,
+                    }
+                )
+                self.position_store.save(self.position)
+                return False
+            self.position = None
+            self.position_store.save(None)
+            self._record_cycle()
+            return True
+        self.journal.record_cancel(cid, stop_id, f"{context}: status {order.status.value}", now)
+        self.position = PositionState(
+            **{**asdict(self.position), "stop_order_id": None, "stop_client_order_id": None}
+        )
+        self.position_store.save(self.position)
+        return False
+
+    def _reconcile_exchange_stop_on_start(self) -> None:
+        """Bot bangun dengan catatan stop lapis 2: cek nasibnya di exchange dulu."""
+        if self.position is None or self.position.stop_order_id is None:
+            return
+        if not self.adapter.can_trade:
+            return
+        stop_id = self.position.stop_order_id
+        cid = self.position.stop_client_order_id or stop_id
+        try:
+            order = self.adapter.fetch_order(self.symbol, order_id=stop_id)
+        except OrderNotFoundError:
+            self._absorb_executed_stop(stop_id, cid, "start")
+            return
+        except ExchangeError as exc:
+            log.error("stop lapis 2 %s tidak bisa diperiksa saat start: %s", stop_id, exc)
+            return
+        if order.status is OrderStatus.OPEN:
+            log.info("stop lapis 2 %s masih terbuka di exchange", stop_id)
+            return
+        self._absorb_executed_stop(stop_id, cid, "start")
+
+    def _record_cycle(self) -> None:
+        if self.live and self.stage_store is not None:
+            stage = self.stage_store.record_cycle()
+            log.info("siklus live selesai: %d (ukuran %s)", stage.cycles_completed, stage.stage)
 
     def _sell(self, reason: str) -> None:
         assert self.position is not None
+        # Urutan wajib: stop lapis 2 mengunci aset, jadi dibatalkan DULU. Kalau ternyata sudah
+        # tereksekusi, posisi sudah selesai dan tidak ada yang dijual.
+        if not self._cancel_exchange_stop():
+            return
+        if self.position is None:
+            return
         order = self._submit(OrderSide.SELL, self.position.amount, reason)
         if order is None or order.filled <= 0:
             log.error(
@@ -499,6 +739,7 @@ class Runner:
         self.position = None
         self.position_store.save(None)
         log.info("POSISI FLAT (%s): jual %s @ %s", reason, order.filled, order.average)
+        self._record_cycle()
 
     # ------------------------------------------------------------------ #
     # Loop

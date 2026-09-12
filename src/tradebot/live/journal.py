@@ -25,6 +25,7 @@ INTENT = "intent"
 RESULT = "result"
 UNKNOWN = "unknown"
 RECONCILED = "reconciled"
+CANCEL = "cancel"  # pembatalan stop lapis 2 sebelum order keluar, dengan hasilnya
 CLOSING_EVENTS = {RESULT, RECONCILED}
 
 
@@ -100,6 +101,11 @@ class OrderJournal:
                 fee=order.fee,
             )
         self._append(RECONCILED, client_order_id, time, **fields)
+
+    def record_cancel(
+        self, client_order_id: str, order_id: str | None, outcome: str, time: datetime
+    ) -> None:
+        self._append(CANCEL, client_order_id, time, order_id=order_id, outcome=outcome)
 
     def entries(self) -> list[dict[str, Any]]:
         if not self.path.exists():

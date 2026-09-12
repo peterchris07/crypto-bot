@@ -61,6 +61,8 @@ risk:
   # Lapis 2 (tahap 8): stop order di exchange, jaraknya = stop_loss_fraction * multiplier.
   # Harus lebih lebar dari lapis 1. Normalnya tidak pernah kena; kena hanya kalau bot sudah mati.
   exchange_stop_multiplier: 2.0
+  # Lapis 2: harga limit dipasang 0,5% di bawah harga stop supaya terisi saat stop terpicu.
+  exchange_stop_limit_offset_fraction: 0.005
   # Proteksi runaway loop.
   max_orders_per_minute: 5
   # Gagal koneksi beruntun sebelum kill switch.
@@ -121,6 +123,18 @@ live:
   bias_adverse_share: 0.75
   # paper-checklist: minimal fill yang tertelusuri dari niat di jurnal sampai baris ledger.
   checklist_min_fills: 4
+  # Tahap 8. Mode live menolak jalan selama enabled false, walau TRADING_MODE=live dan flag
+  # --i-know-what-im-doing diberikan. Ubah ke true hanya setelah paper run selesai (paper-checklist
+  # OK), preflight lulus, dan Anda menyatakan siap.
+  enabled: false
+  # Tanggal terakhir Anda memeriksa halaman API Management Tokocrypto: izin withdrawal MATI,
+  # pembatasan IP aktif kalau tersedia. Kosong berarti belum pernah; preflight menolak.
+  api_key_verified_date: ""
+  max_key_age_days: 90
+  # Order pertama di live dipaksa ke ukuran minimum exchange. Naik ke ukuran normal hanya lewat
+  # `tradebot live-size --normal`, yang ditolak sebelum sekian siklus masuk-keluar selesai.
+  min_cycles_before_normal: 3
+  stage_path: state/live_stage.json
 
 logging:
   dir: logs

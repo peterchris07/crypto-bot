@@ -228,6 +228,9 @@ class RiskConfig:
     stop_loss_fraction: float
     take_profit_fraction: float
     exchange_stop_multiplier: float
+    # Lapis 2: harga limit stop order di exchange dipasang sedikit di bawah harga stop-nya,
+    # supaya order limit itu terisi saat stop terpicu, bukan menggantung di atas pasar.
+    exchange_stop_limit_offset_fraction: float
     max_orders_per_minute: int
     max_consecutive_failures: int
     stop_file: str
@@ -297,6 +300,17 @@ class LiveConfig:
     bias_adverse_share: float
     # paper-checklist: minimal fill yang tertelusuri penuh dari jurnal sampai ledger.
     checklist_min_fills: int
+    # Tahap 8. Mode live menolak jalan selama enabled false, walau TRADING_MODE=live dan flag
+    # diberikan; pemilik yang mengubahnya secara sadar setelah paper run selesai.
+    enabled: bool
+    # Tanggal (YYYY-MM-DD) pemilik terakhir memeriksa halaman API Management Tokocrypto:
+    # izin withdrawal mati, pembatasan IP kalau tersedia. Kosong = belum pernah diperiksa.
+    api_key_verified_date: str
+    max_key_age_days: int
+    # Ukuran order pertama di live dipaksa ke minimum exchange; naik ke ukuran normal hanya
+    # setelah minimal sekian siklus masuk-keluar dan perintah live-size --normal.
+    min_cycles_before_normal: int
+    stage_path: str
 
 
 @dataclass(frozen=True)
@@ -408,6 +422,10 @@ def validate(settings: Settings) -> None:
         r.exchange_stop_multiplier > 1,
         "risk.exchange_stop_multiplier harus > 1: stop di exchange wajib lebih lebar dari stop bot",
     )
+    _check(
+        0 <= r.exchange_stop_limit_offset_fraction < 0.1,
+        "risk.exchange_stop_limit_offset_fraction harus di antara 0 dan 0.1",
+    )
     _check(r.max_orders_per_minute >= 1, "risk.max_orders_per_minute harus >= 1")
     _check(r.max_consecutive_failures >= 1, "risk.max_consecutive_failures harus >= 1")
     _check(bool(r.stop_file.strip()), "risk.stop_file tidak boleh kosong")
@@ -503,6 +521,14 @@ def validate(settings: Settings) -> None:
         "live.bias_adverse_share harus di antara 0.5 (eksklusif) dan 1",
     )
     _check(lv.checklist_min_fills >= 1, "live.checklist_min_fills harus >= 1")
+    _check(lv.max_key_age_days >= 1, "live.max_key_age_days harus >= 1")
+    _check(lv.min_cycles_before_normal >= 1, "live.min_cycles_before_normal harus >= 1")
+    _check(bool(lv.stage_path.strip()), "live.stage_path tidak boleh kosong")
+    if lv.api_key_verified_date.strip():
+        try:
+            parse_utc_ms(lv.api_key_verified_date)
+        except ValueError as exc:
+            raise ConfigError(f"live.api_key_verified_date: {exc}") from None
 
     level = settings.logging.level.upper()
     _check(

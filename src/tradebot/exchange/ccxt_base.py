@@ -194,6 +194,7 @@ class CcxtBase(ExchangeAdapter):
         self._connected = False
         self._server_offset_ms = 0.0
         self._market: dict[str, Any] | None = None
+        self._stop_supported = False
 
         venue_kind = "testnet" if sandbox else "mainnet"
         role = "trading" if credentials is not None else "public"
@@ -296,6 +297,11 @@ class CcxtBase(ExchangeAdapter):
     @property
     def is_sandbox(self) -> bool:
         return self._sandbox
+
+    @property
+    def supports_exchange_stops(self) -> bool:
+        """Diketahui setelah connect: pair mengiklankan STOP_LOSS_LIMIT (_check_stop_support)."""
+        return self._stop_supported
 
     @property
     def server_offset_ms(self) -> float:
@@ -477,6 +483,7 @@ class CcxtBase(ExchangeAdapter):
                 else ""
             )
         if not problem:
+            self._stop_supported = True
             return
         if self.can_trade and not self.is_sandbox:
             raise FatalExchangeError(
