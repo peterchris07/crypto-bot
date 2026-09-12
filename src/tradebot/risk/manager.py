@@ -1,11 +1,26 @@
 """RiskManager: satu kelas yang dipakai backtest, paper, dan live.
 
-Tahap 5 mengisi bagian yang dibutuhkan backtest dan interface-nya sudah final:
-position sizing berbasis pecahan equity, batas maksimum satu posisi, cek
-minimum notional exchange, dan stop loss serta take profit lapis 1 sebagai
-pecahan dari harga masuk. Tahap 6 menambahkan batas rugi harian dan kill switch
-di kelas yang sama, bukan di kelas lain, supaya backtest dan live tetap memakai
-kode yang persis sama.
+Tahap 5: position sizing berbasis pecahan equity, batas maksimum satu posisi,
+cek minimum notional exchange, dan stop loss serta take profit lapis 1 sebagai
+pecahan dari harga masuk.
+
+Tahap 6: semua kill switch Aturan Keras 4, di kelas yang sama supaya backtest
+dan live memakai kode yang persis sama. Setiap pemicu melempar
+KillSwitchTriggered yang membawa keputusan flatten dari config risk.flatten_on:
+
+  daily_loss           rugi hari ini (UTC, termasuk unrealized) melewati batas;
+                       equity awal hari dipersist supaya selamat dari restart
+  runaway_orders       order dalam satu menit melewati batas: bug loop, jangan
+                       tambah order, batalkan semua, berhenti dengan exit bukan nol
+  connection_failures  gagal koneksi beruntun mencapai batas: tidak bisa flatten,
+                       ditutup stop lapis 2 di exchange (tahap 8)
+  stop_file            file STOP di root: pengguna yang intervensi, pengguna yang
+                       memutuskan
+
+Pemeriksaan menerima waktu sebagai argumen, bukan membaca jam sendiri, supaya
+backtest dan test deterministik. Cek sekali per iterasi: check_stop_file dan
+check_daily_loss; per kejadian: before_order, record_connection_failure,
+record_connection_success.
 
 Sizing memperhitungkan biaya: budget = pecahan x equity, dan jumlah base yang
 dibeli adalah budget / (harga isi x (1 + total fee)), supaya kas tidak pernah
@@ -16,12 +31,20 @@ trade; trade yang hilang tanpa jejak membuat backtest dan live diam-diam berbeda
 
 from __future__ import annotations
 
+import logging
 import math
+from collections import deque
 from dataclasses import dataclass
+from datetime import datetime, timedelta
 from enum import StrEnum
+from pathlib import Path
 
 from tradebot.config import CostConfig, RiskConfig
 from tradebot.exchange.base import MarketLimits
+from tradebot.risk.state import DailyState, DailyStateStore, utc_day
+
+log = logging.getLogger(__name__)
+ORDER_WINDOW = timedelta(minutes=1)
 
 
 class RiskError(Exception):
@@ -32,10 +55,27 @@ class MinimumNotionalError(RiskError):
     """Ukuran posisi hasil sizing di bawah batas minimum exchange."""
 
 
+class KillSwitch(StrEnum):
+    DAILY_LOSS = "daily_loss"
+    RUNAWAY_ORDERS = "runaway_orders"
+    CONNECTION_FAILURES = "connection_failures"
+    STOP_FILE = "stop_file"
+
+
+class KillSwitchTriggered(RiskError):
+    """Bot harus berhenti total. flatten menyatakan apakah posisi ikut dijual dulu."""
+
+    def __init__(self, switch: KillSwitch, flatten: bool, message: str) -> None:
+        super().__init__(f"KILL SWITCH {switch.value}: {message} (flatten={flatten})")
+        self.switch = switch
+        self.flatten = flatten
+
+
 class ExitReason(StrEnum):
     SIGNAL = "signal"
     STOP_LOSS = "stop_loss"
     TAKE_PROFIT = "take_profit"
+    KILL_SWITCH = "kill_switch"
     END_OF_DATA = "end_of_data"
 
 
@@ -55,9 +95,103 @@ def quantize_down(value: float, step: float | None) -> float:
 
 
 class RiskManager:
-    def __init__(self, config: RiskConfig, costs: CostConfig) -> None:
+    def __init__(
+        self,
+        config: RiskConfig,
+        costs: CostConfig,
+        *,
+        stop_file: Path | None = None,
+        state_store: DailyStateStore | None = None,
+    ) -> None:
         self.config = config
         self.costs = costs
+        self.stop_file = stop_file
+        self.state_store = state_store
+        self.daily: DailyState | None = state_store.load() if state_store else None
+        self._order_times: deque[datetime] = deque()
+        self.consecutive_failures = 0
+        if self.daily is not None:
+            log.info(
+                "state harian dimuat: hari %s equity awal %.4f",
+                self.daily.day,
+                self.daily.start_equity,
+            )
+
+    def _flatten(self, switch: KillSwitch) -> bool:
+        return bool(getattr(self.config.flatten_on, switch.value))
+
+    # ------------------------------------------------------------------ #
+    # Kill switch: sekali per iterasi
+    # ------------------------------------------------------------------ #
+
+    def check_stop_file(self) -> None:
+        if self.stop_file is not None and self.stop_file.exists():
+            raise KillSwitchTriggered(
+                KillSwitch.STOP_FILE,
+                self._flatten(KillSwitch.STOP_FILE),
+                f"file {self.stop_file} ada; hapus file itu untuk mengizinkan bot jalan lagi",
+            )
+
+    def start_of_day_equity(self, equity: float, now: datetime) -> float:
+        """Equity awal hari UTC. Hari baru: dicatat dari equity sekarang dan dipersist."""
+        today = utc_day(now).isoformat()
+        if self.daily is None or self.daily.day != today:
+            self.daily = DailyState.for_day(now, equity)
+            if self.state_store is not None:
+                self.state_store.save(self.daily)
+            log.info("hari UTC %s dimulai dengan equity %.4f", today, equity)
+        return self.daily.start_equity
+
+    def daily_loss_fraction(self, equity: float, now: datetime) -> float:
+        start = self.start_of_day_equity(equity, now)
+        return 1 - equity / start if start > 0 else 0.0
+
+    def check_daily_loss(self, equity: float, now: datetime) -> None:
+        """equity harus mark-to-market (termasuk unrealized). Melewati batas = berhenti."""
+        loss = self.daily_loss_fraction(equity, now)
+        limit = self.config.daily_loss_limit_fraction
+        # Toleransi pembulatan float: rugi tepat di batas belum "melewati" batas.
+        if loss > limit + 1e-9:
+            assert self.daily is not None
+            raise KillSwitchTriggered(
+                KillSwitch.DAILY_LOSS,
+                self._flatten(KillSwitch.DAILY_LOSS),
+                f"rugi hari {self.daily.day} {loss:.2%} melewati batas {limit:.2%} "
+                f"(equity awal hari {self.daily.start_equity:.4f}, sekarang {equity:.4f})",
+            )
+
+    # ------------------------------------------------------------------ #
+    # Kill switch: per kejadian
+    # ------------------------------------------------------------------ #
+
+    def before_order(self, now: datetime) -> None:
+        """Panggil SEBELUM setiap order dikirim. Order ke-(batas+1) dalam satu menit berarti
+        loop lepas kendali: jangan kirim, batalkan semua, berhenti."""
+        while self._order_times and now - self._order_times[0] >= ORDER_WINDOW:
+            self._order_times.popleft()
+        if len(self._order_times) >= self.config.max_orders_per_minute:
+            raise KillSwitchTriggered(
+                KillSwitch.RUNAWAY_ORDERS,
+                self._flatten(KillSwitch.RUNAWAY_ORDERS),
+                f"sudah {len(self._order_times)} order dalam satu menit terakhir, batas "
+                f"{self.config.max_orders_per_minute}; order berikutnya tidak dikirim",
+            )
+        self._order_times.append(now)
+
+    def record_connection_failure(self, error: str = "") -> None:
+        self.consecutive_failures += 1
+        limit = self.config.max_consecutive_failures
+        log.warning("gagal koneksi beruntun %d/%d: %s", self.consecutive_failures, limit, error)
+        if self.consecutive_failures >= limit:
+            raise KillSwitchTriggered(
+                KillSwitch.CONNECTION_FAILURES,
+                self._flatten(KillSwitch.CONNECTION_FAILURES),
+                f"{self.consecutive_failures} kegagalan koneksi beruntun mencapai batas {limit}; "
+                f"terakhir: {error or 'tidak ada detail'}",
+            )
+
+    def record_connection_success(self) -> None:
+        self.consecutive_failures = 0
 
     # ------------------------------------------------------------------ #
     # Ukuran posisi

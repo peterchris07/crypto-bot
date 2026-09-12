@@ -66,13 +66,14 @@ def settings(config_path):
 
 
 def all_in_no_stops(settings):
-    """position 100%, stop di 0 dan take profit di 2x: tidak pernah kena pada data test."""
+    """position 100%, stop di 0, take profit di 2x, batas rugi harian 100%: tidak pernah kena."""
     return dataclasses.replace(
         settings.risk,
         position_fraction=1.0,
         max_position_fraction=1.0,
         stop_loss_fraction=1.0,
         take_profit_fraction=1.0,
+        daily_loss_limit_fraction=1.0,
     )
 
 
@@ -413,3 +414,57 @@ def test_always_long_final_equity_hand_computed(settings):
     expected = cash_after_buy + amount * fill_out * (1 - c.total_fee_rate)
     assert result.final_equity == pytest.approx(expected)
     assert cash_after_buy == pytest.approx(0.0, abs=1e-9)
+
+
+# --------------------------------------------------------------------------- #
+# Tahap 6: batas rugi harian di backtest, dengan RiskManager yang sama
+# --------------------------------------------------------------------------- #
+
+
+def daily_loss_config(settings):
+    return dataclasses.replace(all_in_no_stops(settings), daily_loss_limit_fraction=0.03)
+
+
+def test_daily_loss_limit_flattens_and_halts_until_next_utc_day(settings):
+    # bar0 15 Nov 21:00, bar1 22:00 (masuk all-in di open), bar2 23:00 close 95 (rugi 5%),
+    # bar3 16 Nov 00:00 (flatten di open; hari baru), bar4 01:00 (boleh masuk lagi).
+    base = 1_700_006_400_000 + 21 * HOUR  # 2023-11-15T21:00:00Z
+    ohlc = [(100, 100, 100, 100), (100, 100, 100, 100), (100, 100, 95, 95)]
+    ohlc += [(95, 95, 95, 95)] * 4
+    bars = frame_from_rows(
+        [[base + i * HOUR, o, h, lo, c, 10.0] for i, (o, h, lo, c) in enumerate(ohlc)]
+    )
+    result = run(bars, Always(Signal.LONG), settings, risk_config=daily_loss_config(settings))
+    assert result.daily_loss_halts == 1
+    first = result.trades[0]
+    assert first.exit_reason is ExitReason.KILL_SWITCH
+    assert first.exit_time == bars["timestamp"].iloc[3], "dijual di open bar berikutnya"
+    assert result.trades[1].entry_time == bars["timestamp"].iloc[4], "hari baru: masuk lagi"
+
+
+def test_daily_loss_halt_blocks_new_entries_for_the_rest_of_the_day(settings):
+    # semua bar di hari yang sama: 2023-11-15 00:00 dst.
+    day = 1_700_006_400_000  # 2023-11-15T00:00:00Z
+    ohlc = [(100, 100, 100, 100), (100, 100, 100, 100), (100, 100, 95, 95)] + [(95, 95, 95, 95)] * 5
+    bars = frame_from_rows(
+        [[day + i * HOUR, o, h, lo, c, 10.0] for i, (o, h, lo, c) in enumerate(ohlc)]
+    )
+    result = run(bars, Always(Signal.LONG), settings, risk_config=daily_loss_config(settings))
+    assert result.daily_loss_halts == 1
+    assert len(result.trades) == 1, "tidak ada posisi baru di hari yang sama"
+    assert result.trades[0].exit_reason is ExitReason.KILL_SWITCH
+
+
+def test_daily_loss_without_flatten_keeps_position_but_blocks_entries(settings):
+    day = 1_700_006_400_000
+    ohlc = [(100, 100, 100, 100), (100, 100, 100, 100), (100, 100, 95, 95), (95, 95, 95, 95)]
+    bars = frame_from_rows(
+        [[day + i * HOUR, o, h, lo, c, 10.0] for i, (o, h, lo, c) in enumerate(ohlc)]
+    )
+    risk_cfg = dataclasses.replace(
+        daily_loss_config(settings),
+        flatten_on=dataclasses.replace(settings.risk.flatten_on, daily_loss=False),
+    )
+    result = run(bars, Always(Signal.LONG), settings, risk_config=risk_cfg)
+    assert result.daily_loss_halts == 1
+    assert len(result.trades) == 1 and result.trades[0].exit_reason is ExitReason.END_OF_DATA

@@ -25,6 +25,14 @@ runner live yang melewati iterasi atas bar stale atau bolong. Stop lapis 1 tetap
 dicek karena di live pun dicek dari harga, bukan dari bar. Lama posisi dihitung
 dari waktu, bukan dari jumlah baris.
 
+Batas rugi harian: equity di close tiap bar (mark-to-market) diperiksa dengan
+RiskManager yang sama dengan live. Kalau melewati batas, posisi dijual di open
+bar berikutnya (sesuai risk.flatten_on.daily_loss) dan tidak ada posisi baru
+sampai hari UTC berikutnya; ini pendekatan backtest untuk "bot berhenti, operator
+menjalankannya lagi besok". Jumlah kejadiannya dicetak di laporan. Kill switch
+lain (runaway order, gagal koneksi, file STOP) adalah kejadian runtime dan tidak
+punya padanan di backtest.
+
 Di akhir data, posisi yang masih terbuka ditutup di close bar terakhir dengan
 biaya penuh, supaya semua trade lengkap dan bisa dibandingkan dengan buy-and-hold
 yang dihitung dengan aturan yang sama: beli di open bar pertama yang bisa
@@ -44,7 +52,8 @@ from tradebot.backtest.metrics import Metrics, compute_metrics
 from tradebot.config import CostConfig
 from tradebot.data.ohlcv import timeframe_to_ms, validate_frame
 from tradebot.exchange.base import MarketLimits
-from tradebot.risk.manager import ExitReason, RiskManager, StopLevels
+from tradebot.risk.manager import ExitReason, KillSwitchTriggered, RiskManager, StopLevels
+from tradebot.risk.state import utc_day
 from tradebot.strategy.base import Signal, Strategy
 
 log = logging.getLogger(__name__)
@@ -162,6 +171,7 @@ class BacktestResult:
     tradable_start: pd.Timestamp  # bar pertama yang bisa ditransaksikan, setelah warmup
     warmup_bars: int
     bars_after_gap: int  # bar yang datang setelah lubang data: tanpa keputusan strategi
+    daily_loss_halts: int  # berapa kali batas rugi harian menghentikan perdagangan hari itu
 
 
 def _sell_reference(levels: StopLevels, reason: ExitReason, open_price: float) -> float:
@@ -211,11 +221,23 @@ def run_backtest(
     equity = [initial_equity]  # bar warmup-1: belum ada keputusan, belum ada transaksi
     warned_short = False
     bars_after_gap = 0
+    daily_loss_halts = 0
+    halted_day = None  # hari UTC yang perdagangannya dihentikan batas rugi harian
+    flatten_pending = False
 
     for i in range(warmup, len(frame)):
         now = stamps.iloc[i]
+        # Equity awal hari dicatat di OPEN bar pertama hari itu (= equity di close bar
+        # sebelumnya), seperti runner live yang mencatatnya di iterasi pertama setelah
+        # tengah malam UTC, bukan setelah bar pertama hari itu bergerak.
+        risk.start_of_day_equity(equity[-1], now.to_pydatetime())
         after_gap = (now - stamps.iloc[i - 1]) > step
-        if after_gap:
+        if flatten_pending:
+            signal = Signal.FLAT  # batas rugi harian: jual di open, apa pun kata strategi
+            flatten_pending = False
+        elif halted_day is not None and utc_day(now.to_pydatetime()) == halted_day:
+            signal = None  # hari ini sudah dihentikan; tidak ada keputusan baru
+        elif after_gap:
             bars_after_gap += 1
             signal = None  # runner live melewati keputusan atas bar setelah lubang
         else:
@@ -231,7 +253,8 @@ def run_backtest(
 
         if book.position is not None and signal is Signal.FLAT:
             p = book.position
-            book.sell(float(opens[i]), now, held(p.entry_time, now), ExitReason.SIGNAL)
+            reason = ExitReason.KILL_SWITCH if halted_day is not None else ExitReason.SIGNAL
+            book.sell(float(opens[i]), now, held(p.entry_time, now), reason)
         elif book.position is None and signal is Signal.LONG:
             reference = float(opens[i])
             fill = reference * (1 + costs.slippage_rate)
@@ -245,7 +268,20 @@ def run_backtest(
                 reference = _sell_reference(p.levels, reason, float(opens[i]))
                 book.sell(reference, now, held(p.entry_time, now), reason)
 
-        equity.append(book.equity(float(closes[i])))
+        mark = book.equity(float(closes[i]))
+        equity.append(mark)
+        if halted_day is None or utc_day(now.to_pydatetime()) != halted_day:
+            try:
+                risk.check_daily_loss(mark, now.to_pydatetime())
+            except KillSwitchTriggered as exc:
+                daily_loss_halts += 1
+                halted_day = utc_day(now.to_pydatetime())
+                flatten_pending = exc.flatten and book.position is not None
+                log.warning(
+                    "backtest %s: %s; tidak ada posisi baru sampai hari berikutnya",
+                    now.isoformat(),
+                    exc,
+                )
 
     last = len(frame) - 1
     if book.position is not None:
@@ -285,6 +321,7 @@ def run_backtest(
         tradable_start=stamps.iloc[warmup],
         warmup_bars=warmup,
         bars_after_gap=bars_after_gap,
+        daily_loss_halts=daily_loss_halts,
     )
 
 

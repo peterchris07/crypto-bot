@@ -137,4 +137,6 @@ Tahap 4 selesai: interface Strategy dengan Signal sebagai state target, EMA cros
 
 Tahap 5 selesai: engine backtest event-driven tanpa lookahead, metrik, laporan dengan buy-and-hold dan biaya per komponen, perintah backtest dan --stress, serta RiskManager minimal (sizing berbasis pecahan equity, minimum notional, stop dan take profit lapis 1) yang dipakai backtest dan nanti live tanpa perubahan interface.
 
-Tahap 6 sampai 8 menyusul berurutan, masing-masing dengan test yang lulus sebelum tahap berikutnya dimulai.
+Tahap 6 selesai: semua kill switch di RiskManager yang sama dengan backtest. Batas rugi harian dari equity awal hari UTC yang dipersist di state/risk_state.json dan selamat dari restart; runaway order dengan jendela satu menit; gagal koneksi beruntun dengan reset saat sukses; file STOP. Setiap pemicu membawa keputusan flatten dari risk.flatten_on. Batas rugi harian juga menghentikan perdagangan hari itu di backtest.
+
+Tahap 7 dan 8 menyusul berurutan, masing-masing dengan test yang lulus sebelum tahap berikutnya dimulai.
