@@ -98,6 +98,43 @@ uv run tradebot run --iterations 10
 
 Loop berhenti sendiri hanya karena kill switch (exit code 6) atau error fatal. Setiap iterasi: cek file STOP, ambil harga dan saldo, cek batas rugi harian, cek stop lapis 1 dari harga, lalu satu keputusan per bar yang sudah tutup. Bar yang masih berjalan tidak pernah dipakai; bar yang stale atau datang setelah lubang data dilewati dan dicatat di log. Setiap order dicatat ke state/orders.jsonl sebelum dikirim; saat start, order yang jawabannya hilang dicari lewat client order id dan tidak pernah dikirim ulang. Catatan posisi (harga masuk, stop, target) dan bar terakhir yang sudah diputuskan ada di state/position.json, dicocokkan dengan saldo saat start; kalau catatan hilang, harga masuk diambil dari pembelian terakhir di ledger. Bot yang mulai di tengah jam tetap memutuskan bar yang baru tutup; yang disebut stale hanya bar yang belum diberikan exchange lebih lama dari live.stale_bar_tolerance_seconds. Jalankan paper beberapa hari, lalu bandingkan dengan backtest di periode yang sama lewat dua perintah di bawah.
 
+## Menjalankan paper berhari-hari di macOS
+
+Pilihan: LaunchAgent launchd yang menjalankan skrip supervisor, bukan nohup, karena launchd hidup lagi setelah login dan supervisor bisa memulai ulang bot yang mati karena error sementara tanpa pernah menimpa keputusan kill switch. Bot dibungkus `caffeinate -i -s` supaya Mac tidak tidur karena idle selama tersambung listrik, tetapi menutup tutup laptop TETAP membuat Mac tidur; caffeinate tidak bisa mencegahnya, jadi kalau tutupnya ingin ditutup, jalankan sekali `sudo pmset -a disablesleep 1` saat di listrik (kembalikan dengan `sudo pmset -a disablesleep 0`), atau biarkan tutupnya terbuka.
+
+Mulai (mengunduh data dulu, lalu memasang dan menjalankan agent):
+
+```bash
+scripts/paper-start.sh
+```
+
+Cek keadaan, satu perintah:
+
+```bash
+uv run tradebot status
+```
+
+Ikuti log langsung:
+
+```bash
+tail -f logs/tradebot.log
+tail -f logs/paper.out
+```
+
+Hentikan dengan rapi (membuat file STOP, menunggu bot berhenti lewat kill switch, melepas agent, lalu menghapus STOP):
+
+```bash
+scripts/paper-stop.sh
+```
+
+Yang perlu diketahui: supervisor memulai ulang bot setelah 60 detik kalau keluar karena error selain kill switch, paling banyak 10 kali. Kalau bot berhenti karena kill switch (exit code 6), supervisor ikut berhenti dan tidak memulai ulang; `tradebot status` menunjukkan baris "BOT BERHENTI" dan pemicunya. Setelah Mac tidur dan bangun, bot melanjutkan: bar yang terlewat ditandai stale dan dilewati, dan kalau jaringan butuh lebih dari beberapa iterasi untuk pulih, kill switch gagal koneksi bisa menyala; itu perilaku yang disengaja, jalankan `scripts/paper-start.sh` lagi. Nama agent-nya `com.tradebot.paper`; `launchctl print gui/$(id -u)/com.tradebot.paper` menunjukkan keadaannya. PID supervisor ada di state/paper_supervisor.pid.
+
+Menjalankan pytest lengkap termasuk test jaringan di Mac:
+
+```bash
+uv run pytest
+```
+
 ## Kapan paper run selesai
 
 Paper selesai bukan diukur dari jumlah hari, tapi dari apa yang sudah terlihat. Keempat butir ini diperiksa otomatis dari log, jurnal, dan ledger, dengan buktinya:

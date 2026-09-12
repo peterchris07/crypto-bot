@@ -147,6 +147,14 @@ def build_parser() -> argparse.ArgumentParser:
     )
 
     sub.add_parser(
+        "status",
+        help=(
+            "Satu perintah untuk tahu keadaan: proses, posisi dan saldo paper, jumlah trade, "
+            "ledger-status, paper-checklist, dan compare-paper kalau pasangannya cukup."
+        ),
+    )
+
+    sub.add_parser(
         "paper-checklist",
         help=(
             "Periksa dari log, jurnal, dan ledger apakah paper run sudah memperlihatkan restart "
@@ -241,6 +249,126 @@ def _compare_paper(settings: Settings, start: str | None, end: str | None) -> in
     )
     print(text)
     return EXIT_BIAS_DETECTED if biased else EXIT_OK
+
+
+def _status(settings: Settings) -> int:
+    import io
+    import json
+    import os
+    from contextlib import redirect_stderr, redirect_stdout
+
+    from tradebot.ledger import Ledger
+    from tradebot.live.checklist import format_checklist, run_checklist
+    from tradebot.live.journal import OrderJournal
+    from tradebot.live.runner import PositionStore
+
+    root = settings.root
+    symbol = settings.exchange.symbol
+    base, quote = symbol.split("/", 1)
+    print(f"status {symbol} {settings.exchange.timeframe}, mode {settings.mode.value}, root {root}")
+
+    # proses
+    pid_file = root / "state" / "paper_supervisor.pid"
+    if pid_file.exists():
+        pid = pid_file.read_text().strip()
+        alive = False
+        try:
+            os.kill(int(pid), 0)
+            alive = True
+        except (OSError, ValueError):
+            pass
+        print(f"proses: supervisor pid {pid} {'HIDUP' if alive else 'MATI (pid file basi)'}")
+    else:
+        print("proses: supervisor tidak berjalan (tidak ada state/paper_supervisor.pid)")
+    if settings.stop_file_path.exists():
+        print(f"proses: file STOP ada di {settings.stop_file_path}; bot tidak akan jalan")
+    log_file = root / settings.logging.dir / "tradebot.log"
+    if log_file.exists():
+        lines = log_file.read_text(encoding="utf-8", errors="replace").splitlines()
+        if lines:
+            print(f"log terakhir: {lines[-1]}")
+        halts = [line for line in lines if "BOT BERHENTI:" in line]
+        if halts:
+            print(f"kill switch terakhir: {halts[-1]}")
+
+    # posisi dan saldo paper
+    position = PositionStore(root / settings.live.position_path).load()
+    print(f"posisi: {position if position else 'FLAT'}")
+    account_path = root / settings.live.paper_account_path
+    if account_path.exists():
+        try:
+            account = json.loads(account_path.read_text(encoding="utf-8"))
+            balances = account.get("balances", {})
+            quote_balance = balances.get(quote, 0.0)
+            base_balance = balances.get(base, 0.0)
+            print(
+                f"akun paper: {quote_balance:.4f} {quote}, {base_balance:.6f} {base}, "
+                f"{len(account.get('orders', []))} order (saldo awal "
+                f"{settings.backtest.initial_equity:.2f} {quote})"
+            )
+        except (OSError, ValueError) as exc:
+            print(f"akun paper: tidak terbaca ({exc})")
+
+    # trade
+    ledger = Ledger(root / settings.live.trades_csv)
+    rows = ledger.rows()
+    seen: dict[str, dict[str, str]] = {}
+    for row in rows:
+        seen[row["order_id"]] = row
+    buys = sum(1 for r in seen.values() if r["side"] == "buy")
+    sells = sum(1 for r in seen.values() if r["side"] == "sell")
+    entries = OrderJournal(root / settings.live.journal_path).entries()
+    intents = [e for e in entries if e.get("event") == "intent"]
+    print(
+        f"trade: {buys} beli, {sells} jual ({len(seen)} order di ledger, {len(intents)} niat di "
+        f"jurnal, {len(rows)} baris ledger)"
+    )
+    print(
+        f"ledger: {'LENGKAP' if ledger.is_complete() else 'BELUM LENGKAP, ada fee pending'} "
+        f"({len(ledger.pending_rows())} pending)"
+    )
+
+    # checklist
+    items = run_checklist(
+        root,
+        log_dir=settings.logging.dir,
+        journal_path=settings.live.journal_path,
+        trades_csv=settings.live.trades_csv,
+        min_fills=settings.live.checklist_min_fills,
+    )
+    print(format_checklist(items))
+
+    # perbandingan, kalau sudah ada fill
+    if seen:
+        buffer, errors = io.StringIO(), io.StringIO()
+        with redirect_stdout(buffer), redirect_stderr(errors):
+            code = _compare_paper(settings, None, None)
+        text = buffer.getvalue().strip()
+        if code in (EXIT_OK, EXIT_BIAS_DETECTED):
+            summary = [
+                line
+                for line in text.splitlines()
+                if line.startswith(
+                    (
+                        "compare-paper",
+                        "pasangan:",
+                        "semua:",
+                        "  signal",
+                        "  stop_",
+                        "  take_",
+                        "  kill_",
+                        "BIAS",
+                        "belum cukup",
+                        "tidak ada bias",
+                    )
+                )
+            ]
+            print("\n".join(summary))
+        else:
+            print(f"compare-paper belum bisa: {errors.getvalue().strip() or text}")
+    else:
+        print("compare-paper: belum ada fill")
+    return EXIT_OK
 
 
 def _paper_checklist(settings: Settings) -> int:
@@ -565,6 +693,8 @@ def main(argv: Sequence[str] | None = None) -> int:
         return _compare_paper(settings, args.start, args.end)
     if args.command == "paper-checklist":
         return _paper_checklist(settings)
+    if args.command == "status":
+        return _status(settings)
 
     parser.error(f"perintah tidak dikenal: {args.command}")
     return EXIT_CONFIG_ERROR

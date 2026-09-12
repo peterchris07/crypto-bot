@@ -164,3 +164,32 @@ def test_compare_paper_reports_signed_bias(
     assert "BIAS SATU ARAH TERDETEKSI" in out and "LEBIH BURUK" in out
     assert "+20.0 bps" in out and "merugikan 100%" in out
     assert "tanpa pasangan: paper 0, backtest 0" in out
+
+
+def test_status_combines_everything_in_one_command(
+    project_dir: Path, config_path: Path, fake_public, capsys
+):
+    # keadaan kosong: semua bagian tetap tercetak, tidak ada yang meledak
+    code = cli.main(["--config", str(config_path), "status"])
+    out = capsys.readouterr().out
+    assert code == cli.EXIT_OK
+    assert "proses: supervisor tidak berjalan" in out
+    assert "posisi: FLAT" in out
+    assert "trade: 0 beli, 0 jual" in out
+    assert "ledger: LENGKAP" in out
+    assert "checklist paper run:" in out and out.count("[BELUM]") == 4
+    assert "compare-paper: belum ada fill" in out
+
+    # setelah beberapa iterasi run: akun paper, log terakhir, dan pid basi terlihat
+    (project_dir / "state").mkdir(exist_ok=True)
+    (project_dir / "state" / "paper_supervisor.pid").write_text("999999999\n")
+    assert cli.main(["--config", str(config_path), "run", "--iterations", "2"]) == cli.EXIT_OK
+    capsys.readouterr()
+    (project_dir / "STOP").write_text("")
+    code = cli.main(["--config", str(config_path), "status"])
+    out = capsys.readouterr().out
+    assert code == cli.EXIT_OK
+    assert "MATI (pid file basi)" in out
+    assert "file STOP ada" in out
+    assert "akun paper: 1000.0000 USDT" in out
+    assert "log terakhir:" in out
