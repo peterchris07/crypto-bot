@@ -167,15 +167,31 @@ def test_no_decision_until_warmup_and_forming_bar_is_excluded(settings, project_
     assert len(strategy.seen) == 1
 
 
-def test_stale_bar_skips_decision(settings, project_dir, caplog):
+def test_missing_bar_waits_within_tolerance_then_is_stale(settings, project_dir, caplog):
     strategy = Scripted({}, lookback=2)
     runner, client, advance = build(settings, project_dir, [100.0] * 10, strategy)
-    advance(3)
+    advance(3, minutes=1)  # 60 detik setelah bar 2 tutup, masih dalam toleransi 120 detik
     runner.start()
-    client.ohlcv_rows = client.ohlcv_rows[:2]  # exchange belum punya bar 2 (tutup 3 jam lalu)
+    client.ohlcv_rows = client.ohlcv_rows[:2]  # exchange belum memberi bar 2
+    with caplog.at_level(logging.WARNING, logger="tradebot"):
+        runner.iterate()
+    assert strategy.seen == [] and "stale" not in caplog.text, "menunggu, belum stale"
+    advance(3, minutes=3)  # 180 detik: lewat toleransi
+    client.ohlcv_rows = client.ohlcv_rows[:2]
     with caplog.at_level(logging.WARNING, logger="tradebot"):
         runner.iterate()
     assert strategy.seen == [] and "stale" in caplog.text
+
+
+def test_late_start_still_decides_the_last_closed_bar(settings, project_dir):
+    """Bot yang mulai jam :10 harus memutuskan bar yang tutup jam :00, seperti backtest."""
+    strategy = Scripted({ts(2): Signal.LONG}, lookback=2)
+    runner, client, advance = build(settings, project_dir, [100.0] * 10, strategy)
+    advance(3, minutes=10)
+    runner.start()
+    runner.iterate()
+    assert strategy.seen == [pd.Timestamp(ts(2), unit="ms", tz="UTC")]
+    assert runner.position is not None
 
 
 def test_bar_after_hole_gets_no_decision(settings, project_dir, caplog):
@@ -483,3 +499,209 @@ def test_paper_runner_matches_backtest_on_same_bars(settings, project_dir):
         assert live[0] == bt[0]
         assert live[1] == bt[1]
         assert live[2] == pytest.approx(bt[2], rel=1e-9)
+
+
+# --------------------------------------------------------------------------- #
+# Temuan review: jual tidak terisi, restart di bar yang sama, fee dalam base, urutan halt
+# --------------------------------------------------------------------------- #
+
+
+def test_unfilled_or_partial_sell_keeps_position(settings, project_dir, monkeypatch):
+    from tradebot.exchange import Order, OrderStatus, OrderType
+
+    strategy = Scripted({ts(2): Signal.LONG, ts(3): Signal.FLAT}, lookback=2)
+    runner, client, advance = build(settings, project_dir, [100.0] * 8, strategy)
+    advance(3)
+    runner.start()
+    runner.iterate()
+    held = runner.position.amount
+    real_create = runner.adapter.create_order
+
+    def make_sell(filled):
+        def fake(symbol, side, order_type, amount, **kwargs):
+            if side.value == "buy":
+                return real_create(symbol, side, order_type, amount, **kwargs)
+            return Order(
+                id="x",
+                client_order_id=kwargs.get("client_order_id"),
+                symbol=symbol,
+                side=side,
+                type=OrderType.MARKET,
+                amount=amount,
+                price=None,
+                stop_price=None,
+                status=OrderStatus.CANCELED if filled == 0 else OrderStatus.CLOSED,
+                filled=filled,
+                average=100.0 if filled else None,
+                cost=filled * 100.0,
+                fee=0.0,
+                fee_currency="USDT",
+                timestamp=runner.now(),
+            )
+
+        return fake
+
+    monkeypatch.setattr(runner.adapter, "create_order", make_sell(0.0))
+    advance(4)
+    runner.iterate()  # FLAT -> jual, tapi tidak terisi
+    assert runner.position is not None and runner.position.amount == held
+    assert PositionStore(project_dir / settings.live.position_path).load().amount == held
+
+    monkeypatch.setattr(runner.adapter, "create_order", make_sell(held / 2))
+    runner.last_decided_bar = None
+    runner.iterate()  # terisi sebagian
+    assert runner.position is not None
+    assert runner.position.amount == pytest.approx(held / 2)
+
+
+def test_restart_within_same_bar_does_not_redecide_it(settings, project_dir):
+    strategy = Scripted({ts(2): Signal.LONG}, lookback=2)
+    runner, client, advance = build(settings, project_dir, [100.0] * 8, strategy)
+    advance(3)
+    runner.start()
+    runner.iterate()  # beli
+    for key in ("last", "bid", "ask"):
+        client.ticker[key] = 90.0
+    runner.iterate()  # stop loss
+    assert runner.position is None
+    orders_before = len(runner.adapter.account["orders"])
+    # proses baru di jam yang sama, store yang sama
+    strategy2 = Scripted({ts(2): Signal.LONG}, lookback=2)
+    runner2, client2, advance2 = build(settings, project_dir, [100.0] * 8, strategy2)
+    advance2(3)
+    runner2.start()
+    runner2.iterate()
+    assert strategy2.seen == [], "bar 2 sudah diputuskan sebelum restart"
+    assert len(runner2.adapter.account["orders"]) == orders_before
+    assert runner2.position is None
+
+
+def test_fee_charged_in_base_reduces_position_amount(settings, project_dir, monkeypatch):
+    strategy = Scripted({ts(2): Signal.LONG}, lookback=2)
+    runner, client, advance = build(settings, project_dir, [100.0] * 8, strategy)
+    advance(3)
+    runner.start()
+    real_create = runner.adapter.create_order
+
+    def fee_in_btc(symbol, side, order_type, amount, **kwargs):
+        order = real_create(symbol, side, order_type, amount, **kwargs)
+        # tiru Binance tanpa BNB: fee dipotong dari BTC yang diterima
+        runner.adapter.account["balances"]["BTC"] -= amount * 0.001
+        return dataclasses.replace(order, fee=amount * 0.001, fee_currency="BTC")
+
+    monkeypatch.setattr(runner.adapter, "create_order", fee_in_btc)
+    runner.iterate()
+    assert runner.position is not None
+    assert runner.position.amount == pytest.approx(runner.adapter.fetch_balance().free("BTC"))
+    assert runner.position.amount < 0.999 * runner.adapter.account["orders"][0]["filled"] + 1e-9
+
+
+def test_reconstructed_position_uses_ledger_entry_price(settings, project_dir):
+    from tradebot.exchange import OrderSide, OrderType
+
+    strategy = Scripted({}, lookback=2)
+    runner, client, advance = build(settings, project_dir, [100.0] * 8, strategy)
+    advance(3)
+    runner.adapter.connect()
+    order = runner.adapter.create_order(
+        "BTC/USDT", OrderSide.BUY, OrderType.MARKET, 0.1, client_order_id="tb-x"
+    )
+    Ledger(project_dir / settings.live.trades_csv).record_fill(order)
+    for key in ("last", "bid", "ask"):
+        client.ticker[key] = 98.5  # harga sudah turun 1.5% sejak masuk
+    runner.start()
+    assert runner.position is not None
+    assert runner.position.entry_price == pytest.approx(order.average), (
+        "dari ledger, bukan harga kini"
+    )
+    assert runner.position.client_order_id == "tb-x"
+    assert runner.position.stop_loss == pytest.approx(order.average * 0.98)
+
+
+def test_halt_cancels_open_orders_before_flatten(settings, project_dir):
+    strategy = Scripted({ts(2): Signal.LONG}, lookback=2)
+    runner, client, advance = build(
+        settings,
+        project_dir,
+        [100.0] * 8,
+        strategy,
+        risk_overrides={
+            "position_fraction": 1.0,
+            "max_position_fraction": 1.0,
+            "stop_loss_fraction": 1.0,
+        },
+    )
+    advance(3)
+    runner.start()
+    runner.iterate()
+    calls: list[str] = []
+    real_cancel = runner.adapter.cancel_all_orders
+    real_create = runner.adapter.create_order
+    runner.adapter.cancel_all_orders = lambda symbol: (calls.append("cancel"), real_cancel(symbol))[
+        1
+    ]
+    runner.adapter.create_order = lambda *a, **k: (calls.append("sell"), real_create(*a, **k))[1]
+    for key in ("last", "bid", "ask"):
+        client.ticker[key] = 90.0
+    assert runner.run(max_iterations=2) == EXIT_KILL_SWITCH
+    assert calls == ["cancel", "sell"]
+    assert runner.position is None
+
+
+def test_paper_runner_matches_backtest_with_stops_and_targets(settings, project_dir):
+    """Paritas kedua: stop 2% dan target 4% aktif, harga dengan lompatan yang menembus level."""
+    prices = [100.0] * 4 + [103.0, 105.0, 101.0, 97.0, 99.0, 104.0, 108.0, 106.0, 100.0, 95.0]
+    prices += [96.0] * 6
+    lows = [p * 0.985 if i in (7, 13) else p * 0.999 for i, p in enumerate(prices)]
+    highs = [p * 1.03 if i in (10,) else p * 1.001 for i, p in enumerate(prices)]
+    script = {ts(i): Signal.LONG for i in range(2, len(prices))}
+    strategy = Scripted(script, lookback=2)
+    overrides = {
+        "position_fraction": 1.0,
+        "max_position_fraction": 1.0,
+        "daily_loss_limit_fraction": 1.0,
+    }
+    runner, client, advance = build(
+        settings, project_dir, prices, strategy, risk_overrides=overrides
+    )
+    advance(1)
+    runner.start()
+    for i in range(1, len(prices)):
+        advance(i)  # tick di open bar i: keputusan dari bar i-1
+        runner.iterate()
+        # tick di dalam bar i: low dulu (pesimistis), lalu high
+        for price in (lows[i], highs[i]):
+            for key in ("last", "bid", "ask"):
+                client.ticker[key] = price
+            runner.iterate()
+    live = OrderJournal(project_dir / settings.live.journal_path).entries()
+    live_fills = [(e["side"], e["reason"]) for e in live if e["event"] == "intent"]
+
+    bars = frame_from_rows([[ts(i), p, highs[i], lows[i], p, 10.0] for i, p in enumerate(prices)])
+    risk = RiskManager(dataclasses.replace(settings.risk, **overrides), settings.costs)
+    result = run_backtest(
+        bars,
+        Scripted(script, lookback=2),
+        risk,
+        settings.costs,
+        initial_equity=settings.backtest.initial_equity,
+        bars_per_year=8760,
+        symbol="BTC/USDT",
+        timeframe="1h",
+        limits=runner.limits,
+    )
+    bt_fills = []
+    for trade in result.trades:
+        bt_fills.append(("buy", "signal"))
+        if trade.exit_reason.value != "end_of_data":
+            bt_fills.append(("sell", trade.exit_reason.value))
+    assert live_fills == bt_fills
+    assert {"stop_loss", "take_profit"} <= {r for _, r in bt_fills}, "kedua level harus terpicu"
+    live_rows = Ledger(project_dir / settings.live.trades_csv).rows()
+    bt_amounts = [t.amount for t in result.trades]
+    live_amounts = [float(r["amount"]) for r in live_rows if r["side"] == "buy"]
+    # Jumlah pertama identik. Setelah stop, runner mengisi di harga tick (low/high) sedangkan
+    # backtest di level stop, jadi kas dan jumlah berikutnya boleh berbeda sedikit; arah
+    # perbedaannya selalu ke sisi runner yang lebih pesimistis untuk stop loss.
+    assert live_amounts[0] == pytest.approx(bt_amounts[0], rel=1e-9)
+    assert live_amounts == pytest.approx(bt_amounts, rel=0.02)

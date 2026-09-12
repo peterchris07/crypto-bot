@@ -31,13 +31,22 @@ from collections.abc import Callable
 from dataclasses import asdict, dataclass
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
+from typing import Any
 
 import pandas as pd
 
 from tradebot.config import Settings
 from tradebot.data.cache import atomic_write
 from tradebot.data.ohlcv import floor_to_bar, stamp_of, timeframe_to_ms, validate_frame
-from tradebot.exchange.base import ExchangeAdapter, MarketLimits, Order, OrderSide, OrderType
+from tradebot.exchange.base import (
+    Balance,
+    ExchangeAdapter,
+    MarketLimits,
+    Order,
+    OrderSide,
+    OrderType,
+    Ticker,
+)
 from tradebot.exchange.errors import (
     ExchangeError,
     FatalExchangeError,
@@ -69,25 +78,46 @@ class PositionState:
 
 
 class PositionStore:
-    """Catatan posisi yang dipegang, dipersist supaya stop lapis 1 selamat dari restart."""
+    """Catatan posisi yang dipegang dan bar terakhir yang sudah diputuskan, dipersist supaya stop
+    lapis 1 selamat dari restart dan bar yang sama tidak diputuskan dua kali setelah restart."""
 
     def __init__(self, path: str | Path) -> None:
         self.path = Path(path)
 
-    def load(self) -> PositionState | None:
+    def _read(self) -> dict[str, Any]:
         if not self.path.exists():
-            return None
+            return {"position": None, "last_decided_bar": None}
         try:
             raw = json.loads(self.path.read_text(encoding="utf-8"))
         except (OSError, ValueError) as exc:
             raise FatalExchangeError(f"catatan posisi {self.path} rusak: {exc}") from exc
         if raw is None:
-            return None
-        return PositionState(**raw)
+            return {"position": None, "last_decided_bar": None}
+        if "amount" in raw:  # format lama: hanya posisi
+            return {"position": raw, "last_decided_bar": None}
+        return {"position": raw.get("position"), "last_decided_bar": raw.get("last_decided_bar")}
+
+    def _write(self, data: dict[str, Any]) -> None:
+        text = json.dumps(data, indent=2) + "\n"
+        atomic_write(self.path, lambda tmp: tmp.write_text(text, encoding="utf-8"))
+
+    def load(self) -> PositionState | None:
+        raw = self._read()["position"]
+        return None if raw is None else PositionState(**raw)
 
     def save(self, position: PositionState | None) -> None:
-        text = json.dumps(None if position is None else asdict(position), indent=2) + "\n"
-        atomic_write(self.path, lambda tmp: tmp.write_text(text, encoding="utf-8"))
+        data = self._read()
+        data["position"] = None if position is None else asdict(position)
+        self._write(data)
+
+    def load_last_decided(self) -> pd.Timestamp | None:
+        raw = self._read()["last_decided_bar"]
+        return None if raw is None else pd.Timestamp(raw)
+
+    def save_last_decided(self, bar: pd.Timestamp) -> None:
+        data = self._read()
+        data["last_decided_bar"] = bar.isoformat()
+        self._write(data)
 
 
 class Runner:
@@ -139,6 +169,7 @@ class Runner:
         self.limits = self.adapter.fetch_market_limits(self.symbol)
         self._reconcile_journal()
         self.position = self.position_store.load()
+        self.last_decided_bar = self.position_store.load_last_decided()
         self._reconcile_position_with_balance()
         self.started = True
         log.info(
@@ -193,22 +224,33 @@ class Runner:
             self.position = None
             self.position_store.save(None)
         elif self.position is None and holds_base:
-            levels = self.risk.stop_levels(ticker.last)
+            entry = self._last_open_buy_from_ledger()
+            if entry is not None:
+                entry_price, entry_time, cid = entry
+                source = "harga isi dari ledger"
+            else:
+                entry_price, entry_time, cid = ticker.last, self.now().isoformat(), None
+                source = (
+                    "harga SEKARANG karena ledger tidak punya pembelian yang belum dijual; "
+                    "stop dan target efektif melebar sebesar pergerakan sejak masuk"
+                )
+            levels = self.risk.stop_levels(entry_price)
             self.position = PositionState(
                 amount=base_total,
-                entry_price=ticker.last,
-                entry_time=self.now().isoformat(),
+                entry_price=entry_price,
+                entry_time=entry_time,
                 stop_loss=levels.stop_loss,
                 take_profit=levels.take_profit,
-                client_order_id=None,
+                client_order_id=cid,
             )
             self.position_store.save(self.position)
             log.warning(
-                "ada %s %s tanpa catatan posisi; dianggap posisi dengan harga masuk = harga "
-                "sekarang %s (stop %s, target %s)",
+                "ada %s %s tanpa catatan posisi; dianggap posisi dengan harga masuk %s (%s; "
+                "stop %s, target %s)",
                 base_total,
                 self.base,
-                ticker.last,
+                entry_price,
+                source,
                 levels.stop_loss,
                 levels.take_profit,
             )
@@ -221,6 +263,23 @@ class Runner:
             )
             self.position = PositionState(**{**asdict(self.position), "amount": base_total})
             self.position_store.save(self.position)
+
+    def _last_open_buy_from_ledger(self) -> tuple[float, str, str | None] | None:
+        """Pembelian terakhir di ledger yang belum diikuti penjualan: (harga, waktu, client id)."""
+        last_buy: dict[str, str] | None = None
+        for row in self.ledger.rows():
+            if row.get("pair") != self.symbol:
+                continue
+            if row.get("side") == "buy":
+                last_buy = row
+            elif row.get("side") == "sell":
+                last_buy = None
+        if last_buy is None:
+            return None
+        try:
+            return float(last_buy["price"]), last_buy["timestamp"], last_buy.get("client_order_id")
+        except (KeyError, ValueError):
+            return None
 
     # ------------------------------------------------------------------ #
     # Iterasi
@@ -242,6 +301,12 @@ class Runner:
         equity = balance.total(self.quote) + balance.total(self.base) * ticker.last
         self.risk.check_daily_loss(equity, now)
 
+        # Urutan sama dengan backtest: keputusan atas bar yang baru tutup dieksekusi dulu
+        # (di "open" bar berjalan), baru stop lapis 1 dicek pada harga sekarang. Kalau
+        # urutannya dibalik, posisi yang keluar karena stop akan langsung masuk lagi di bar
+        # yang sama, sesuatu yang tidak pernah terjadi di backtest.
+        self._decide(now, ticker, balance)
+
         if self.position is not None:
             levels = self.risk.stop_levels(self.position.entry_price)
             reason = self.risk.exit_reason_for_price(levels, ticker.last)
@@ -254,8 +319,8 @@ class Runner:
                     levels.take_profit,
                 )
                 self._sell(reason.value)
-                return
 
+    def _decide(self, now: datetime, ticker: Ticker, balance: Balance) -> None:
         closed = self._closed_bars(now)
         if closed is None:
             return
@@ -269,7 +334,7 @@ class Runner:
                 "bar %s datang setelah lubang data; tidak ada keputusan untuk bar ini",
                 last_bar.isoformat(),
             )
-            self.last_decided_bar = last_bar
+            self._mark_decided(last_bar)
             return
 
         signal = self.strategy.signal(closed)
@@ -278,7 +343,7 @@ class Runner:
                 log.warning("strategi memberi SHORT; bot spot memperlakukannya sebagai FLAT")
                 self.warned_short = True
             signal = Signal.FLAT
-        self.last_decided_bar = last_bar
+        self._mark_decided(last_bar)
         log.info(
             "bar %s tutup: sinyal %s, posisi %s, harga %s",
             last_bar.isoformat(),
@@ -294,6 +359,10 @@ class Runner:
             self._buy(amount)
         elif signal is Signal.FLAT and self.position is not None:
             self._sell(ExitReason.SIGNAL.value)
+
+    def _mark_decided(self, bar: pd.Timestamp) -> None:
+        self.last_decided_bar = bar
+        self.position_store.save_last_decided(bar)
 
     def _closed_bars(self, now: datetime) -> pd.DataFrame | None:
         """Bar yang sudah tutup, cukup untuk jendela strategi; None kalau tidak layak diputuskan."""
@@ -314,16 +383,24 @@ class Runner:
                 self.strategy.lookback_bars,
             )
             return None
-        last_close = closed["timestamp"].iloc[-1] + pd.Timedelta(self.timeframe_ms, unit="ms")
-        age = now - last_close.to_pydatetime()
-        if age > timedelta(seconds=self.settings.live.stale_bar_tolerance_seconds):
+        expected_last = current_open - pd.Timedelta(self.timeframe_ms, unit="ms")
+        last_bar = closed["timestamp"].iloc[-1]
+        if last_bar >= expected_last:
+            return closed  # bar yang seharusnya ada memang ada; umurnya tidak penting
+        # Exchange belum memberi bar yang seharusnya sudah tutup. Beri waktu sebesar toleransi
+        # sejak bar itu tutup (= current_open); lewat itu, bar dianggap stale dan dilewati.
+        overdue = now - current_open.to_pydatetime()
+        if overdue > timedelta(seconds=self.settings.live.stale_bar_tolerance_seconds):
             log.warning(
-                "bar terakhir stale: tutup %s, umur %s melebihi toleransi; iterasi dilewati",
-                last_close.isoformat(),
-                age,
+                "bar terakhir stale: seharusnya bar %s sudah tutup, exchange baru memberi %s "
+                "(terlambat %s); iterasi dilewati",
+                expected_last.isoformat(),
+                last_bar.isoformat(),
+                overdue,
             )
-            return None
-        return closed
+        else:
+            log.debug("menunggu bar %s dari exchange (%s sejak tutup)", expected_last, overdue)
+        return None
 
     # ------------------------------------------------------------------ #
     # Order
@@ -369,9 +446,21 @@ class Runner:
         if order is None or order.filled <= 0:
             return
         entry = order.average or 0.0
+        held_amount = order.filled
+        if order.fee_currency == self.base and order.fee:
+            held_amount -= order.fee  # venue memotong fee dari base (Binance tanpa BNB)
+        free_base = self.adapter.fetch_balance().free(self.base)
+        if free_base < held_amount:
+            log.warning(
+                "saldo %s %s lebih kecil dari fill %s; posisi memakai saldo",
+                self.base,
+                free_base,
+                held_amount,
+            )
+            held_amount = free_base
         levels = self.risk.stop_levels(entry)
         self.position = PositionState(
-            amount=order.filled,
+            amount=held_amount,
             entry_price=entry,
             entry_time=self.now().isoformat(),
             stop_loss=levels.stop_loss,
@@ -381,7 +470,7 @@ class Runner:
         self.position_store.save(self.position)
         log.info(
             "POSISI LONG %s %s @ %s stop=%s target=%s",
-            order.filled,
+            held_amount,
             self.base,
             entry,
             levels.stop_loss,
@@ -391,7 +480,21 @@ class Runner:
     def _sell(self, reason: str) -> None:
         assert self.position is not None
         order = self._submit(OrderSide.SELL, self.position.amount, reason)
-        if order is None:
+        if order is None or order.filled <= 0:
+            log.error(
+                "jual (%s) tidak terisi (%s); posisi %s TETAP dicatat dan dicoba lagi",
+                reason,
+                None if order is None else order.status.value,
+                self.position.amount,
+            )
+            return
+        remaining = self.position.amount - order.filled
+        if remaining > 1e-12:
+            self.position = PositionState(**{**asdict(self.position), "amount": remaining})
+            self.position_store.save(self.position)
+            log.warning(
+                "jual (%s) terisi sebagian %s; sisa posisi %s", reason, order.filled, remaining
+            )
             return
         self.position = None
         self.position_store.save(None)
@@ -403,15 +506,22 @@ class Runner:
 
     def _halt(self, exc: KillSwitchTriggered) -> int:
         log.error("%s", exc)
-        if exc.flatten and self.position is not None:
-            try:
-                self._sell(ExitReason.KILL_SWITCH.value)
-            except (ExchangeError, RiskError) as sell_exc:
-                log.error("flatten gagal: %s; posisi tetap dipegang", sell_exc)
+        # Urutan penting: stop lapis 2 (tahap 8) mengunci aset, jadi order terbuka dibatalkan
+        # DULU; order keluar yang dikirim sebelum itu ditolak karena saldo terkunci.
+        cancel_ok = True
         try:
             self.adapter.cancel_all_orders(self.symbol)
         except ExchangeError as cancel_exc:
+            cancel_ok = False
             log.error("cancel_all_orders gagal: %s", cancel_exc)
+        if exc.flatten and self.position is not None:
+            if not cancel_ok:
+                log.error("flatten tidak dikirim karena pembatalan order gagal; posisi dipegang")
+            else:
+                try:
+                    self._sell(ExitReason.KILL_SWITCH.value)
+                except (ExchangeError, RiskError) as sell_exc:
+                    log.error("flatten gagal: %s; posisi tetap dipegang", sell_exc)
         log.error("BOT BERHENTI: %s (exit code %d)", exc.switch.value, EXIT_KILL_SWITCH)
         return EXIT_KILL_SWITCH
 
