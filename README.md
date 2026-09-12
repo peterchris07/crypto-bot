@@ -1,8 +1,18 @@
 # tradebot
 
-Bot trading crypto spot untuk belajar engineering sistem yang bisa diuji. Tiga mode: paper (default, tanpa kunci API, harga asli Tokocrypto, order disimulasikan), testnet (Binance Spot Testnet, uang palsu, hanya untuk develop), dan live (Tokocrypto mainnet, uang asli). Spesifikasi lengkap dan semua keputusan desain ada di SPEC.md, protokol riset strategi ada di RESEARCH.md. File ini hanya menjelaskan cara memasang dan menjalankan.
+Bot trading crypto spot untuk satu pasangan, BTC/USDT, dibangun sebagai latihan engineering sistem yang bisa diuji, bukan sebagai mesin cari untung. Strategi awalnya EMA crossover 20/50 pada bar 1 jam dan diasumsikan rugi; seluruh sistem dirancang supaya kerugian itu murah, terukur, dan bisa dihentikan. Hasil backtest tidak pernah menjadi dasar untuk menyebut strategi ini menguntungkan.
 
-Strategi awal diasumsikan rugi. Sistem ini dirancang supaya kerugian itu murah dan terukur, bukan supaya cepat untung. Hasil backtest tidak pernah menjadi dasar untuk menyebut strategi ini menguntungkan.
+Yang dibangun: fetcher data historis dengan cache parquet dan laporan gap, backtest event-driven tanpa lookahead dengan buy-and-hold sebagai pembanding, RiskManager dengan sizing, stop lapis 1, dan empat kill switch, PaperAdapter yang mengeksekusi di atas harga asli, runner dengan jurnal order write-ahead, ledger dua fase untuk pajak, dan perintah operasional untuk menjalankan paper berhari-hari lalu membandingkannya dengan backtest. Spesifikasi dan semua keputusan desain ada di SPEC.md, protokol riset strategi di RESEARCH.md. File ini menjelaskan cara memasang, menjalankan, dan apa yang belum selesai.
+
+Tiga mode: paper (default, tanpa kunci, harga asli Tokocrypto, eksekusi disimulasikan), testnet (Binance Spot Testnet, uang palsu, hanya untuk menguji jalur order), dan live (Tokocrypto mainnet, uang asli; kodenya ada tetapi ditolak jalan sampai pemiliknya menyatakan siap).
+
+| Hal | Nilai |
+|---|---|
+| Venue live | Tokocrypto, berizin OJK, pasangan BTC/USDT, buku Binance yang dibagi |
+| Venue develop | Binance Spot Testnet |
+| Biaya per sisi | taker 0,15% + PPh 22 final 0,21% + biaya bursa ICEx 0,0444% = 0,4044%, plus asumsi slippage 0,15% |
+| All-in per putaran masuk-keluar | sekitar 1,11% |
+| Konsekuensi | strategi harus mengalahkan 1,11% per putaran sebelum dibandingkan dengan buy-and-hold; frekuensi tinggi mati oleh biaya |
 
 ## Venue develop dan venue live berbeda
 
@@ -194,6 +204,18 @@ Satu hal penting soal ccxt: implementasi tokocrypto di ccxt 4.5.78 merutekan tic
 Folder data, logs, state, dan trades dibuat otomatis dan tidak masuk git; pola di .gitignore dijangkar ke root supaya paket sumber src/tradebot/data tidak ikut terabaikan. Folder data berisi cache OHLCV, satu file per venue, pasangan, dan timeframe, misalnya data/tokocrypto/BTC-USDT_1h.parquet; laporan gap tertanam di metadata parquet itu, dengan salinan BTC-USDT_1h.gaps.json di sampingnya untuk dibaca orang. File ditulis atomik lewat file sementara bernama unik, fsync, lalu ganti nama, jadi proses yang mati di tengah tidak meninggalkan parquet setengah jadi dan dua proses yang menulis bersamaan masing-masing menghasilkan file utuh. Folder state berisi jurnal order (ditulis sebelum order dikirim), state harian risk manager, catatan posisi, dan akun paper. Folder trades berisi CSV yang mencatat setiap trade untuk rekonsiliasi dan pajak; file ini hanya ditambah, tidak pernah ditimpa. Simpan cadangannya di luar mesin ini.
 
 File bernama STOP di root project adalah kill switch manual. Membuat file itu menghentikan bot pada iterasi berikutnya.
+
+## Celah yang diketahui
+
+Ini celah yang disadari dan belum ditutup. Masing-masing menyebut apa yang membuatnya muncul.
+
+- Rekonsiliasi order lewat client order id di Tokocrypto memindai open orders lalu 200 order terbaru tanpa startTime. Muncul kalau bot mati beberapa jam setelah mengirim order yang jawabannya hilang sementara akun terus bertransaksi; order itu bisa tidak ditemukan dan disimpulkan tidak pernah masuk. Urutan hasil endpoint riwayat belum terverifikasi dengan kunci asli. Penutupnya meneruskan startTime dari waktu niat di jurnal; belum dikerjakan.
+- Backtest dari CLI tidak punya batas pasar exchange, jadi sizing tidak dibulatkan ke step dan minimum notional tidak dicek di sana; runner paper dan live memakainya. Muncul sebagai selisih kecil jumlah antara backtest dan paper.
+- Stop loss di paper dan live diisi di harga yang terlihat, backtest di level stop. Selisihnya selalu ke arah yang merugikan dan terlihat di compare-paper; bukan bug, tapi sumber bias yang harus diperhitungkan.
+- Data historis hanya sejak data.history_start (September 2025). Menarik ke 2017 akan menabrak jendela pemeliharaan Binance yang lebih panjang dari data.max_gap_bars dan berhenti; menaikkan batas itu melonggarkan pemeriksaan di semua periode. Daftar downtime terkonfirmasi belum ada.
+- Menutup tutup laptop membuat macOS tidur walau caffeinate jalan; bot melanjutkan setelah bangun, tetapi bar yang terlewat dilewati sebagai stale dan kill switch gagal koneksi bisa menyala kalau jaringan lambat pulih.
+- Paper tidak mensimulasikan stop order di exchange (lapis 2); lapis 2 hanya bekerja di testnet dan live.
+- Test testnet (8) dan test Tokocrypto berkunci (1) hanya jalan kalau kuncinya ada di .env; test network (8) hanya jalan di mesin dengan jaringan ke Tokocrypto. Ringkasan pytest menyebut ketiganya terpisah.
 
 ## Status tahap
 
