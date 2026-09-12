@@ -6,7 +6,7 @@ from datetime import UTC, datetime
 from pathlib import Path
 
 from tradebot.exchange import Order, OrderSide, OrderStatus, OrderType, Trade
-from tradebot.ledger import LEDGER_COLUMNS, Ledger
+from tradebot.ledger import LEDGER_COLUMNS, Ledger, fee_components
 
 T0 = datetime(2026, 9, 12, 6, 0, tzinfo=UTC)
 
@@ -111,12 +111,49 @@ def test_reconcile_sums_partial_fills_and_keeps_pending_when_trade_missing(tmp_p
     assert latest_for_1["fee"] == "0.75"
 
 
-def test_mixed_fee_currencies_stay_pending(tmp_path: Path):
+def test_mixed_fee_currencies_are_recorded_in_full_and_reconciled(tmp_path: Path):
+    """Diskon TKO bisa membuat fee datang dalam TKO. Simpan tiap komponen, jangan konversi."""
     ledger = Ledger(tmp_path / "trades.csv")
     ledger.record_fill(filled("1", None))
-    adapter = StubAdapter([trade("1", 0.3, "USDT"), trade("1", 0.0001, "BTC")])
-    assert ledger.reconcile(adapter, "BTC/USDT") == 0
-    assert ledger.pending_order_ids() == ["1"]
+    adapter = StubAdapter(
+        [trade("1", 0.3, "USDT"), trade("1", 0.0001, "BTC"), trade("1", 0.2, "USDT")]
+    )
+    assert ledger.reconcile(adapter, "BTC/USDT") == 1
+    assert ledger.pending_order_ids() == []
+    assert ledger.is_complete() is True
+    latest = ledger.rows()[-1]
+    assert latest["fee_status"] == "reconciled"
+    assert fee_components(latest) == [("USDT", 0.5), ("BTC", 0.0001)]
+
+
+def test_single_currency_fee_components_match_columns(tmp_path: Path):
+    ledger = Ledger(tmp_path / "trades.csv")
+    ledger.record_fill(filled("1", None))
+    ledger.reconcile(StubAdapter([trade("1", 0.75)]), "BTC/USDT")
+    latest = ledger.rows()[-1]
+    assert latest["fee"] == "0.75" and latest["fee_currency"] == "USDT"
+    assert fee_components(latest) == [("USDT", 0.75)]
+
+
+def test_pending_only_when_fee_truly_unavailable(tmp_path: Path):
+    ledger = Ledger(tmp_path / "trades.csv")
+    ledger.record_fill(filled("1", None))
+    ledger.record_fill(filled("2", None))
+    no_fee = Trade(
+        id="t-2",
+        order_id="2",
+        symbol="BTC/USDT",
+        side=OrderSide.BUY,
+        amount=0.01,
+        price=50_000.0,
+        cost=500.0,
+        fee=None,
+        fee_currency=None,
+        timestamp=T0,
+    )
+    adapter = StubAdapter([trade("1", 0.3, "USDT"), trade("1", 0.001, "TKO"), no_fee])
+    assert ledger.reconcile(adapter, "BTC/USDT") == 1
+    assert ledger.pending_order_ids() == ["2"], "hanya order yang fee-nya belum diambil"
 
 
 def test_ledger_survives_reopen(tmp_path: Path):

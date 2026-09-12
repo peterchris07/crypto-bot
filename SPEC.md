@@ -62,6 +62,10 @@ Gerbang dua kunci: konstruktor adapter menolak klien mainnet berkunci kecuali pe
 
 Tokocrypto pernah memindahkan 31 pair IDR ke mesin lain (November 2025), mengganti base URL data pasar, dan membatalkan semua order terbuka di pair terdampak tanpa aksi pengguna. Karena itu: saat connect, adapter memverifikasi pair di config benar-benar ada di load_markets, aktif, berjenis MBX, spot diizinkan, dan mengiklankan MARKET, LIMIT, dan STOP_LOSS_LIMIT; gagal dengan pesan jelas kalau ada yang hilang. Runner (tahap 7) memperlakukan order terbuka yang lenyap sebagai kejadian yang mungkin, bukan error aneh.
 
+### Celah yang diketahui di jalur rekonsiliasi
+
+Pencarian order lewat client id di Tokocrypto memindai open orders lalu riwayat order dengan type -1 dan batas ORDER_HISTORY_LIMIT (200) order terbaru, tanpa startTime. Kondisi yang membuat celah ini muncul: bot mati beberapa jam setelah mengirim order yang jawabannya hilang, sementara akun terus bertransaksi sehingga order itu bukan lagi salah satu dari 200 order terbaru; rekonsiliasi lalu menyimpulkan order tidak ada, padahal jurnal write-ahead ada justru untuk mencegah kesimpulan itu. Urutan hasil endpoint riwayat order Tokocrypto (naik atau turun menurut waktu) belum terverifikasi dengan kunci asli, jadi pemotongan 200 baris bisa memotong sisi yang salah. Penutupnya adalah meneruskan startTime dari waktu niat order di jurnal (tahap 7). Test tests/test_tokocrypto_keyed_integration.py mendokumentasikan celah ini dan dilewati sampai kunci Tokocrypto ada; pada akun dengan riwayat panjang test itu diharapkan gagal selama celah belum ditutup.
+
 ### Lokasi project
 
 Project ada di ~/dev/crypto-bot, bukan di Documents, karena Documents bisa ikut sinkron iCloud. Sinkronisasi di belakang layar merusak asumsi fsync pada jurnal order dan file state. Python 3.12 dipasang lewat uv di venv project, tanpa mengubah Python sistem.
@@ -173,6 +177,8 @@ Output metrik: total return, max drawdown, sharpe ratio, win rate, profit factor
 
 Tampilkan juga hasil buy-and-hold di periode yang sama sebagai pembanding. Kalau strategi kalah dari buy-and-hold, saya mau langsung lihat itu.
 
+Catatan untuk tahap 5, belum diimplementasikan: kalau holding period panjang, menganualisasi Sharpe dari return per bar 1h secara statistik meragukan, karena return antar bar dalam satu posisi saling bergantung. Yang benar adalah menganualisasi dari seri return pada frekuensi rebalance atau frekuensi keputusan strategi. backtest.bars_per_year tetap divalidasi terhadap timeframe supaya angka yang dipakai terlihat, tapi metrik Sharpe harus menyebut basis anualisasinya.
+
 ## Urutan Build
 
 Kerjakan berurutan. Setiap tahap harus punya test yang lulus sebelum lanjut.
@@ -196,7 +202,7 @@ Tokocrypto (PT Aset Digital Berkat) berizin OJK sebagai Pedagang Aset Keuangan D
 
 Ledger CSV tetap wajib dan tetap append-only, karena saya tetap butuh catatan sendiri untuk rekonsiliasi dengan laporan Tokocrypto. Kolom: timestamp, pair, sisi, jumlah, harga, nilai dalam quote currency, fee, fee currency, order id, client order id, status fee, dan waktu pencatatan. File ini bukan log debug; harus rapi, berurutan, dan tidak pernah ditimpa.
 
-Ledger bekerja dua fase karena respons order Tokocrypto tidak memuat fee. Fase pertama: begitu order terisi, barisnya ditulis segera dengan fee kosong dan status pending. Fase kedua: rekonsiliasi lewat fetch_my_trades menjumlahkan fee per order dan menambahkan baris baru berstatus reconciled; baris lama tidak pernah diubah. Perintah ledger-status melaporkan berapa order yang masih pending, dan bot tidak pernah menyatakan ledger lengkap selama ada baris pending.
+Ledger bekerja dua fase karena respons order Tokocrypto tidak memuat fee. Fase pertama: begitu order terisi, barisnya ditulis segera dengan fee kosong dan status pending. Fase kedua: rekonsiliasi lewat fetch_my_trades menjumlahkan fee per order per mata uang dan menambahkan baris baru berstatus reconciled; baris lama tidak pernah diubah. Fee dalam lebih dari satu mata uang, misalnya karena diskon TKO, dicatat lengkap per komponen dengan pemisah "|" di kolom fee dan fee_currency, tanpa konversi ke satu mata uang; konversi adalah urusan pelaporan pajak. Perintah ledger-status melaporkan berapa order yang masih pending, dan bot tidak pernah menyatakan ledger lengkap selama ada order yang fee-nya benar-benar belum diambil dari exchange.
 
 Sumber: lisensi dari daftar OJK "Daftar Penyelenggara Perdagangan Aset Keuangan Digital Posisi 21 April 2026" dan siaran pers OJK SP 226/GKPB/OJK/XII/2025 (19 Desember 2025); migrasi bursa dan kliring dari pengumuman Tokocrypto "Pemeliharaan Sistem dan Migrasi Pengalihan Keanggotaan Bursa dan Kliring" (11 Juni 2026); pajak dari artikel DJP tentang PMK 50/2025 (31 Juli 2025) dan pengumuman Tokocrypto tentang penerapannya (31 Juli 2025); migrasi 31 pair IDR dari "API Integration Alert: IDR Migration Impacting 31 Trading Pairs" (14 November 2025). Semua diakses 12 September 2026.
 

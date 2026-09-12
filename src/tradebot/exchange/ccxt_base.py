@@ -71,6 +71,10 @@ _STATUS_MAP = {
     "rejected": OrderStatus.REJECTED,
 }
 
+# Tipe order yang dibutuhkan bot: MARKET untuk masuk/keluar dan lapis 1, STOP_LOSS_LIMIT untuk
+# lapis 2 di exchange, LIMIT untuk order uji.
+REQUIRED_ORDER_TYPES: tuple[str, ...] = ("MARKET", "LIMIT", "STOP_LOSS_LIMIT")
+
 _TIME_DRIFT_HINTS = ("-1021", "recvwindow", "ahead of the server", "timestamp for this request")
 _AUTH_HINTS = ("-2015", "api-key", "invalid api", "signature", "-2014", "-1022")
 _ORDER_GONE_HINTS = ("-2011", "unknown order", "order does not exist")
@@ -376,9 +380,41 @@ class CcxtBase(ExchangeAdapter):
         if market.get("active") is False:
             raise FatalExchangeError(f"pair {symbol!r} ada di {self.name} tapi tidak aktif")
         self._validate_market(market)
+        self._check_stop_support(market)
         self._market = market
         self._connected = True
         log.info("terhubung ke %s, pair %s tervalidasi", self.name, symbol)
+
+    def _check_stop_support(self, market: dict[str, Any]) -> None:
+        """Pair harus mengiklankan tipe order yang dibutuhkan, terutama STOP_LOSS_LIMIT.
+
+        Lapis 2 bergantung pada stop order di exchange. Di uang asli (mainnet berkunci)
+        ketidakpastian ini fatal. Di paper dan testnet cukup peringatan, supaya develop
+        tidak terhenti oleh perubahan bentuk payload.
+        """
+        symbol = self._exchange.symbol
+        advertised = {str(t).upper() for t in ((market.get("info") or {}).get("orderTypes") or [])}
+        if not advertised:
+            problem = (
+                f"pair {symbol!r} tidak melaporkan orderTypes, jadi dukungan "
+                f"{', '.join(REQUIRED_ORDER_TYPES)} tidak bisa dipastikan"
+            )
+        else:
+            missing = [t for t in REQUIRED_ORDER_TYPES if t not in advertised]
+            problem = (
+                f"pair {symbol!r} tidak mengiklankan tipe order {missing} "
+                f"(tersedia: {sorted(advertised)})"
+                if missing
+                else ""
+            )
+        if not problem:
+            return
+        if self.can_trade and not self.is_sandbox:
+            raise FatalExchangeError(
+                f"{problem}. Lapis 2 (stop di exchange) butuh STOP_LOSS_LIMIT; "
+                "mode live tidak boleh jalan tanpa kepastian itu."
+            )
+        log.warning("%s. Di %s ini hanya peringatan; di live akan fatal.", problem, self.name)
 
     def fetch_server_time_ms(self) -> int:
         return int(self._call("fetch_time", self._client.fetch_time))

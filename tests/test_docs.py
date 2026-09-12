@@ -34,3 +34,10 @@ def test_spec_names_real_error_classes_and_avoids_overclaims():
 def test_readme_fee_history_matches_config():
     readme = (ROOT / "README.md").read_text()
     assert "tiga kali dalam 2026" not in readme
+
+
+def test_spec_records_sharpe_note_and_reconciliation_gap():
+    spec = (ROOT / "SPEC.md").read_text()
+    assert "frekuensi rebalance" in spec, "catatan anualisasi Sharpe untuk tahap 5"
+    assert "Celah yang diketahui" in spec
+    assert "startTime" in spec and "urutan hasil" in spec.lower()

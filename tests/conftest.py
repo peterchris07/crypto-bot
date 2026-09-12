@@ -23,6 +23,14 @@ TESTNET_VARS = ("BINANCE_TESTNET_API_KEY", "BINANCE_TESTNET_API_SECRET")
 TESTNET_SKIP_REASON = (
     "kunci testnet tidak ada: isi BINANCE_TESTNET_API_KEY dan BINANCE_TESTNET_API_SECRET di .env"
 )
+# marker -> (variabel .env yang wajib ada, alasan skip)
+KEYED_MARKERS: dict[str, tuple[tuple[str, ...], str]] = {
+    "testnet": (TESTNET_VARS, TESTNET_SKIP_REASON),
+    "tokocrypto": (
+        ("TOKOCRYPTO_API_KEY", "TOKOCRYPTO_API_SECRET"),
+        "kunci Tokocrypto tidak ada: isi TOKOCRYPTO_API_KEY dan TOKOCRYPTO_API_SECRET di .env",
+    ),
+}
 
 MINIMAL_CONFIG = textwrap.dedent(
     """
@@ -87,27 +95,28 @@ MINIMAL_CONFIG = textwrap.dedent(
 ).lstrip()
 
 
-def testnet_env() -> dict[str, str]:
-    """Kunci testnet dari .env project atau environment proses. Tidak pernah dicetak."""
+def keys_present(names: tuple[str, ...]) -> bool:
+    """Apakah semua variabel ada di .env project atau environment proses. Nilai tidak dicetak."""
     from_file = {}
     env_file = PROJECT_ROOT / ".env"
     if env_file.is_file():
         from_file = {k: v for k, v in dotenv_values(env_file).items() if v}
     merged = {**from_file, **os.environ}
-    return {name: merged[name] for name in TESTNET_VARS if merged.get(name)}
+    return all(merged.get(name) for name in names)
 
 
 def testnet_keys_present() -> bool:
-    return len(testnet_env()) == len(TESTNET_VARS)
+    return keys_present(TESTNET_VARS)
 
 
 def pytest_collection_modifyitems(config: pytest.Config, items: list[pytest.Item]) -> None:
-    if testnet_keys_present():
-        return
-    marker = pytest.mark.skip(reason=TESTNET_SKIP_REASON)
-    for item in items:
-        if item.get_closest_marker("testnet") is not None:
-            item.add_marker(marker)
+    for marker_name, (names, reason) in KEYED_MARKERS.items():
+        if keys_present(names):
+            continue
+        skip = pytest.mark.skip(reason=reason)
+        for item in items:
+            if item.get_closest_marker(marker_name) is not None:
+                item.add_marker(skip)
 
 
 def pytest_terminal_summary(terminalreporter, exitstatus: int, config: pytest.Config) -> None:

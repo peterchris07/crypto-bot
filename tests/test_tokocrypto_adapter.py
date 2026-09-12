@@ -155,12 +155,32 @@ def test_connect_rejects_non_mbx_market_type(exchange_config):
         build(exchange_config, mutate_market=make_nextme)
 
 
-def test_connect_rejects_pair_without_required_order_types(exchange_config):
-    def drop_stop(client):
-        client.markets["BTC/USDT"]["info"]["orderTypes"] = ["LIMIT", "MARKET"]
+def _drop_stop(client):
+    client.markets["BTC/USDT"]["info"]["orderTypes"] = ["LIMIT", "MARKET"]
 
+
+def _drop_order_types_field(client):
+    del client.markets["BTC/USDT"]["info"]["orderTypes"]
+
+
+@pytest.mark.parametrize("mutate", [_drop_stop, _drop_order_types_field])
+def test_live_refuses_pair_without_known_stop_support(exchange_config, mutate):
+    """Lapis 2 bergantung pada STOP_LOSS_LIMIT; di uang asli tidak boleh jalan tanpa kepastian."""
     with pytest.raises(FatalExchangeError, match="STOP_LOSS_LIMIT"):
-        build(exchange_config, mutate_market=drop_stop)
+        build(exchange_config, CREDS, allow_mainnet_trading=True, mutate_market=mutate)
+
+
+@pytest.mark.parametrize("mutate", [_drop_stop, _drop_order_types_field])
+def test_paper_only_warns_about_stop_support(exchange_config, mutate, caplog):
+    caplog.set_level(logging.WARNING, logger="tradebot")
+    adapter, _, _ = build(exchange_config, mutate_market=mutate)
+    assert adapter.can_trade is False
+    warnings = [
+        r
+        for r in caplog.records
+        if r.levelno == logging.WARNING and "STOP_LOSS_LIMIT" in r.getMessage()
+    ]
+    assert warnings, "paper harus memperingatkan, bukan berhenti"
 
 
 def test_connect_rejects_spot_disabled(exchange_config):

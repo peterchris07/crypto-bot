@@ -20,8 +20,8 @@ ccxt 4.5.78 dan dokumentasi resmi Tokocrypto (September 2026):
 - Tidak ada cancelAllOrders; dibatalkan satu per satu.
 - Pair pernah dipindah mesin dan order terbukanya dibatalkan tanpa aksi bot
   (migrasi IDR November 2025). Karena itu pair divalidasi keras saat connect:
-  ada, aktif, jenis MBX, spot diizinkan, dan mengiklankan tipe order yang
-  dibutuhkan lapis 1 dan lapis 2.
+  ada, aktif, jenis MBX, spot diizinkan; tipe order yang dibutuhkan lapis 1
+  dan lapis 2 dicek di kelas dasar, fatal di live dan peringatan di paper.
 """
 
 from __future__ import annotations
@@ -35,7 +35,6 @@ from tradebot.exchange.errors import FatalExchangeError, OrderNotFoundError
 
 log = logging.getLogger(__name__)
 
-REQUIRED_ORDER_TYPES = ("MARKET", "LIMIT", "STOP_LOSS_LIMIT")
 MBX_MARKET_TYPE = 1
 _STOP_TYPE_CODES = {3, 4, 5, 6}  # STOP_LOSS, STOP_LOSS_LIMIT, TAKE_PROFIT, TAKE_PROFIT_LIMIT
 ORDER_HISTORY_LIMIT = 200
@@ -91,13 +90,7 @@ class TokocryptoAdapter(CcxtBase):
         if spot_flag in ("0", "false"):
             raise FatalExchangeError(f"pair {symbol!r}: spot trading dimatikan oleh Tokocrypto")
         advertised = {str(t).upper() for t in (info.get("orderTypes") or [])}
-        if advertised:
-            missing = [t for t in REQUIRED_ORDER_TYPES if t not in advertised]
-            if missing:
-                raise FatalExchangeError(
-                    f"pair {symbol!r} tidak mengiklankan tipe order {missing} yang dibutuhkan "
-                    f"bot (tersedia: {sorted(advertised)})"
-                )
+        # Dukungan tipe order dicek di CcxtBase._check_stop_support, dengan bobot per mode.
         log.info(
             "pair %s: id=%s type=%s orderTypes=%s",
             symbol,

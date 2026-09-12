@@ -6,7 +6,12 @@ Fase 2: reconcile() mengambil eksekusi akun lewat fetch_my_trades, menjumlahkan 
 per order, dan MENAMBAHKAN baris baru berstatus reconciled. Baris lama tidak pernah
 ditimpa; keadaan terkini sebuah order adalah baris terakhirnya.
 
-Ledger tidak pernah dinyatakan lengkap selama ada order yang baris terakhirnya pending.
+Fee bisa datang dalam lebih dari satu mata uang (misalnya diskon TKO). Setiap komponen
+disimpan apa adanya, dipisah "|" pada kolom fee dan fee_currency dengan urutan yang sama,
+tanpa konversi; konversi adalah urusan pelaporan pajak, bukan bot.
+
+Ledger tidak pernah dinyatakan lengkap selama ada order yang fee-nya benar-benar belum
+diambil dari exchange.
 """
 
 from __future__ import annotations
@@ -40,6 +45,7 @@ PENDING = "pending"
 RECONCILED = "reconciled"
 # Jendela pencarian trades dimulai sedikit sebelum waktu fill, untuk jam yang tidak persis sama.
 RECONCILE_LOOKBACK = timedelta(minutes=5)
+FEE_SEPARATOR = "|"
 
 
 class TradeSource(Protocol):
@@ -153,15 +159,14 @@ class Ledger:
         done = 0
         for row in pending:
             fills = by_order.get(row["order_id"], [])
-            fee = _sum_fee(fills)
-            if fee is None:
+            components = _fee_components_of(fills)
+            if components is None:
                 log.warning(
-                    "LEDGER order_id=%s masih pending: %d trade ditemukan, fee belum pasti",
+                    "LEDGER order_id=%s masih pending: %d trade ditemukan, fee belum diambil",
                     row["order_id"],
                     len(fills),
                 )
                 continue
-            total_fee, currency = fee
             amount = sum(t.amount for t in fills)
             cost = sum(t.cost for t in fills)
             self._append(
@@ -170,25 +175,35 @@ class Ledger:
                     "amount": amount if amount > 0 else row["amount"],
                     "price": (cost / amount) if amount > 0 else row["price"],
                     "quote_value": cost if cost > 0 else row["quote_value"],
-                    "fee": total_fee,
-                    "fee_currency": currency,
+                    "fee": FEE_SEPARATOR.join(_fmt(total) for _, total in components),
+                    "fee_currency": FEE_SEPARATOR.join(currency for currency, _ in components),
                     "fee_status": RECONCILED,
                     "recorded_at": now or datetime.now(tz=UTC),
                 }
             )
             done += 1
-            log.info(
-                "LEDGER reconciled order_id=%s fee=%s %s", row["order_id"], total_fee, currency
-            )
+            log.info("LEDGER reconciled order_id=%s fee=%s", row["order_id"], components)
         return done
 
 
-def _sum_fee(fills: Iterable[Trade]) -> tuple[float, str] | None:
+def _fee_components_of(fills: Iterable[Trade]) -> list[tuple[str, float]] | None:
+    """Jumlah fee per mata uang, urut kemunculan. None kalau ada fill yang fee-nya belum ada."""
     fills = list(fills)
-    if not fills or any(t.fee is None for t in fills):
+    if not fills or any(t.fee is None or not t.fee_currency for t in fills):
         return None
-    currencies = {t.fee_currency for t in fills}
-    if len(currencies) != 1 or None in currencies:
-        # Fee dalam lebih dari satu mata uang tidak bisa dijumlahkan jadi satu angka.
-        return None
-    return sum(float(t.fee) for t in fills), str(currencies.pop())
+    totals: dict[str, float] = {}
+    for trade in fills:
+        currency = str(trade.fee_currency)
+        totals[currency] = totals.get(currency, 0.0) + float(trade.fee)
+    return list(totals.items())
+
+
+def fee_components(row: dict[str, str]) -> list[tuple[str, float]]:
+    """Baca kembali komponen fee dari satu baris ledger: [(mata uang, jumlah), ...]."""
+    if not row.get("fee"):
+        return []
+    amounts = row["fee"].split(FEE_SEPARATOR)
+    currencies = row.get("fee_currency", "").split(FEE_SEPARATOR)
+    if len(amounts) != len(currencies):
+        raise ValueError(f"kolom fee dan fee_currency tidak sejajar: {row!r}")
+    return [(currency, float(amount)) for currency, amount in zip(currencies, amounts, strict=True)]

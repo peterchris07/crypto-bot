@@ -35,6 +35,7 @@ filterwarnings = ["error::DeprecationWarning:tradebot.*"]
 markers = [
     "testnet: butuh kunci Binance Spot Testnet di .env; dilewati kalau tidak ada",
     "network: memanggil endpoint publik sungguhan tanpa kunci; matikan dengan -m 'not network'",
+    "tokocrypto: butuh kunci Tokocrypto di .env (uang asli, hanya baca); dilewati kalau tidak ada",
 ]
 
 [tool.ruff]

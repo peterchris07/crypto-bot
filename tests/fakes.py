@@ -20,6 +20,7 @@ DEFAULT_MARKET: dict[str, Any] = {
         "price": {"min": 0.01, "max": 1_000_000.0},
     },
     "info": {
+        "orderTypes": ["LIMIT", "LIMIT_MAKER", "MARKET", "STOP_LOSS_LIMIT", "TAKE_PROFIT_LIMIT"],
         "filters": [
             {
                 "filterType": "PERCENT_PRICE_BY_SIDE",
@@ -29,7 +30,7 @@ DEFAULT_MARKET: dict[str, Any] = {
                 "askMultiplierDown": "0.2",
                 "avgPriceMins": 5,
             }
-        ]
+        ],
     },
 }
 

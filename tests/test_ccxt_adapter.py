@@ -640,3 +640,24 @@ def test_fetch_my_trades_maps_fee(exchange_config):
 def test_market_limits_expose_price_band(exchange_config):
     adapter, _, _ = build(exchange_config)
     assert adapter.fetch_market_limits("BTC/USDT").price_band_down == 0.2
+
+
+def test_testnet_warns_when_stop_support_unknown(exchange_config, caplog):
+    """Aturan orderTypes per mode: testnet (uang palsu) cukup peringatan."""
+    caplog.set_level(logging.WARNING, logger="tradebot")
+    adapter, client, _ = build(exchange_config, connect=False)
+    client.markets["BTC/USDT"]["info"]["orderTypes"] = ["LIMIT", "MARKET"]
+    adapter.connect()
+    assert adapter.is_sandbox
+    assert any(
+        "STOP_LOSS_LIMIT" in r.getMessage() and r.levelno == logging.WARNING for r in caplog.records
+    )
+
+
+def test_mainnet_trading_refuses_when_stop_support_unknown(exchange_config):
+    adapter, client, _ = build(
+        exchange_config, sandbox=False, allow_mainnet_trading=True, connect=False
+    )
+    client.markets["BTC/USDT"]["info"]["orderTypes"] = ["LIMIT", "MARKET"]
+    with pytest.raises(FatalExchangeError, match="STOP_LOSS_LIMIT"):
+        adapter.connect()
