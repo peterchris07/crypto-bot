@@ -7,9 +7,13 @@ dan sifat inkremental cache.
 
 from __future__ import annotations
 
+import dataclasses
+import json
 import logging
 from pathlib import Path
 
+import ccxt
+import pandas as pd
 import pytest
 
 from tests.fakes import BASE_MS, FakeTokocryptoClient
@@ -18,6 +22,7 @@ from tradebot.data.cache import OhlcvCache
 from tradebot.data.errors import DataError, DataGapError
 from tradebot.data.fetch import download_range, update_cache
 from tradebot.data.ohlcv import Gap, find_gaps, ms_of, stamp_of
+from tradebot.exchange import RetryableExchangeError
 from tradebot.exchange.tokocrypto_adapter import TokocryptoAdapter
 
 HOUR = 3_600_000
@@ -165,8 +170,9 @@ def test_first_run_writes_parquet_and_gap_report(tmp_path: Path, exchange_config
     assert report.first == stamp_of(T0) and report.last == stamp_of(T0 + 23 * HOUR)
     saved = cache.load(report.path)
     assert len(saved) == 24
-    payload = cache.load_gaps(report.gaps_path)
+    payload = cache.load_gaps(report.path)
     assert payload["bars"] == 24 and payload["gaps"] == [] and payload["max_gap_bars"] == 6
+    assert json.loads(report.gaps_path.read_text(encoding="utf-8")) == payload
     assert payload["first"] == stamp_of(T0).isoformat()
     assert payload["requested_end"] == stamp_of(T0 + 24 * HOUR).isoformat()
 
@@ -206,7 +212,7 @@ def test_short_gap_is_reported_and_cache_still_written(
     assert report.gaps == [Gap(start=stamp_of(T0 + 7 * HOUR), end=stamp_of(T0 + 9 * HOUR), bars=3)]
     assert report.missing_bars == 3 and len(report.frame) == 21
     assert any("3 bar hilang" in record.getMessage() for record in caplog.records)
-    payload = cache.load_gaps(report.gaps_path)
+    payload = cache.load_gaps(report.path)
     assert payload["gaps"] == [
         {
             "start": stamp_of(T0 + 7 * HOUR).isoformat(),
@@ -235,7 +241,7 @@ def test_long_gap_leaves_existing_cache_untouched(tmp_path: Path, exchange_confi
     with pytest.raises(DataGapError):
         run(adapter, cache, start_ms=T0, end_ms=T0 + 40 * HOUR)
     assert first.path.read_bytes() == before
-    assert cache.load_gaps(first.gaps_path)["bars"] == 12
+    assert cache.load_gaps(first.path)["bars"] == 12
 
 
 def test_gap_exactly_at_threshold_is_allowed(tmp_path: Path, exchange_config):
@@ -299,12 +305,14 @@ def test_second_run_refetches_only_from_last_cached_bar(tmp_path: Path, exchange
 def test_second_run_with_nothing_new_makes_no_request(tmp_path: Path, exchange_config):
     adapter, client = build(exchange_config, rows(T0, 12))
     cache = OhlcvCache(tmp_path)
-    run(adapter, cache, start_ms=T0, end_ms=T0 + 12 * HOUR)
+    first = run(adapter, cache, start_ms=T0, end_ms=T0 + 12 * HOUR)
+    before_mtime = first.path.stat().st_mtime_ns
     client.calls.clear()
     report = run(adapter, cache, start_ms=T0 + 2 * HOUR, end_ms=T0 + 12 * HOUR)
     assert since_calls(client) == []
     assert report.new_bars == 0 and report.requests == 0
     assert len(report.frame) == 12, "cache tidak dipotong walau awal yang diminta lebih lambat"
+    assert report.path.stat().st_mtime_ns == before_mtime, "tidak ditulis ulang tanpa perubahan"
 
 
 def test_refetched_last_bar_is_overwritten_by_newer_values(tmp_path: Path, exchange_config):
@@ -340,3 +348,76 @@ def test_gap_in_existing_cache_is_rechecked_against_current_threshold(
     run(adapter, cache, start_ms=T0, end_ms=T0 + 24 * HOUR, max_gap_bars=6)
     with pytest.raises(DataGapError):
         run(adapter, cache, start_ms=T0, end_ms=T0 + 24 * HOUR, max_gap_bars=2)
+
+
+# --------------------------------------------------------------------------- #
+# Temuan review: grid mingguan, data rusak dari venue, gangguan jaringan
+# --------------------------------------------------------------------------- #
+
+WEEK = 7 * 86_400_000
+MONDAY = int(pd.Timestamp("2023-12-11", tz="UTC").value // 1_000_000)  # Senin 00:00 UTC
+
+
+def test_weekly_forming_bar_is_excluded_on_a_saturday(tmp_path: Path, exchange_config):
+    """Bar 1w venue buka Senin; grid epoch jatuh di Kamis. Sabtu, bar Senin masih berjalan."""
+    weekly = [[MONDAY + i * WEEK, 1.0, 2.0, 0.5, 1.5 + i, 10.0] for i in range(4)]
+    config = dataclasses.replace(exchange_config, timeframe="1w")
+    adapter, _ = build(config, weekly)
+    saturday = MONDAY + 3 * WEEK + 5 * 86_400_000 + 12 * HOUR  # 2024-01-06T12:00Z
+    report = update_cache(
+        adapter,
+        OhlcvCache(tmp_path),
+        venue_id=VENUE,
+        symbol=SYMBOL,
+        timeframe="1w",
+        start_ms=MONDAY,
+        end_ms=saturday,
+        max_gap_bars=1,
+    )
+    assert report.requested_end == stamp_of(MONDAY + 3 * WEEK), "dipotong ke Senin, bukan Kamis"
+    assert report.last == stamp_of(MONDAY + 2 * WEEK), "bar Senin 2024-01-01 masih berjalan"
+    assert len(report.frame) == 3 and report.gaps == []
+
+
+def test_rows_shifted_off_grid_are_refused_and_nothing_written(tmp_path: Path, exchange_config):
+    shifted = [[ts + 1000, *rest] for ts, *rest in rows(T0, 24)]
+    adapter, _ = build(exchange_config, shifted)
+    with pytest.raises(DataError, match="tidak sejajar grid"):
+        run(adapter, OhlcvCache(tmp_path), start_ms=T0, end_ms=T0 + 24 * HOUR)
+    assert not (tmp_path / VENUE).exists()
+
+
+def test_sub_timeframe_spacing_is_refused(tmp_path: Path, exchange_config):
+    data = rows(T0, 6)
+    data.insert(3, [T0 + 2 * HOUR + 30 * 60_000, 1.0, 2.0, 0.5, 1.5, 10.0])
+    adapter, _ = build(exchange_config, data)
+    with pytest.raises(DataError, match="tidak sejajar grid"):
+        run(adapter, OhlcvCache(tmp_path), start_ms=T0, end_ms=T0 + 6 * HOUR)
+    assert not (tmp_path / VENUE).exists()
+
+
+def test_missing_price_from_venue_is_a_data_error(tmp_path: Path, exchange_config):
+    data = rows(T0, 6)
+    data[2][4] = None  # close kosong, seperti safe_number ccxt untuk nilai yang hilang
+    adapter, _ = build(exchange_config, data)
+    with pytest.raises(DataError, match="NaN"):
+        run(adapter, OhlcvCache(tmp_path), start_ms=T0, end_ms=T0 + 6 * HOUR)
+    assert not (tmp_path / VENUE).exists()
+
+
+def test_transient_network_failure_mid_download_is_retried(tmp_path: Path, exchange_config):
+    adapter, client = build(exchange_config, rows(T0, 25))
+    client.fail_next("fetch_ohlcv", ccxt.NetworkError("putus (disimulasikan)"))
+    frame, requests = download_range(adapter, SYMBOL, "1h", T0, T0 + 25 * HOUR, page_limit=10)
+    assert len(frame) == 25
+    # percobaan yang gagal tidak dihitung sebagai halaman; adapter mengulanginya sendiri
+    assert requests == 3
+    assert since_calls(client) == [T0, T0, T0 + 10 * HOUR, T0 + 20 * HOUR]
+
+
+def test_persistent_network_failure_propagates_and_writes_nothing(tmp_path: Path, exchange_config):
+    adapter, client = build(exchange_config, rows(T0, 25))
+    client.fail_next("fetch_ohlcv", *[ccxt.NetworkError("putus") for _ in range(5)])
+    with pytest.raises(RetryableExchangeError):
+        run(adapter, OhlcvCache(tmp_path), start_ms=T0, end_ms=T0 + 24 * HOUR, page_limit=10)
+    assert not (tmp_path / VENUE).exists()

@@ -11,6 +11,8 @@ TRADING_MODE=live juga harus ada.
 from __future__ import annotations
 
 import argparse
+import logging
+import os
 import sys
 from collections.abc import Sequence
 
@@ -18,8 +20,10 @@ from tradebot import __version__
 from tradebot.config import (
     DEFAULT_CONFIG_PATH,
     LIVE_FLAG,
+    MODE_ENV_VAR,
     ConfigError,
     Settings,
+    TradingMode,
     describe,
     load_settings,
 )
@@ -79,7 +83,8 @@ def build_parser() -> argparse.ArgumentParser:
         "fetch-data",
         help=(
             "Unduh OHLCV historis dari data publik venue live ke cache parquet di data.cache_dir. "
-            "Tidak butuh kunci, tidak peduli mode. Inkremental: hanya bar yang belum ada."
+            "TRADING_MODE dan kunci di .env diabaikan: perintah ini selalu berjalan sebagai paper "
+            "dan tidak bisa mengirim order. Inkremental: hanya bar yang belum ada."
         ),
     )
     fetch.add_argument(
@@ -127,6 +132,11 @@ def _fetch_data(settings: Settings, start: str | None, end: str | None) -> int:
     symbol = settings.exchange.symbol
     timeframe = settings.exchange.timeframe
     venue_id = settings.exchange.live.id
+    logging.getLogger("tradebot.cli").info(
+        "fetch-data: %s di .env diabaikan; memakai data publik %s tanpa kunci",
+        MODE_ENV_VAR,
+        venue_id,
+    )
     try:
         start_ms = parse_utc_ms(start if start is not None else settings.data.history_start)
         end_requested_ms = parse_utc_ms(end) if end is not None else None
@@ -158,7 +168,7 @@ def _fetch_data(settings: Settings, start: str | None, end: str | None) -> int:
         print(f"DATA ERROR: {exc}", file=sys.stderr)
         return EXIT_DATA_ERROR
 
-    print(f"venue: {adapter.name} (data publik, tanpa kunci)")
+    print(f"venue: {adapter.name} (data publik, tanpa kunci; {MODE_ENV_VAR} diabaikan)")
     print(f"pasangan: {symbol} {timeframe}")
     print(
         f"rentang diminta: {report.requested_start.isoformat()} .. "
@@ -247,9 +257,16 @@ def main(argv: Sequence[str] | None = None) -> int:
     parser = build_parser()
     args = parser.parse_args(argv)
 
+    environ = None
+    if args.command == "fetch-data":
+        # Perintah data publik: mode dan kunci di .env tidak relevan dan tidak boleh
+        # menghalangi. Dipaksa paper, mode teraman, yang tidak pernah butuh kunci.
+        environ = {**os.environ, MODE_ENV_VAR: TradingMode.PAPER.value}
     try:
         settings = load_settings(
-            args.config, i_know_what_im_doing=getattr(args, "i_know_what_im_doing", False)
+            args.config,
+            i_know_what_im_doing=getattr(args, "i_know_what_im_doing", False),
+            environ=environ,
         )
     except ConfigError as exc:
         print(f"CONFIG ERROR: {exc}", file=sys.stderr)

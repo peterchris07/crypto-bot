@@ -75,14 +75,30 @@ def test_runtime_folders_ignored_only_at_root():
     """Folder runtime diabaikan di root, tapi paket sumber dengan nama sama tidak.
 
     Paket src/tradebot/data pernah hilang dari git karena pola 'data/' tanpa jangkar,
-    sehingga clone baru gagal import padahal test di mesin pengembang hijau.
+    sehingga clone baru gagal import padahal test di mesin pengembang hijau. File yang
+    sudah dilacak tidak pernah dilaporkan check-ignore, jadi yang diuji adalah path
+    HIPOTETIS yang belum ada, dengan --no-index, supaya regresi pola tetap terlihat.
     """
     if not _in_git_repo():
         pytest.fail("project belum berupa repositori git")
+    lines = set(_gitignore_lines())
+    unanchored = {"data/", "logs/", "state/", "trades/", "STOP"} & lines
+    assert not unanchored, f"pola tanpa jangkar mengabaikan folder sumber juga: {unanchored}"
+    assert not [line for line in lines if line.startswith("**/")]
     for path in ("data/x.parquet", "logs/tradebot.log", "state/risk_state.json", "trades/t.csv"):
-        assert _git("check-ignore", "-q", path).returncode == 0, f"{path} harus diabaikan"
-    for path in ("src/tradebot/data/ohlcv.py", "src/tradebot/data/__init__.py"):
-        assert _git("check-ignore", "-q", path).returncode == 1, f"{path} tidak boleh diabaikan"
+        assert _git("check-ignore", "-q", "--no-index", path).returncode == 0, (
+            f"{path} harus diabaikan"
+        )
+    for path in (
+        "src/tradebot/data/modul_baru.py",
+        "src/tradebot/logs/x.py",
+        "src/tradebot/state/x.py",
+        "src/tradebot/trades/x.py",
+        "tests/data/x.py",
+    ):
+        assert _git("check-ignore", "-q", "--no-index", path).returncode == 1, (
+            f"{path} tidak boleh diabaikan"
+        )
     tracked = _git("ls-files", "src/tradebot/data").stdout.splitlines()
     assert "src/tradebot/data/ohlcv.py" in tracked, "paket data harus dilacak git"
     assert "src/tradebot/data/__init__.py" in tracked

@@ -200,5 +200,72 @@ def test_find_gaps_reports_each_hole_with_inclusive_bounds():
 
 def test_find_gaps_rejects_bars_off_grid():
     frame = frame_from_rows([[T0, 1, 2, 0.5, 1.5, 10], [T0 + HOUR + 1, 1, 2, 0.5, 1.5, 10]])
-    with pytest.raises(ValueError, match="kelipatan"):
+    with pytest.raises(ValueError, match="tidak sejajar grid"):
         find_gaps(frame, "1h")
+
+
+# --------------------------------------------------------------------------- #
+# Temuan review: grid mingguan, index bukan RangeIndex, jarak lebih pendek, NaN volume
+# --------------------------------------------------------------------------- #
+
+from tradebot.data.ohlcv import WEEK_ANCHOR_MS, WEEK_MS, grid_anchor_ms  # noqa: E402
+
+
+def test_weekly_grid_is_anchored_to_monday_not_epoch_thursday():
+    monday = int(pd.Timestamp("2017-08-14", tz="UTC").value // 1_000_000)  # bar 1w pertama Binance
+    assert pd.Timestamp(WEEK_ANCHOR_MS, unit="ms", tz="UTC").day_name() == "Monday"
+    assert (
+        grid_anchor_ms(WEEK_MS) == WEEK_ANCHOR_MS and grid_anchor_ms(2 * WEEK_MS) == WEEK_ANCHOR_MS
+    )
+    assert grid_anchor_ms(HOUR) == 0 and grid_anchor_ms(86_400_000) == 0
+    assert floor_to_bar(monday, WEEK_MS) == monday
+    saturday = monday + 5 * 86_400_000 + 12 * HOUR
+    assert floor_to_bar(saturday, WEEK_MS) == monday
+    assert stamp_of(floor_to_bar(saturday, WEEK_MS)).day_name() == "Monday"
+    # epoch murni akan memberi Kamis 2017-08-10; itu bug yang ditutup test ini
+    assert saturday - (saturday % WEEK_MS) != monday
+
+
+def test_find_gaps_weekly_accepts_monday_bars_and_rejects_thursday_bars():
+    monday = int(pd.Timestamp("2023-12-11", tz="UTC").value // 1_000_000)
+    good = frame_from_rows([[monday + i * WEEK_MS, 1, 2, 0.5, 1.5, 10] for i in range(3)])
+    assert find_gaps(good, "1w") == []
+    thursday = monday - 4 * 86_400_000
+    bad = frame_from_rows([[thursday + i * WEEK_MS, 1, 2, 0.5, 1.5, 10] for i in range(3)])
+    with pytest.raises(ValueError, match="tidak sejajar grid 1w"):
+        find_gaps(bad, "1w")
+
+
+def test_find_gaps_is_positional_not_label_based():
+    frame = bars(T0, 6).drop(index=[3])  # label 3 hilang, index tidak rapat
+    assert find_gaps(frame, "1h") == [Gap(stamp_of(T0 + 3 * HOUR), stamp_of(T0 + 3 * HOUR), 1)]
+    shuffled_labels = bars(T0, 6, skip={2}).set_axis([10, 7, 3, 99, 0], axis=0)
+    assert find_gaps(shuffled_labels, "1h") == [
+        Gap(stamp_of(T0 + 2 * HOUR), stamp_of(T0 + 2 * HOUR), 1)
+    ]
+
+
+def test_find_gaps_rejects_spacing_shorter_than_timeframe():
+    frame = frame_from_rows(
+        [
+            [T0, 1, 2, 0.5, 1.5, 10],
+            [T0 + 30 * 60_000, 1, 2, 0.5, 1.5, 10],
+            [T0 + HOUR, 1, 2, 0.5, 1.5, 10],
+        ]
+    )
+    with pytest.raises(ValueError, match="tidak sejajar grid"):
+        find_gaps(frame, "1h")
+
+
+def test_find_gaps_rejects_whole_series_shifted_off_grid():
+    frame = frame_from_rows([[T0 + 1000 + i * HOUR, 1, 2, 0.5, 1.5, 10] for i in range(4)])
+    with pytest.raises(ValueError, match="tidak sejajar grid 1h"):
+        find_gaps(frame, "1h")
+
+
+def test_validate_frame_rejects_nan_volume_too():
+    frame = frame_from_rows([[T0, 1, 2, 0.5, 1.5, None], [T0 + HOUR, 1, 2, 0.5, 1.5, 10]])
+    with pytest.raises(ValueError, match="NaN.*volume"):
+        validate_frame(frame)
+    zero_volume = frame_from_rows([[T0, 1, 2, 0.5, 1.5, 0.0]])
+    validate_frame(zero_volume)  # tanpa transaksi tetap bar yang sah

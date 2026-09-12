@@ -2,10 +2,13 @@
 
 Aturan yang ditegakkan di sini, semuanya turunan SPEC.md bagian Gap data:
 
-- Tidak mengarang bar. Bar yang hilang dilaporkan sebagai Gap, di log dan di
-  laporan gap di samping file parquet. Gap yang lebih panjang dari
-  data.max_gap_bars dianggap data rusak: proses berhenti dengan DataGapError dan
-  cache TIDAK ditulis, supaya backtest tidak diam-diam berjalan di atas lubang.
+- Tidak mengarang bar. Bar yang hilang dilaporkan sebagai Gap: di log, di
+  metadata parquet (acuan, ditulis bersama bar-nya), dan di salinan .gaps.json
+  untuk dibaca orang. Gap yang lebih panjang dari data.max_gap_bars dianggap
+  data rusak: proses berhenti dengan DataGapError dan cache TIDAK ditulis, supaya
+  backtest tidak diam-diam berjalan di atas lubang. Data yang melanggar skema
+  atau grid bar (harga kosong, bar bergeser dari grid) juga DataError, bukan
+  traceback.
 - Bar yang masih berjalan tidak pernah disimpan. Batas akhir dipotong ke waktu
   buka bar saat ini (menurut jam server), jadi hanya bar yang sudah tutup yang
   masuk cache. Ini syarat backtest tanpa lookahead di tahap 5.
@@ -140,12 +143,24 @@ def download_range(
         if last_ms + timeframe_ms >= end_ms:
             break
         since = last_ms + timeframe_ms
-    frame = merge_frames(pages)
+    frame = _merge_or_raise(pages, symbol, timeframe, "halaman dari exchange")
     if len(frame):
         stamps = frame["timestamp"]
         inside = (stamps >= stamp_of(start_ms)) & (stamps < stamp_of(end_ms))
         frame = frame[inside].reset_index(drop=True)
     return frame, requests
+
+
+def _merge_or_raise(
+    frames: list[pd.DataFrame], symbol: str, timeframe: str, what: str
+) -> pd.DataFrame:
+    """merge_frames yang mengubah pelanggaran skema menjadi DataError bernama."""
+    try:
+        return merge_frames(frames)
+    except ValueError as exc:
+        raise DataError(
+            f"{symbol} {timeframe}: {what} melanggar skema OHLCV: {exc}. Cache tidak ditulis."
+        ) from exc
 
 
 def gap_report(report: FetchReport, max_gap_bars: int) -> dict[str, Any]:
@@ -239,7 +254,7 @@ def update_cache(
     if not ranges:
         log.info("cache sudah mencakup rentang yang diminta; tidak ada yang diunduh")
 
-    merged = merge_frames(frames)
+    merged = _merge_or_raise(frames, symbol, timeframe, "gabungan cache dan unduhan")
     if len(merged) == 0:
         raise DataError(
             f"{venue_id} tidak mengembalikan satu bar pun untuk {symbol} {timeframe} "
@@ -248,7 +263,13 @@ def update_cache(
     first_ms = ms_of(merged["timestamp"].iloc[0])
     last_ms = ms_of(merged["timestamp"].iloc[-1])
 
-    gaps = find_gaps(merged, timeframe)
+    try:
+        gaps = find_gaps(merged, timeframe)
+    except ValueError as exc:
+        raise DataError(
+            f"{symbol} {timeframe}: data dari {venue_id} melanggar grid bar: {exc}. "
+            "Cache tidak ditulis."
+        ) from exc
     trailing = (end_ms - (last_ms + timeframe_ms)) // timeframe_ms
     if trailing > 0:
         gaps.append(
@@ -296,8 +317,12 @@ def update_cache(
         path=path,
         gaps_path=cache.gaps_path_for(path),
     )
-    cache.save(path, merged)
-    cache.save_gaps(report.gaps_path, gap_report(report, max_gap_bars))
+    if ranges:
+        payload = gap_report(report, max_gap_bars)
+        cache.save(path, merged, payload)
+        cache.save_gaps_copy(report.gaps_path, payload)
+    else:
+        log.info("tidak ada yang diunduh; cache %s tidak ditulis ulang", path)
     log.info(
         "cache %s: %d bar %s .. %s (+%d baru, %d permintaan, %d gap, %d bar hilang)",
         path,
