@@ -285,6 +285,8 @@ class LiveConfig:
     stale_bar_tolerance_seconds: int
     journal_path: str
     state_path: str
+    position_path: str
+    paper_account_path: str
     trades_csv: str
 
 
@@ -477,6 +479,14 @@ def validate(settings: Settings) -> None:
     _check(b.bars_per_year >= 1, "backtest.bars_per_year harus >= 1")
     _check(lv.loop_interval_seconds >= 1, "live.loop_interval_seconds harus >= 1")
     _check(lv.stale_bar_tolerance_seconds >= 0, "live.stale_bar_tolerance_seconds harus >= 0")
+    for name, value in (
+        ("live.journal_path", lv.journal_path),
+        ("live.state_path", lv.state_path),
+        ("live.position_path", lv.position_path),
+        ("live.paper_account_path", lv.paper_account_path),
+        ("live.trades_csv", lv.trades_csv),
+    ):
+        _check(bool(value.strip()), f"{name} tidak boleh kosong")
 
     level = settings.logging.level.upper()
     _check(

@@ -89,7 +89,14 @@ uv run tradebot backtest --start 2026-01-01 --end 2026-07-01
 
 Strategi butuh jendela warmup (250 bar untuk EMA 20/50 dengan pengali 5) sebelum bisa memberi sinyal. Perintah backtest menyertakan bar sebanyak itu sebelum --start, dan buy-and-hold masuk di bar pertama yang bisa diperdagangkan strategi, bukan di bar pertama data, supaya pembandingnya adil. Kalau histori sebelum --start tidak cukup, bar pertama yang diperdagangkan bergeser dan ada peringatan di stderr. Bar yang datang setelah lubang data tidak mendapat keputusan strategi, sama seperti runner live nanti, dan jumlahnya dicetak di laporan.
 
-Perintah run ditambahkan di tahap 7 sesuai urutan di SPEC.md.
+Jalankan loop trading. Di mode paper (default) harga dari Tokocrypto, eksekusi disimulasikan, dan akun paper disimpan di state/paper_account.json dengan saldo awal backtest.initial_equity. Di mode testnet order sungguhan masuk ke Binance Spot Testnet. Mode live ditolak sampai tahap 8.
+
+```bash
+uv run tradebot run
+uv run tradebot run --iterations 10
+```
+
+Loop berhenti sendiri hanya karena kill switch (exit code 6) atau error fatal. Setiap iterasi: cek file STOP, ambil harga dan saldo, cek batas rugi harian, cek stop lapis 1 dari harga, lalu satu keputusan per bar yang sudah tutup. Bar yang masih berjalan tidak pernah dipakai; bar yang stale atau datang setelah lubang data dilewati dan dicatat di log. Setiap order dicatat ke state/orders.jsonl sebelum dikirim; saat start, order yang jawabannya hilang dicari lewat client order id dan tidak pernah dikirim ulang. Catatan posisi (harga masuk, stop, target) ada di state/position.json dan dicocokkan dengan saldo saat start. Jalankan paper beberapa hari, lalu bandingkan dengan `backtest --start` di periode yang sama.
 
 ## Menjalankan test
 
@@ -121,7 +128,7 @@ Satu hal penting soal ccxt: implementasi tokocrypto di ccxt 4.5.78 merutekan tic
 
 ## Struktur folder saat runtime
 
-Folder data, logs, state, dan trades dibuat otomatis dan tidak masuk git; pola di .gitignore dijangkar ke root supaya paket sumber src/tradebot/data tidak ikut terabaikan. Folder data berisi cache OHLCV, satu file per venue, pasangan, dan timeframe, misalnya data/tokocrypto/BTC-USDT_1h.parquet; laporan gap tertanam di metadata parquet itu, dengan salinan BTC-USDT_1h.gaps.json di sampingnya untuk dibaca orang. File ditulis atomik lewat file sementara bernama unik, fsync, lalu ganti nama, jadi proses yang mati di tengah tidak meninggalkan parquet setengah jadi dan dua proses yang menulis bersamaan masing-masing menghasilkan file utuh. Folder state berisi jurnal order (ditulis sebelum order dikirim) dan state harian risk manager. Folder trades berisi CSV yang mencatat setiap trade untuk rekonsiliasi dan pajak; file ini hanya ditambah, tidak pernah ditimpa. Simpan cadangannya di luar mesin ini.
+Folder data, logs, state, dan trades dibuat otomatis dan tidak masuk git; pola di .gitignore dijangkar ke root supaya paket sumber src/tradebot/data tidak ikut terabaikan. Folder data berisi cache OHLCV, satu file per venue, pasangan, dan timeframe, misalnya data/tokocrypto/BTC-USDT_1h.parquet; laporan gap tertanam di metadata parquet itu, dengan salinan BTC-USDT_1h.gaps.json di sampingnya untuk dibaca orang. File ditulis atomik lewat file sementara bernama unik, fsync, lalu ganti nama, jadi proses yang mati di tengah tidak meninggalkan parquet setengah jadi dan dua proses yang menulis bersamaan masing-masing menghasilkan file utuh. Folder state berisi jurnal order (ditulis sebelum order dikirim), state harian risk manager, catatan posisi, dan akun paper. Folder trades berisi CSV yang mencatat setiap trade untuk rekonsiliasi dan pajak; file ini hanya ditambah, tidak pernah ditimpa. Simpan cadangannya di luar mesin ini.
 
 File bernama STOP di root project adalah kill switch manual. Membuat file itu menghentikan bot pada iterasi berikutnya.
 
@@ -139,4 +146,6 @@ Tahap 5 selesai: engine backtest event-driven tanpa lookahead, metrik, laporan d
 
 Tahap 6 selesai: semua kill switch di RiskManager yang sama dengan backtest. Batas rugi harian dari equity awal hari UTC yang dipersist di state/risk_state.json dan selamat dari restart; runaway order dengan jendela satu menit; gagal koneksi beruntun dengan reset saat sukses; file STOP. Setiap pemicu membawa keputusan flatten dari risk.flatten_on. Batas rugi harian juga menghentikan perdagangan hari itu di backtest.
 
-Tahap 7 dan 8 menyusul berurutan, masing-masing dengan test yang lulus sebelum tahap berikutnya dimulai.
+Tahap 7 kode selesai: PaperAdapter dengan akun yang dipersist, jurnal order write-ahead, runner dengan rekonsiliasi saat start, perintah run, dan test paritas yang membuktikan runner paper dan backtest menghasilkan trade yang sama untuk data yang sama. Yang belum: menjalankannya beberapa hari di jaringan sungguhan dan membandingkan dengan backtest di periode yang sama; itu pekerjaan operator sebelum tahap 8.
+
+Tahap 8 (mode live) menyusul setelah paper berjalan beberapa hari dan Anda menyatakan siap.

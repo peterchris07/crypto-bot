@@ -20,14 +20,20 @@ SECRET = "factory-secret-9876543210"
 
 
 def test_paper_uses_live_venue_without_keys(config_path: Path):
+    from tradebot.exchange.paper import PaperAdapter
+
     settings = load_settings(config_path, environ={})
     adapter = build_adapter(settings, client_factory=FakeTokocryptoClient)
     assert settings.mode is TradingMode.PAPER
     assert settings.venue.id == "tokocrypto"
-    assert isinstance(adapter, TokocryptoAdapter)
-    assert adapter.can_trade is False
-    assert adapter.is_sandbox is False
-    assert adapter.name == "tokocrypto-mainnet-public"
+    assert isinstance(adapter, PaperAdapter)
+    assert adapter.name == "paper(tokocrypto-mainnet-public)"
+    public = adapter.public
+    assert isinstance(public, TokocryptoAdapter)
+    assert public.can_trade is False and public.is_sandbox is False
+    assert "apiKey" not in public._client.params
+    assert adapter.account_path == settings.root / "state" / "paper_account.json"
+    assert adapter.initial_quote == settings.backtest.initial_equity
 
 
 def test_testnet_uses_binance_sandbox(project_dir: Path, config_path: Path):

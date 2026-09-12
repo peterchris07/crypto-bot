@@ -106,6 +106,10 @@ live:
   stale_bar_tolerance_seconds: 120
   journal_path: state/orders.jsonl
   state_path: state/risk_state.json
+  # Catatan posisi yang dipegang (harga masuk, stop, target), supaya stop lapis 1 selamat restart.
+  position_path: state/position.json
+  # Akun paper: saldo, order, dan trade simulasi. Saldo awal = backtest.initial_equity (quote).
+  paper_account_path: state/paper_account.json
   trades_csv: trades/trades.csv
 
 logging:

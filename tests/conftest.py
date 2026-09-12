@@ -88,6 +88,8 @@ MINIMAL_CONFIG = textwrap.dedent(
       stale_bar_tolerance_seconds: 120
       journal_path: state/orders.jsonl
       state_path: state/risk_state.json
+      position_path: state/position.json
+      paper_account_path: state/paper_account.json
       trades_csv: trades/trades.csv
     logging:
       dir: logs

@@ -1,8 +1,8 @@
 """Titik masuk command line.
 
-Perintah yang ada sejauh ini: check-config (tahap 1), check-exchange dan
-ledger-status (tahap 2), fetch-data (tahap 3), backtest dan backtest --stress
-(tahap 5). run ditambahkan di tahap 7.
+Perintah yang ada: check-config (tahap 1), check-exchange dan ledger-status
+(tahap 2), fetch-data (tahap 3), backtest dan backtest --stress (tahap 5), run
+(tahap 7; mode live baru diaktifkan di tahap 8).
 Flag --i-know-what-im-doing hanya ada pada perintah yang bisa menyentuh
 exchange dengan kunci; keberadaannya tidak pernah cukup sendiri,
 TRADING_MODE=live juga harus ada.
@@ -34,6 +34,7 @@ EXIT_CONFIG_ERROR = 2
 EXIT_EXCHANGE_ERROR = 3
 EXIT_LEDGER_PENDING = 4
 EXIT_DATA_ERROR = 5
+EXIT_KILL_SWITCH = 6
 
 
 def _add_live_flag(parser: argparse.ArgumentParser) -> None:
@@ -115,7 +116,67 @@ def build_parser() -> argparse.ArgumentParser:
         action="store_true",
         help="Gandakan fee, biaya bursa, dan slippage dengan costs.stress_multiplier; pajak tetap.",
     )
+
+    run = sub.add_parser(
+        "run",
+        help=(
+            "Jalankan loop trading sesuai mode: paper (default, harga Tokocrypto, eksekusi "
+            "simulasi) atau testnet. Mode live menunggu tahap 8."
+        ),
+    )
+    run.add_argument(
+        "--iterations",
+        type=int,
+        default=None,
+        help="Berhenti setelah N iterasi (uji coba). Default: jalan terus sampai kill switch.",
+    )
+    _add_live_flag(run)
     return parser
+
+
+def _run(settings: Settings, iterations: int | None) -> int:
+    from tradebot.config import TradingMode
+    from tradebot.exchange.factory import build_adapter
+    from tradebot.ledger import Ledger
+    from tradebot.live.journal import OrderJournal
+    from tradebot.live.runner import EXIT_KILL_SWITCH as RUNNER_KILL_SWITCH
+    from tradebot.live.runner import PositionStore, Runner
+    from tradebot.risk import DailyStateStore, RiskManager
+    from tradebot.strategy import build_strategy
+
+    if settings.mode is TradingMode.LIVE:
+        print(
+            "CONFIG ERROR: mode live belum diaktifkan; tahap 8 (lapis 2, urutan cancel stop, "
+            "ukuran minimum) belum dikerjakan. Jalankan paper dulu beberapa hari.",
+            file=sys.stderr,
+        )
+        return EXIT_CONFIG_ERROR
+    if iterations is not None and iterations < 1:
+        print("CONFIG ERROR: --iterations harus >= 1", file=sys.stderr)
+        return EXIT_CONFIG_ERROR
+    root = settings.root
+    risk = RiskManager(
+        settings.risk,
+        settings.costs,
+        stop_file=settings.stop_file_path,
+        state_store=DailyStateStore(root / settings.live.state_path),
+    )
+    runner = Runner(
+        settings,
+        build_adapter(settings),
+        build_strategy(settings.strategy),
+        risk,
+        OrderJournal(root / settings.live.journal_path),
+        Ledger(root / settings.live.trades_csv),
+        PositionStore(root / settings.live.position_path),
+    )
+    code = runner.run(iterations)
+    if code == RUNNER_KILL_SWITCH:
+        print("BOT BERHENTI karena kill switch; lihat log.", file=sys.stderr)
+        return EXIT_KILL_SWITCH
+    if code != 0:
+        print(f"BOT BERHENTI dengan error (exit {code}); lihat log.", file=sys.stderr)
+    return code
 
 
 def _backtest(settings: Settings, start: str | None, end: str | None, stress: bool) -> int:
@@ -375,6 +436,8 @@ def main(argv: Sequence[str] | None = None) -> int:
         return _fetch_data(settings, args.start, args.end)
     if args.command == "backtest":
         return _backtest(settings, args.start, args.end, args.stress)
+    if args.command == "run":
+        return _run(settings, args.iterations)
 
     parser.error(f"perintah tidak dikenal: {args.command}")
     return EXIT_CONFIG_ERROR

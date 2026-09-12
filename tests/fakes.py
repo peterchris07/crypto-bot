@@ -118,8 +118,10 @@ class FakeCcxtClient:
         rows = self.ohlcv_rows
         if since is not None:
             rows = [row for row in rows if row[0] >= since]
-        if limit is not None:
-            rows = rows[:limit]
+            if limit is not None:
+                rows = rows[:limit]
+        elif limit is not None:
+            rows = rows[-limit:]  # tanpa since, exchange memberi bar TERAKHIR
         return [list(row) for row in rows]
 
     def fetch_ticker(self, symbol, params=None):

@@ -1,7 +1,7 @@
 """Satu-satunya tempat adapter dibuat dari Settings.
 
 mode testnet  venue exchange.testnet, sandbox, kunci testnet
-mode paper    venue exchange.live, tanpa kunci, hanya data (dibungkus PaperAdapter di tahap 7)
+mode paper    PaperAdapter di atas adapter publik exchange.live: harga asli, eksekusi simulasi
 mode live     venue exchange.live, kunci live, allow_mainnet_trading=True
 
 build_public_adapter mengabaikan mode: selalu venue exchange.live tanpa kunci.
@@ -22,6 +22,7 @@ from tradebot.exchange.base import ExchangeAdapter
 from tradebot.exchange.ccxt_adapter import CcxtAdapter
 from tradebot.exchange.ccxt_base import CcxtBase
 from tradebot.exchange.errors import FatalExchangeError
+from tradebot.exchange.paper import PaperAdapter
 from tradebot.exchange.tokocrypto_adapter import TokocryptoAdapter
 
 ADAPTERS: dict[str, type[CcxtBase]] = {
@@ -53,7 +54,13 @@ def build_adapter(settings: Settings, **kwargs: Any) -> ExchangeAdapter:
         cls = adapter_class(exchange.testnet.id)
         return cls(exchange, exchange.testnet, settings.credentials, sandbox=True, **kwargs)
     if mode is TradingMode.PAPER:
-        return build_public_adapter(settings, **kwargs)
+        return PaperAdapter(
+            build_public_adapter(settings, **kwargs),
+            settings.costs,
+            symbol=exchange.symbol,
+            account_path=settings.root / settings.live.paper_account_path,
+            initial_quote=settings.backtest.initial_equity,
+        )
     if mode is TradingMode.LIVE:
         cls = adapter_class(exchange.live.id)
         return cls(

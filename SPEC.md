@@ -119,7 +119,7 @@ TRADING_MODE punya tiga nilai: paper (default), testnet, live. Testnet tidak but
 │   │   ├── ccxt_adapter.py  # Binance (testnet, dan mainnet kalau diminta)
 │   │   ├── tokocrypto_adapter.py  # Tokocrypto mainnet, venue live
 │   │   ├── factory.py       # build_adapter: mode -> venue, kunci, izin mainnet
-│   │   └── paper.py         # simulasi eksekusi di atas harga Tokocrypto asli
+│   │   └── paper.py         # simulasi eksekusi di atas harga Tokocrypto asli, akun dipersist
 │   ├── data/
 │   │   ├── ohlcv.py         # skema DataFrame OHLCV, parser timeframe, deteksi gap
 │   │   ├── errors.py        # DataError, DataGapError, CacheError
@@ -137,8 +137,8 @@ TRADING_MODE punya tiga nilai: paper (default), testnet, live. Testnet tidak but
 │   │   ├── metrics.py       # return, max drawdown, sharpe, win rate, profit factor
 │   │   └── report.py        # laporan teks, biaya per komponen, pembanding
 │   ├── live/
-│   │   ├── journal.py       # write-ahead log order
-│   │   └── runner.py        # loop utama
+│   │   ├── journal.py       # write-ahead log order: intent, result, unknown, reconciled
+│   │   └── runner.py        # loop utama, PositionStore, rekonsiliasi jurnal saat start
 │   └── cli.py
 └── tests/
 ```
@@ -208,7 +208,7 @@ Kerjakan berurutan. Setiap tahap harus punya test yang lulus sebelum lanjut.
 4. Strategy interface + EMA crossover. Test: pakai data buatan dengan crossover yang sudah diketahui posisinya, pastikan signal muncul persis di bar yang benar. Selesai. Test memakai EMA acuan yang ditulis sebagai rekursi polos, terpisah dari pandas, plus data lompatan dan bentuk V; juga membuktikan sinyal adalah fungsi murni dari jendela tetap.
 5. Backtest engine + metrik. Test: strategi dummy yang selalu FLAT harus menghasilkan return 0 dan 0 trade. Strategi yang selalu LONG harus mendekati buy-and-hold dikurangi biaya. Selesai, bersama RiskManager minimal (sizing, minimum notional, stop lapis 1) yang interface-nya sudah final; tahap 6 melengkapi kill switch di kelas yang sama. Test tambahan: strategi mata-mata membuktikan keputusan bar N hanya melihat bar sampai N-1, eksekusi di open bar N, stop dan take profit dari high/low bar dengan fill di harga stop plus slippage, keduanya tembus dalam satu bar dihitung stop loss, biaya per komponen, --stress menggandakan fee/bursa/slippage tapi bukan pajak, posisi terbuka ditutup di close terakhir, sizing di bawah minimum notional menghentikan backtest.
 6. RiskManager + semua kill switch. Test: setiap kondisi kill switch dipicu secara sintetis dan terbukti menghentikan bot; sizing di bawah minimum notional menghentikan bot dengan pesan jelas. Selesai. Setiap pemicu melempar KillSwitchTriggered yang membawa keputusan flatten dari risk.flatten_on; equity awal hari UTC dipersist di live.state_path dan terbukti selamat dari restart; jendela order satu menit bergeser; satu koneksi sukses mereset hitungan gagal; file STOP dicek tiap iterasi. Batas rugi harian juga berlaku di backtest lewat RiskManager yang sama: posisi dijual di open bar berikutnya dan tidak ada posisi baru sampai hari UTC berikutnya.
-7. PaperAdapter di atas harga Tokocrypto + live runner di mode paper. Jalankan minimal beberapa hari, bandingkan dengan hasil backtest di periode sama.
+7. PaperAdapter di atas harga Tokocrypto + live runner di mode paper. Jalankan minimal beberapa hari, bandingkan dengan hasil backtest di periode sama. Kode selesai; menjalankannya beberapa hari adalah pekerjaan operator. PaperAdapter mengeksekusi dengan aturan backtest (ask atau bid plus slippage, fee per sisi, respons memuat fee) dan akunnya dipersist. Runner: file STOP, harga dan saldo, batas rugi harian, stop lapis 1 dari harga, lalu satu keputusan per bar tutup dengan bar berjalan dibuang, warmup, stale, dan lubang ditangani seperti backtest. Setiap order lewat before_order, jurnal intent, kirim, jurnal result, ledger; jawaban hilang dicari lewat client_order_id dan tidak pernah dikirim ulang; saat start intent yang belum tertutup direkonsiliasi dan catatan posisi dicocokkan dengan saldo. Test paritas: runner paper dan run_backtest menghasilkan trade yang sama (sisi, bar, harga) untuk data yang sama.
 8. Mode live di Tokocrypto. Baru dikerjakan setelah saya bilang siap. Order pertama harus ukuran minimum yang diizinkan exchange, bukan ukuran yang dihitung risk manager. Naikkan ukuran hanya setelah beberapa siklus masuk dan keluar posisi berjalan benar. Lapis 2 dipasang di tahap ini beserta test urutan cancel-stop-sebelum-keluar.
 
 ## Catatan Kepatuhan (bukan tugas coding, tapi jangan dihapus)
