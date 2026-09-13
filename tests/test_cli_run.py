@@ -94,6 +94,87 @@ def test_status_in_live_mode_reads_the_live_supervisor_and_needs_the_flag(
     assert "MATI (pid file basi)" in out
 
 
+def test_run_live_with_real_default_config_writes_only_under_live_folders(
+    tmp_path: Path, capsys, monkeypatch
+):
+    """Config asli + overlay local.yaml lewat local-set + klien palsu: satu iterasi live
+    menulis ke state/live, logs/live, dan tidak menyentuh catatan paper di state/ dan logs/."""
+    import time
+    from datetime import UTC, datetime
+
+    from tradebot.exchange import factory as factory_module
+
+    monkeypatch.setattr(time, "sleep", lambda seconds: None)
+    root = Path(__file__).resolve().parent.parent
+    (tmp_path / "config").mkdir()
+    config_path = tmp_path / "config" / "default.yaml"
+    config_path.write_text((root / "config" / "default.yaml").read_text(encoding="utf-8"))
+    monkeypatch.setenv("TRADING_MODE", "live")
+    monkeypatch.setenv("TOKOCRYPTO_API_KEY", "k" * 24)
+    monkeypatch.setenv("TOKOCRYPTO_API_SECRET", "s" * 24)
+    today = datetime.now(tz=UTC).date().isoformat()
+    code = cli.main(
+        [
+            "--config",
+            str(config_path),
+            "local-set",
+            "live.enabled=true",
+            f"live.api_key_verified_date={today}",
+            "risk.position_fraction=0.25",
+            "--i-know-what-im-doing",
+        ]
+    )
+    assert code == cli.EXIT_OK, capsys.readouterr()
+
+    holder = {}
+    now_ms = T0 + 5 * HOUR + 60_000
+    original = factory_module.build_adapter
+
+    def patched(settings, **kwargs):
+        def client_factory(params):
+            client = FakeTokocryptoClient(params)
+            client.server_time_ms = now_ms
+            client.ohlcv_rows = [[T0 + i * HOUR, 100.0, 100.1, 99.9, 100.0, 10.0] for i in range(6)]
+            client.balance = {
+                "free": {"USDT": 120.0, "BTC": 0.0},
+                "used": {"USDT": 0.0, "BTC": 0.0},
+                "total": {"USDT": 120.0, "BTC": 0.0},
+            }
+            holder["client"] = client
+            return client
+
+        return original(
+            settings, client_factory=client_factory, clock=lambda: now_ms / 1000, **kwargs
+        )
+
+    monkeypatch.setattr(factory_module, "build_adapter", patched)
+    code = cli.main(
+        ["--config", str(config_path), "run", "--i-know-what-im-doing", "--iterations", "2"]
+    )
+    captured = capsys.readouterr()
+    assert code == cli.EXIT_OK, captured.err + captured.out
+    assert holder["client"].count("create_order") == 0  # jendela EMA belum penuh: FLAT
+
+    assert (tmp_path / "logs" / "live" / "tradebot.log").exists()
+    # jendela EMA belum penuh, jadi belum ada posisi; yang pasti ditulis: state risk harian
+    assert (tmp_path / "state" / "live" / "risk_state.json").exists()
+    written = {p.relative_to(tmp_path).as_posix() for p in tmp_path.rglob("*") if p.is_file()}
+    assert all(
+        p.startswith(("config/", "logs/live/", "state/live/", "trades/live/")) for p in written
+    ), written
+    assert not (tmp_path / "logs" / "tradebot.log").exists()
+    assert not (tmp_path / "state" / "position.json").exists()
+    assert not (tmp_path / "state" / "risk_state.json").exists()
+    assert not (tmp_path / "state" / "paper_account.json").exists()
+    assert not (tmp_path / "trades" / "trades.csv").exists()
+
+    code = cli.main(["--config", str(config_path), "status", "--i-know-what-im-doing"])
+    out = capsys.readouterr().out
+    assert code == cli.EXIT_OK, out
+    assert "mode live" in out and "live.enabled=true" in out
+    assert "catatan mode ini di state/live/ dan trades/live/" in out
+
+
 def test_backtest_ignores_trading_mode_like_fetch_data(
     project_dir: Path, config_path: Path, capsys, monkeypatch
 ):
