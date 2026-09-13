@@ -165,7 +165,8 @@ def main():
         out[f"rebalance_{step}d"] = r
         t5, b20 = r["top5"], r["basket20"]
         print(
-            f"{step:2d}d: mulai {r['start']}, {r['rebalances']} rebalance, rotasi {r['avg_rotation']:.2f}"
+            f"{step:2d}d: mulai {r['start']}, {r['rebalances']} rebalance, "
+            f"rotasi {r['avg_rotation']:.2f}"
         )
         print(f"  top5 CAGR {t5['cagr']:.1%} (kum {t5['cum']:.1%}, MDD {t5['mdd']:.1%})")
         print(f"  basket CAGR {b20['cagr']:.1%} (kum {b20['cum']:.1%}, MDD {b20['mdd']:.1%})")
