@@ -99,7 +99,9 @@ uv run tradebot backtest --start 2026-01-01 --end 2026-07-01
 
 Strategi butuh jendela warmup (250 bar untuk EMA 20/50 dengan pengali 5) sebelum bisa memberi sinyal. Perintah backtest menyertakan bar sebanyak itu sebelum --start, dan buy-and-hold masuk di bar pertama yang bisa diperdagangkan strategi, bukan di bar pertama data, supaya pembandingnya adil. Kalau histori sebelum --start tidak cukup, bar pertama yang diperdagangkan bergeser dan ada peringatan di stderr. Bar yang datang setelah lubang data tidak mendapat keputusan strategi, sama seperti runner live nanti, dan jumlahnya dicetak di laporan.
 
-Jalankan loop trading. Di mode paper (default) harga dari Tokocrypto, eksekusi disimulasikan, dan akun paper disimpan di state/paper_account.json dengan saldo awal backtest.initial_equity. Di mode testnet order sungguhan masuk ke Binance Spot Testnet. Mode live butuh tiga hal sekaligus: TRADING_MODE=live di .env, flag --i-know-what-im-doing, dan live.enabled true di config; lalu preflight harus lulus sebelum loop dimulai. Selama live.enabled false, run menolak dengan pesan yang menyebut syaratnya.
+Jalankan loop trading. Di mode paper (default) harga dari Tokocrypto, eksekusi disimulasikan, dan akun paper disimpan di state/paper_account.json dengan saldo awal backtest.initial_equity. Di mode testnet order sungguhan masuk ke Binance Spot Testnet. Mode live butuh tiga hal sekaligus: TRADING_MODE=live di .env, flag --i-know-what-im-doing, dan live.enabled true di config/local.yaml (overlay lokal yang ditulis `tradebot local-set`, tidak di-commit); lalu preflight harus lulus sebelum loop dimulai. Selama live.enabled false, run menolak dengan pesan yang menyebut syaratnya.
+
+Catatan tiap mode terpisah: paper menulis ke state/, trades/, dan logs/ seperti biasa; live dan testnet ke state/live/ (atau state/testnet/), trades/live/, dan logs/live/. Placeholder {mode_dir} di path config yang mengaturnya, supaya posisi, jurnal, atau ledger simulasi tidak pernah terbaca sebagai uang asli. File STOP tetap satu untuk semua mode.
 
 Di live, order pertama dipaksa ke ukuran minimum exchange, bukan hasil sizing, sampai Anda menaikkannya secara sadar:
 
@@ -127,7 +129,7 @@ Loop berhenti sendiri hanya karena kill switch (exit code 6) atau error fatal. S
 
 ## Menjalankan dari Finder (file .command)
 
-Setiap perintah di atas juga tersedia sebagai file `.command` di root repo yang bisa dibuka dua kali klik dari Finder: status, preflight, paper-start, paper-stop, paper-checklist, compare-paper, backtest, fetch-data, tests, live-size. File-file itu TIDAK di-commit (dikecualikan lewat `.git/info/exclude`); yang di-commit adalah pemasangnya. Pasang atau tambah yang hilang dengan:
+Setiap perintah di atas juga tersedia sebagai file `.command` di root repo yang bisa dibuka dua kali klik dari Finder: status, preflight, paper-start, paper-stop, paper-checklist, compare-paper, live-setup, live-start, live-stop, live-size, backtest, fetch-data, tests. File-file itu TIDAK di-commit (dikecualikan lewat `.git/info/exclude`); yang di-commit adalah pemasangnya. Perintah yang membaca catatan per mode (status, preflight, checklist, compare, live-size) menambahkan flag --i-know-what-im-doing sendiri kalau .env berisi TRADING_MODE=live, tanpa pernah membaca nilai kunci. Pasang atau tambah yang hilang dengan:
 
 ```bash
 scripts/install-commands.sh
@@ -164,7 +166,18 @@ Hentikan dengan rapi (membuat file STOP, menunggu bot berhenti lewat kill switch
 scripts/paper-stop.sh
 ```
 
-Yang perlu diketahui: supervisor memulai ulang bot setelah 60 detik kalau keluar karena error selain kill switch, paling banyak 10 kali, dan `tradebot status` selalu menampilkan berapa kali mulai ulang sudah terjadi, kapan terakhir, dan exit code terakhirnya (dari state/paper_supervisor.json), karena mulai ulang otomatis bisa menyembunyikan bug yang berulang. Kalau bot berhenti karena kill switch (exit code 6), supervisor ikut berhenti dan tidak memulai ulang; `tradebot status` menunjukkan baris "BOT BERHENTI" dan pemicunya. Setelah Mac tidur dan bangun, bot melanjutkan: bar yang terlewat ditandai stale dan dilewati, dan kalau jaringan butuh lebih dari beberapa iterasi untuk pulih, kill switch gagal koneksi bisa menyala; itu perilaku yang disengaja, jalankan `scripts/paper-start.sh` lagi. Nama agent-nya `com.tradebot.paper`; `launchctl print gui/$(id -u)/com.tradebot.paper` menunjukkan keadaannya. PID supervisor ada di state/paper_supervisor.pid.
+Yang perlu diketahui: supervisor memulai ulang bot setelah 60 detik kalau keluar karena error selain kill switch, paling banyak 10 kali, dan `tradebot status` selalu menampilkan berapa kali mulai ulang sudah terjadi, kapan terakhir, dan exit code terakhirnya (dari state/paper_supervisor.json), karena mulai ulang otomatis bisa menyembunyikan bug yang berulang. Kalau bot berhenti karena kill switch (exit code 6), supervisor ikut berhenti dan tidak memulai ulang; `tradebot status` menunjukkan baris "BOT BERHENTI" dan pemicunya. Setelah Mac tidur dan bangun, bot melanjutkan: bar yang terlewat ditandai stale dan dilewati, dan kalau jaringan butuh lebih dari beberapa iterasi untuk pulih, kill switch gagal koneksi bisa menyala; itu perilaku yang disengaja, jalankan `scripts/paper-start.sh` lagi. Nama agent-nya `com.tradebot.paper`; `launchctl print gui/$(id -u)/com.tradebot.paper` menunjukkan keadaannya. PID supervisor ada di state/paper_supervisor.pid. Skrip yang sama dipakai mode live dengan nama lain: `scripts/bot-start.sh live` memasang `com.tradebot.live` yang menjalankan `scripts/bot-supervisor.sh live`, PID di state/live_supervisor.pid, log supervisor di logs/live.out, log bot di logs/live/tradebot.log. Mode dipaksa lewat environment launchd, jadi paper tetap paper walau .env sudah berisi TRADING_MODE=live. Paper dan live tidak dijalankan bersamaan; skrip start menolak kalau supervisor yang lain masih hidup.
+
+## Trial live kecil di Tokocrypto (dari Finder)
+
+Jalur ini melewati paper run: modal kecil di akun asli menjadi pengganti paper, dengan kerugian maksimum dibatasi saldo yang disetor. Yang belum pernah teruji di venue asli sebelum jalur ini adalah keempat butir checklist; trial inilah yang mengujinya, dengan uang sungguhan. Urutannya:
+
+1. Di aplikasi Tokocrypto: buat API key baru khusus bot (spot trading saja, withdrawal MATI, pembatasan IP kalau tersedia). Kunci yang pernah ditempel ke chat atau dokumen apa pun dihapus, bukan dipakai. Beli USDT dengan IDR di pasangan USDT/IDR sebesar modal trial; bot hanya memperdagangkan BTC/USDT dan tidak menyentuh IDR.
+2. `live-setup.command`: meminta key dan secret tanpa menampilkannya (hanya ditulis ke .env), menanyakan tiga hal dari halaman API Management, mencatat tanggal verifikasi dan pecahan posisi trial ke config/local.yaml, lalu menjalankan preflight tanpa order.
+3. `live-start.command`: preflight lagi, minta ketik SAYA SIAP, set live.enabled=true, lalu memasang LaunchAgent `com.tradebot.live`. Order pertama berukuran minimum exchange sampai `live-size.command` menunjukkan siklus cukup dan Anda menjalankan `uv run tradebot live-size --normal --i-know-what-im-doing`.
+4. `status.command` kapan saja; `live-stop.command` untuk berhenti (posisi yang dipegang tidak dijual otomatis; stop lapis 2 di exchange tetap terpasang selama bot mati, dan live.enabled dikembalikan ke false).
+
+Yang tidak pernah terjadi di jalur ini: kunci muncul di layar, log, argumen proses, atau file selain .env; order dikirim sebelum preflight lulus; live aktif tanpa ketikan SAYA SIAP.
 
 Menjalankan pytest lengkap termasuk test jaringan di Mac:
 
@@ -242,6 +255,8 @@ Ini celah yang disadari dan belum ditutup. Masing-masing menyebut apa yang membu
 - Data historis hanya sejak data.history_start (September 2025). Menarik ke 2017 akan menabrak jendela pemeliharaan Binance yang lebih panjang dari data.max_gap_bars dan berhenti; menaikkan batas itu melonggarkan pemeriksaan di semua periode. Daftar downtime terkonfirmasi belum ada.
 - Menutup tutup laptop membuat macOS tidur walau caffeinate jalan; bot melanjutkan setelah bangun, tetapi bar yang terlewat dilewati sebagai stale dan kill switch gagal koneksi bisa menyala kalau jaringan lambat pulih.
 - Paper tidak mensimulasikan stop order di exchange (lapis 2); lapis 2 hanya bekerja di testnet dan live.
+- Jalur trial live kecil melewati paper run, jadi keempat butir checklist (restart di tengah posisi, gangguan jaringan, kill switch, trade tertelusuri) pertama kali teruji di venue asli dengan uang sungguhan, bukan di simulasi. Muncul karena pemilik memilih modal kecil sebagai pengganti paper; kerugian dibatasi saldo yang disetor, bukan oleh kode.
+- Konversi IDR ke USDT dilakukan manual di aplikasi Tokocrypto, bukan oleh bot. Muncul karena bot hanya punya jalur order BTC/USDT yang teruji; jalur order USDT/IDR tidak ditulis supaya tidak ada order tanpa test di akun asli.
 - Test testnet (8) dan test Tokocrypto berkunci (1) hanya jalan kalau kuncinya ada di .env; test network (8) hanya jalan di mesin dengan jaringan ke Tokocrypto. Ringkasan pytest menyebut ketiganya terpisah.
 
 ## Status tahap
@@ -260,4 +275,4 @@ Tahap 6 selesai: semua kill switch di RiskManager yang sama dengan backtest. Bat
 
 Tahap 7 kode selesai: PaperAdapter dengan akun yang dipersist, jurnal order write-ahead, runner dengan rekonsiliasi saat start, perintah run, dan test paritas yang membuktikan runner paper dan backtest menghasilkan trade yang sama untuk data yang sama. Yang belum: menjalankannya beberapa hari di jaringan sungguhan dan membandingkan dengan backtest di periode yang sama; itu pekerjaan operator sebelum tahap 8.
 
-Tahap 8 kode selesai, TIDAK diaktifkan: gerbang tiga kunci untuk live, lapis 2 di exchange dengan urutan batalkan-sebelum-keluar dan penanganan stop yang tereksekusi saat bot mati, preflight, ukuran minimum untuk order pertama dengan penanda dan perintah live-size, ledger dua fase di live. Yang belum: paper run sampai checklist OK, pemeriksaan halaman API Management, kunci live, dan pernyataan siap dari pemilik. Lihat SIAP-PAKAI.md.
+Tahap 8 kode selesai, TIDAK diaktifkan: gerbang tiga kunci untuk live, lapis 2 di exchange dengan urutan batalkan-sebelum-keluar dan penanganan stop yang tereksekusi saat bot mati, preflight, ukuran minimum untuk order pertama dengan penanda dan perintah live-size, ledger dua fase di live. Jalur trial live kecil dari Finder (live-setup, live-start, live-stop) dengan catatan per mode dan overlay config/local.yaml sudah ada; yang belum, dan hanya bisa dilakukan pemilik di Mac dengan akun Tokocrypto: kunci baru, USDT di akun, pemeriksaan halaman API Management, dan ketikan SAYA SIAP. Lihat SIAP-PAKAI.md.

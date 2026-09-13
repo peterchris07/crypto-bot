@@ -382,3 +382,127 @@ def test_lookback_multiplier_must_be_positive(project_dir: Path):
     )
     with pytest.raises(ConfigError, match="strategy.lookback_multiplier"):
         load_settings(path, environ={})
+
+
+# --------------------------------------------------------------------------- #
+# Trial live: overlay config/local.yaml dan folder state per mode
+# --------------------------------------------------------------------------- #
+
+LIVE_ENV = {
+    "TRADING_MODE": "live",
+    "TOKOCRYPTO_API_KEY": "k1234567890",
+    "TOKOCRYPTO_API_SECRET": "s1234567890",
+}
+
+
+def test_local_overlay_is_optional_and_merged_over_default(project_dir: Path, config_path: Path):
+    base = load_settings(config_path, environ={})
+    assert base.local_config_path is None
+    assert base.live.enabled is False
+    (project_dir / "config" / "local.yaml").write_text(
+        "live:\n  enabled: true\n  api_key_verified_date: '2026-09-13'\nrisk:\n"
+        "  position_fraction: 0.25\n",
+        encoding="utf-8",
+    )
+    settings = load_settings(config_path, environ={})
+    assert settings.local_config_path == project_dir / "config" / "local.yaml"
+    assert settings.live.enabled is True
+    assert settings.live.api_key_verified_date == "2026-09-13"
+    assert settings.risk.position_fraction == 0.25
+    # yang tidak disebut overlay tetap dari default.yaml
+    assert settings.risk.max_position_fraction == 0.25
+    assert settings.strategy.fast_period == 20
+    assert "config lokal: " in describe(settings)
+
+
+def test_local_overlay_unknown_key_is_refused_with_its_path(project_dir: Path, config_path: Path):
+    (project_dir / "config" / "local.yaml").write_text("live:\n  enabld: true\n", encoding="utf-8")
+    with pytest.raises(ConfigError, match=r"local\.yaml.*live\.enabld"):
+        load_settings(config_path, environ={})
+
+
+def test_local_overlay_must_be_mapping_of_sections(project_dir: Path, config_path: Path):
+    (project_dir / "config" / "local.yaml").write_text("- live\n", encoding="utf-8")
+    with pytest.raises(ConfigError, match="local.yaml"):
+        load_settings(config_path, environ={})
+    (project_dir / "config" / "local.yaml").write_text("live: true\n", encoding="utf-8")
+    with pytest.raises(ConfigError, match="local.yaml"):
+        load_settings(config_path, environ={})
+
+
+def test_local_overlay_cannot_add_sections(project_dir: Path, config_path: Path):
+    (project_dir / "config" / "local.yaml").write_text("secrets:\n  a: 1\n", encoding="utf-8")
+    with pytest.raises(ConfigError, match="local.yaml.*secrets"):
+        load_settings(config_path, environ={})
+
+
+def test_mode_dir_placeholder_keeps_paper_in_place_and_separates_keyed_modes(
+    project_dir: Path, config_path: Path
+):
+    text = (project_dir / "config" / "default.yaml").read_text(encoding="utf-8")
+    text = (
+        text.replace("state/orders.jsonl", "state/{mode_dir}orders.jsonl")
+        .replace("state/risk_state.json", "state/{mode_dir}risk_state.json")
+        .replace("state/position.json", "state/{mode_dir}position.json")
+        .replace("state/paper_account.json", "state/{mode_dir}paper_account.json")
+        .replace("trades/trades.csv", "trades/{mode_dir}trades.csv")
+        .replace("state/live_stage.json", "state/{mode_dir}live_stage.json")
+        .replace("dir: logs", "dir: logs/{mode_dir}")
+    )
+    (project_dir / "config" / "default.yaml").write_text(text, encoding="utf-8")
+
+    paper = load_settings(config_path, environ={})
+    assert paper.live.position_path == "state/position.json"
+    assert paper.live.journal_path == "state/orders.jsonl"
+    assert paper.live.trades_csv == "trades/trades.csv"
+    assert paper.logging.dir == "logs/"
+
+    live = load_settings(config_path, environ=LIVE_ENV, i_know_what_im_doing=True)
+    assert live.live.position_path == "state/live/position.json"
+    assert live.live.journal_path == "state/live/orders.jsonl"
+    assert live.live.paper_account_path == "state/live/paper_account.json"
+    assert live.live.trades_csv == "trades/live/trades.csv"
+    assert live.live.stage_path == "state/live/live_stage.json"
+    assert live.live.state_path == "state/live/risk_state.json"
+    assert live.logging.dir == "logs/live/"
+
+    testnet_env = {
+        "TRADING_MODE": "testnet",
+        "BINANCE_TESTNET_API_KEY": "k1234567890",
+        "BINANCE_TESTNET_API_SECRET": "s1234567890",
+    }
+    testnet = load_settings(config_path, environ=testnet_env)
+    assert testnet.live.position_path == "state/testnet/position.json"
+    assert testnet.mode_dir == "testnet/"
+    assert paper.mode_dir == ""
+
+
+def test_unknown_path_placeholder_is_refused(project_dir: Path, config_path: Path):
+    text = (project_dir / "config" / "default.yaml").read_text(encoding="utf-8")
+    text = text.replace("state/position.json", "state/{venue}/position.json")
+    (project_dir / "config" / "default.yaml").write_text(text, encoding="utf-8")
+    with pytest.raises(ConfigError, match=r"live\.position_path.*\{venue\}"):
+        load_settings(config_path, environ={})
+
+
+def test_real_default_yaml_separates_live_state_from_paper():
+    root = Path(__file__).resolve().parent.parent
+    paper = load_settings(root / "config" / "default.yaml", environ={}, root=root)
+    live = load_settings(
+        root / "config" / "default.yaml", environ=LIVE_ENV, i_know_what_im_doing=True, root=root
+    )
+    for section, key in (
+        ("live", "journal_path"),
+        ("live", "position_path"),
+        ("live", "trades_csv"),
+        ("live", "stage_path"),
+        ("live", "state_path"),
+        ("live", "paper_account_path"),
+        ("logging", "dir"),
+    ):
+        paper_value = getattr(getattr(paper, section), key)
+        live_value = getattr(getattr(live, section), key)
+        assert paper_value != live_value, f"{section}.{key} sama di paper dan live"
+        assert "/live/" in live_value or live_value.endswith("/live"), (section, key, live_value)
+    # STOP tetap satu untuk semua mode: menghentikan apa pun yang jalan
+    assert paper.stop_file_path == live.stop_file_path

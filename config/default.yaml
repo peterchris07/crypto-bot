@@ -110,13 +110,15 @@ live:
   # Bar terakhir yang umurnya melebihi timeframe + toleransi ini dianggap stale.
   # Iterasi dilewati dan dicatat di log; strategi tidak memutuskan apa pun.
   stale_bar_tolerance_seconds: 120
-  journal_path: state/orders.jsonl
-  state_path: state/risk_state.json
+  # {mode_dir} diganti "" di paper dan "live/" atau "testnet/" di mode berkunci: catatan paper
+  # tetap di tempat lama, catatan uang asli terpisah dan tidak pernah tercampur dengan simulasi.
+  journal_path: state/{mode_dir}orders.jsonl
+  state_path: state/{mode_dir}risk_state.json
   # Catatan posisi yang dipegang (harga masuk, stop, target), supaya stop lapis 1 selamat restart.
-  position_path: state/position.json
+  position_path: state/{mode_dir}position.json
   # Akun paper: saldo, order, dan trade simulasi. Saldo awal = backtest.initial_equity (quote).
-  paper_account_path: state/paper_account.json
-  trades_csv: trades/trades.csv
+  paper_account_path: state/{mode_dir}paper_account.json
+  trades_csv: trades/{mode_dir}trades.csv
   # compare-paper: bias satu arah dinyatakan kalau, dari minimal bias_min_trades pasangan fill,
   # pangsa yang merugikan (atau menguntungkan) mencapai bias_adverse_share.
   bias_min_trades: 5
@@ -134,8 +136,9 @@ live:
   # Order pertama di live dipaksa ke ukuran minimum exchange. Naik ke ukuran normal hanya lewat
   # `tradebot live-size --normal`, yang ditolak sebelum sekian siklus masuk-keluar selesai.
   min_cycles_before_normal: 3
-  stage_path: state/live_stage.json
+  stage_path: state/{mode_dir}live_stage.json
 
 logging:
-  dir: logs
+  # logs/ di paper, logs/live/ di live: log uang asli tidak bercampur dengan log simulasi.
+  dir: logs/{mode_dir}
   level: INFO

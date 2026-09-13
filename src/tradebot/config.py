@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import dataclasses
 import os
+import re
 from collections.abc import Mapping
 from dataclasses import dataclass, field, fields, is_dataclass
 from enum import StrEnum
@@ -333,10 +334,22 @@ class Settings:
     backtest: BacktestConfig
     live: LiveConfig
     logging: LoggingConfig
+    # config/local.yaml kalau ada: overlay milik pemilik yang tidak di-commit (live.enabled,
+    # tanggal verifikasi kunci, pecahan posisi untuk trial). None kalau tidak ada.
+    local_config_path: Path | None = None
 
     @property
     def stop_file_path(self) -> Path:
         return self.root / self.risk.stop_file
+
+    @property
+    def mode_dir(self) -> str:
+        """Subfolder state per mode: paper tetap di tempat lama, mode berkunci terpisah.
+
+        Placeholder {mode_dir} di path config diganti dengan ini, supaya catatan simulasi
+        paper tidak pernah bisa terbaca sebagai posisi, jurnal, atau ledger uang asli.
+        """
+        return "" if self.mode is TradingMode.PAPER else f"{self.mode.value}/"
 
     @property
     def venue(self) -> VenueConfig:
@@ -388,6 +401,78 @@ def _build(cls: type[T], data: Any, path: str) -> T:
             )
         kwargs[f.name] = hint(value) if hint is float else value
     return cls(**kwargs)
+
+
+LOCAL_CONFIG_NAME = "local.yaml"
+
+# Path artefak per mode. Hanya field ini yang boleh memakai placeholder {mode_dir}.
+MODE_PATH_FIELDS: tuple[tuple[str, str], ...] = (
+    ("live", "journal_path"),
+    ("live", "state_path"),
+    ("live", "position_path"),
+    ("live", "paper_account_path"),
+    ("live", "trades_csv"),
+    ("live", "stage_path"),
+    ("logging", "dir"),
+)
+_PLACEHOLDER = re.compile(r"\{([^{}]*)\}")
+
+
+def _read_local_overlay(path: Path, sections: Mapping[str, type]) -> dict[str, Any]:
+    """Baca config/local.yaml: hanya boleh berisi section yang ada, isinya mapping."""
+    try:
+        raw = yaml.safe_load(path.read_text(encoding="utf-8"))
+    except yaml.YAMLError as exc:
+        raise ConfigError(f"YAML tidak valid di {path}: {exc}") from None
+    if raw is None:
+        return {}
+    if not isinstance(raw, Mapping):
+        raise ConfigError(f"{path.name}: isi teratas harus mapping section, dapat {raw!r}")
+    unknown = sorted(set(raw) - set(sections))
+    if unknown:
+        raise ConfigError(f"{path.name}: section tidak dikenal: {', '.join(unknown)}")
+    for name, cls in sections.items():
+        if name in raw:
+            _check_overlay_keys(cls, raw[name], name, path.name)
+    return dict(raw)
+
+
+def _check_overlay_keys(cls: type, data: Any, path: str, file_name: str) -> None:
+    if not isinstance(data, Mapping):
+        raise ConfigError(f"{file_name}: {path} harus mapping, dapat {type(data).__name__}")
+    hints = get_type_hints(cls)
+    expected = {f.name for f in fields(cls)}  # type: ignore[arg-type]
+    for key, value in data.items():
+        if key not in expected:
+            raise ConfigError(f"{file_name}: key tidak dikenal: {path}.{key}")
+        if is_dataclass(hints[key]):
+            _check_overlay_keys(hints[key], value, f"{path}.{key}", file_name)
+
+
+def _merge(base: Mapping[str, Any], overlay: Mapping[str, Any]) -> dict[str, Any]:
+    merged = dict(base)
+    for key, value in overlay.items():
+        if isinstance(value, Mapping) and isinstance(merged.get(key), Mapping):
+            merged[key] = _merge(merged[key], value)
+        else:
+            merged[key] = value
+    return merged
+
+
+def _expand_mode_paths(settings: Settings) -> Settings:
+    """Ganti {mode_dir} di path artefak; placeholder lain ditolak dengan nama field-nya."""
+    updates: dict[str, Any] = {}
+    for section, key in MODE_PATH_FIELDS:
+        cfg = updates.get(section, getattr(settings, section))
+        value = getattr(cfg, key)
+        for name in _PLACEHOLDER.findall(value):
+            if name != "mode_dir":
+                raise ConfigError(f"{section}.{key}: placeholder {{{name}}} tidak dikenal")
+        if "{mode_dir}" in value:
+            updates[section] = dataclasses.replace(
+                cfg, **{key: value.replace("{mode_dir}", settings.mode_dir)}
+            )
+    return dataclasses.replace(settings, **updates) if updates else settings
 
 
 def _check(condition: bool, message: str) -> None:
@@ -583,6 +668,14 @@ def load_settings(
     if missing:
         raise ConfigError(f"config: section wajib hilang: {', '.join(missing)}")
 
+    # Overlay pemilik di folder yang sama dengan config utama; tidak di-commit. Hanya boleh
+    # menimpa key yang sudah ada, tidak bisa menambah section atau key baru.
+    local_path: Path | None = config_path.parent / LOCAL_CONFIG_NAME
+    if local_path is not None and local_path.is_file():
+        raw = _merge(raw, _read_local_overlay(local_path, sections))
+    else:
+        local_path = None
+
     built = {name: _build(cls, raw[name], name) for name, cls in sections.items()}
     exchange: ExchangeConfig = built["exchange"]
     venue_id = exchange.testnet.id if mode is TradingMode.TESTNET else exchange.live.id
@@ -592,8 +685,10 @@ def load_settings(
         config_path=config_path,
         mode=mode,
         credentials=credentials,
+        local_config_path=local_path,
         **built,
     )
+    settings = _expand_mode_paths(settings)
     validate(settings)
     return settings
 
@@ -605,6 +700,7 @@ def describe(settings: Settings) -> str:
         f"venue: {settings.venue.id}",
         f"root: {settings.root}",
         f"config: {settings.config_path}",
+        f"config lokal: {settings.local_config_path or 'tidak ada'}",
         f"credentials: {settings.credentials!r}",
         f"biaya per sisi (fee+pajak+bursa+slippage): {settings.costs.cost_per_side_rate:.6f}",
     ]

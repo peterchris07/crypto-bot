@@ -3,11 +3,12 @@
 <plist version="1.0">
 <dict>
   <key>Label</key>
-  <string>com.tradebot.paper</string>
+  <string>__LABEL__</string>
   <key>ProgramArguments</key>
   <array>
     <string>/bin/bash</string>
-    <string>__REPO__/scripts/paper-supervisor.sh</string>
+    <string>__REPO__/scripts/bot-supervisor.sh</string>
+    <string>__MODE__</string>
   </array>
   <key>WorkingDirectory</key>
   <string>__REPO__</string>
@@ -15,14 +16,19 @@
   <dict>
     <key>PATH</key>
     <string>__PATH__</string>
+    <!-- Mode dipaksa dari sini: environment proses menang atas .env, jadi paper tetap paper
+         walau .env sudah berisi TRADING_MODE=live setelah live-setup. Kunci tidak pernah
+         lewat sini; bot membacanya sendiri dari .env. -->
+    <key>TRADING_MODE</key>
+    <string>__MODE__</string>
   </dict>
   <key>RunAtLoad</key>
   <true/>
   <key>KeepAlive</key>
   <false/>
   <key>StandardOutPath</key>
-  <string>__REPO__/logs/launchd.out</string>
+  <string>__REPO__/logs/launchd-__MODE__.out</string>
   <key>StandardErrorPath</key>
-  <string>__REPO__/logs/launchd.err</string>
+  <string>__REPO__/logs/launchd-__MODE__.err</string>
 </dict>
 </plist>

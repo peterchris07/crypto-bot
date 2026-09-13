@@ -32,6 +32,19 @@ def test_runtime_folders_are_ignored(folder: str):
     assert folder in _gitignore_lines()
 
 
+def test_local_config_overlay_is_ignored():
+    """config/local.yaml berisi live.enabled dan tanggal verifikasi milik pemilik, bukan repo."""
+    assert "/config/local.yaml" in _gitignore_lines()
+    assert not (ROOT / "config" / "local.yaml").exists() or (
+        subprocess.run(
+            ["git", "ls-files", "--error-unmatch", "config/local.yaml"],
+            cwd=ROOT,
+            capture_output=True,
+        ).returncode
+        != 0
+    ), "config/local.yaml ikut ter-commit"
+
+
 def test_env_example_has_names_only():
     pattern = re.compile(r"^[A-Z][A-Z0-9_]*=$")
     lines = [

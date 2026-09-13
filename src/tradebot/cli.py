@@ -78,10 +78,11 @@ def build_parser() -> argparse.ArgumentParser:
     )
     _add_live_flag(check_exchange)
 
-    sub.add_parser(
+    ledger_status = sub.add_parser(
         "ledger-status",
         help="Laporkan ledger trade: jumlah baris, order yang fee-nya masih pending.",
     )
+    _add_live_flag(ledger_status)
 
     fetch = sub.add_parser(
         "fetch-data",
@@ -109,7 +110,8 @@ def build_parser() -> argparse.ArgumentParser:
         "backtest",
         help=(
             "Jalankan backtest dari cache parquet (tanpa jaringan) dengan strategi, risk, dan "
-            "biaya dari config. Buy-and-hold selalu ditampilkan."
+            "biaya dari config. Buy-and-hold selalu ditampilkan. TRADING_MODE di .env diabaikan: "
+            "selalu berjalan sebagai paper dan tidak bisa mengirim order."
         ),
     )
     backtest.add_argument("--start", default=None, help="Awal periode, tanggal ISO UTC.")
@@ -124,7 +126,8 @@ def build_parser() -> argparse.ArgumentParser:
         "run",
         help=(
             "Jalankan loop trading sesuai mode: paper (default, harga Tokocrypto, eksekusi "
-            "simulasi) atau testnet. Mode live menunggu tahap 8."
+            "simulasi), testnet, atau live. Live butuh TRADING_MODE=live, flag, live.enabled "
+            "true di config/local.yaml, dan preflight lulus."
         ),
     )
     run.add_argument(
@@ -146,14 +149,17 @@ def build_parser() -> argparse.ArgumentParser:
     compare.add_argument(
         "--end", default=None, help="Akhir periode; default: setelah fill terakhir."
     )
+    _add_live_flag(compare)
 
-    sub.add_parser(
+    status = sub.add_parser(
         "status",
         help=(
             "Satu perintah untuk tahu keadaan: proses, posisi dan saldo paper, jumlah trade, "
-            "ledger-status, paper-checklist, dan compare-paper kalau pasangannya cukup."
+            "ledger-status, paper-checklist, dan compare-paper kalau pasangannya cukup. "
+            "Di mode live yang dibaca adalah catatan live (state/live, trades/live)."
         ),
     )
+    _add_live_flag(status)
 
     preflight = sub.add_parser(
         "preflight",
@@ -174,15 +180,74 @@ def build_parser() -> argparse.ArgumentParser:
     )
     live_size.add_argument("--normal", action="store_true", help="Naik ke ukuran normal.")
     live_size.add_argument("--minimum", action="store_true", help="Kembali ke ukuran minimum.")
+    _add_live_flag(live_size)
 
-    sub.add_parser(
+    checklist = sub.add_parser(
         "paper-checklist",
         help=(
             "Periksa dari log, jurnal, dan ledger apakah paper run sudah memperlihatkan restart "
             "di tengah posisi, kegagalan jaringan, kill switch, dan trade yang tertelusuri."
         ),
     )
+    _add_live_flag(checklist)
+
+    local_set = sub.add_parser(
+        "local-set",
+        help=(
+            "Tulis nilai ke config/local.yaml (overlay lokal, tidak di-commit), lalu muat ulang "
+            "untuk validasi; kalau ditolak, file dikembalikan. Contoh: local-set "
+            "live.api_key_verified_date=2026-09-13 risk.position_fraction=0.25. Tidak pernah "
+            "menerima kunci API."
+        ),
+    )
+    local_set.add_argument(
+        "assignments", nargs="+", metavar="section.key=nilai", help="Satu atau lebih nilai."
+    )
+    _add_live_flag(local_set)
     return parser
+
+
+def _local_set(settings: Settings, args: argparse.Namespace) -> int:
+    from tradebot.localconfig import LOCAL_CONFIG_NAME, parse_assignment, set_local_values
+
+    try:
+        values = dict(parse_assignment(text) for text in args.assignments)
+    except ValueError as exc:
+        print(f"CONFIG ERROR: {exc}", file=sys.stderr)
+        return EXIT_CONFIG_ERROR
+    forbidden = [
+        k
+        for k in values
+        if k.rsplit(".", 1)[-1].lower() in {"api_key", "api_secret", "secret", "password"}
+        or k.lower().endswith(("_api_key", "_api_secret", "_secret", "_password"))
+    ]
+    if forbidden:
+        print(
+            f"CONFIG ERROR: {', '.join(forbidden)}: kunci API hanya boleh di .env, bukan di "
+            f"{LOCAL_CONFIG_NAME}",
+            file=sys.stderr,
+        )
+        return EXIT_CONFIG_ERROR
+
+    path = settings.root / "config" / LOCAL_CONFIG_NAME
+    backup = path.read_bytes() if path.exists() else None
+    try:
+        set_local_values(settings.root, values)
+        load_settings(
+            settings.config_path,
+            i_know_what_im_doing=args.i_know_what_im_doing,
+        )
+    except ConfigError as exc:
+        if backup is None:
+            path.unlink(missing_ok=True)
+        else:
+            path.write_bytes(backup)
+        print(f"CONFIG ERROR: {exc}; {LOCAL_CONFIG_NAME} dikembalikan", file=sys.stderr)
+        return EXIT_CONFIG_ERROR
+    print(f"ditulis ke {path}:")
+    for key, value in values.items():
+        print(f"  {key}: {value}")
+    return EXIT_OK
 
 
 def _compare_paper(settings: Settings, start: str | None, end: str | None) -> int:
@@ -287,9 +352,15 @@ def _status(settings: Settings) -> int:
     symbol = settings.exchange.symbol
     base, quote = symbol.split("/", 1)
     print(f"status {symbol} {settings.exchange.timeframe}, mode {settings.mode.value}, root {root}")
+    print(
+        f"config lokal: {settings.local_config_path or 'tidak ada'}; "
+        f"live.enabled={'true' if settings.live.enabled else 'false'}; "
+        f"catatan mode ini di state/{settings.mode_dir} dan trades/{settings.mode_dir}"
+    )
 
-    # proses
-    pid_file = root / "state" / "paper_supervisor.pid"
+    # proses. Supervisor per mode: state/paper_supervisor.* dan state/live_supervisor.*
+    sup_name = f"{settings.mode.value}_supervisor"
+    pid_file = root / "state" / f"{sup_name}.pid"
     if pid_file.exists():
         pid = pid_file.read_text().strip()
         alive = False
@@ -300,8 +371,8 @@ def _status(settings: Settings) -> int:
             pass
         print(f"proses: supervisor pid {pid} {'HIDUP' if alive else 'MATI (pid file basi)'}")
     else:
-        print("proses: supervisor tidak berjalan (tidak ada state/paper_supervisor.pid)")
-    supervisor_state = root / "state" / "paper_supervisor.json"
+        print(f"proses: supervisor tidak berjalan (tidak ada state/{sup_name}.pid)")
+    supervisor_state = root / "state" / f"{sup_name}.json"
     if supervisor_state.exists():
         try:
             sup = json.loads(supervisor_state.read_text(encoding="utf-8"))
@@ -773,9 +844,9 @@ def main(argv: Sequence[str] | None = None) -> int:
     args = parser.parse_args(argv)
 
     environ = None
-    if args.command == "fetch-data":
-        # Perintah data publik: mode dan kunci di .env tidak relevan dan tidak boleh
-        # menghalangi. Dipaksa paper, mode teraman, yang tidak pernah butuh kunci.
+    if args.command in ("fetch-data", "backtest"):
+        # Perintah data publik dan offline: mode dan kunci di .env tidak relevan dan tidak
+        # boleh menghalangi. Dipaksa paper, mode teraman, yang tidak pernah butuh kunci.
         environ = {**os.environ, MODE_ENV_VAR: TradingMode.PAPER.value}
     try:
         settings = load_settings(
@@ -813,6 +884,8 @@ def main(argv: Sequence[str] | None = None) -> int:
         return _preflight(settings)
     if args.command == "live-size":
         return _live_size(settings, args.normal, args.minimum)
+    if args.command == "local-set":
+        return _local_set(settings, args)
 
     parser.error(f"perintah tidak dikenal: {args.command}")
     return EXIT_CONFIG_ERROR

@@ -92,6 +92,18 @@ Saat start, bot membandingkan jam lokal dengan jam server exchange memakai titik
 
 Kalau kunci testnet belum ada, test testnet dilewati, tapi tidak diam-diam. Di akhir run pytest selalu tercetak ringkasan jumlah test yang dilewati beserta alasannya. Test yang memanggil endpoint publik sungguhan ditandai network dan bisa dimatikan saat offline.
 
+### Catatan per mode dan overlay lokal
+
+Catatan runtime (jurnal order, posisi, akun paper, ledger, penanda ukuran live, state risk harian, log) dipisah per mode lewat placeholder {mode_dir} di path config: kosong untuk paper, "live/" atau "testnet/" untuk mode berkunci. Paper tetap di state/, trades/, logs/ seperti sebelumnya supaya catatan yang sudah ada tidak hilang; mode berkunci masuk subfolder supaya posisi, jurnal, atau ledger simulasi tidak pernah terbaca sebagai uang asli saat start. Placeholder lain ditolak dengan nama field-nya. File STOP sengaja tetap satu: menghentikan apa pun yang jalan.
+
+config/local.yaml adalah overlay milik pemilik di folder config, tidak di-commit, hanya boleh menimpa key yang sudah ada di default.yaml (section atau key baru ditolak dengan nama file dan path key-nya). Isinya live.enabled, live.api_key_verified_date, dan risk.position_fraction untuk trial; tidak pernah kunci API, dan `tradebot local-set` menolak nama key yang berbau kunci. local-set memuat ulang settings setelah menulis dan mengembalikan file kalau validasi gagal, jadi file itu tidak pernah berisi nilai yang ditolak.
+
+Supervisor macOS dan LaunchAgent juga per mode (com.tradebot.paper, com.tradebot.live) dengan mode dipaksa lewat environment launchd, yang menang atas .env, supaya paper tetap paper setelah .env berisi TRADING_MODE=live. Supervisor tidak memulai ulang setelah exit 0, 2, 6, dan 9 (preflight live gagal). Paper dan live tidak dijalankan bersamaan.
+
+### Trial live kecil sebagai pengganti paper run
+
+Pemilik memutuskan melewati paper run dan langsung menguji di akun Tokocrypto asli dengan modal kecil (sekitar dua juta rupiah, dikonversi manual ke USDT). Konsekuensinya dicatat, bukan disembunyikan: keempat butir checklist pertama kali teruji dengan uang asli; kerugian maksimum dibatasi saldo yang disetor, bukan oleh kode; order pertama tetap dipaksa ke minimum exchange. Jalurnya dari Finder: live-setup (kunci hanya ke .env lewat stdin, tidak pernah ke layar, argumen proses, atau log; tiga pertanyaan API Management; tanggal verifikasi dan pecahan posisi ke local.yaml; preflight), live-start (preflight, ketikan SAYA SIAP, live.enabled=true, LaunchAgent), live-stop (STOP, lepas agent, live.enabled=false; posisi tidak dijual otomatis, stop lapis 2 tetap di exchange). Konversi IDR ke USDT sengaja tidak dibuatkan jalur order: bot hanya punya jalur BTC/USDT yang teruji.
+
 ### Keputusan lain
 
 TRADING_MODE punya tiga nilai: paper (default), testnet, live. Testnet tidak butuh flag. Pasangan BTC/USDT, timeframe 1h, order tipe market. Di Tokocrypto, buku order BTC/USDT adalah buku Binance yang dibagi (likuiditas setara Binance, histori sejak Agustus 2017), sedangkan BTC/IDR adalah buku Tokocrypto sendiri yang tipis dan baru ada sejak November 2025. Batas hari untuk rugi harian memakai UTC. EMA 20 dan 50 tanpa optimasi. Signal adalah state target (LONG atau FLAT), bukan event; runner membandingkan state target dengan posisi nyata dan membuat order hanya kalau berbeda. Spot saja: SHORT diterima interface tapi diperlakukan sebagai FLAT dengan peringatan di log. Kode ada di src/tradebot/ sebagai package.
@@ -107,9 +119,20 @@ TRADING_MODE punya tiga nilai: paper (default), testnet, live. Testnet tidak but
 ├── .gitignore
 ├── pyproject.toml
 ├── config/
-│   └── default.yaml
+│   ├── default.yaml
+│   └── local.yaml           # overlay pemilik, tidak di-commit; ditulis `tradebot local-set`
+├── scripts/
+│   ├── bot-supervisor.sh    # supervisor per mode (paper|live) di bawah caffeinate, untuk launchd
+│   ├── bot-start.sh / bot-stop.sh   # pasang/lepas LaunchAgent com.tradebot.<mode>
+│   ├── paper-start.sh / paper-stop.sh / paper-supervisor.sh   # pembungkus mode paper
+│   ├── live-setup.sh        # kunci ke .env lewat stdin, pertanyaan API Management, preflight
+│   ├── live-start.sh / live-stop.sh   # SAYA SIAP -> live.enabled=true; stop -> false
+│   ├── write-env.sh         # tulis TRADING_MODE dan kunci Tokocrypto ke .env, baris lain tetap
+│   ├── install-commands.sh  # buat file .command untuk Finder (tidak di-commit)
+│   └── com.tradebot.plist.template
 ├── src/tradebot/
-│   ├── config.py            # YAML + .env + flag -> Settings, resolusi mode, dua venue
+│   ├── config.py            # YAML + local.yaml + .env + flag -> Settings, mode, {mode_dir}
+│   ├── localconfig.py       # tulis config/local.yaml atomik untuk `tradebot local-set`
 │   ├── logging_setup.py     # console + file berputar, UTC, penyamar kunci
 │   ├── ledger.py            # CSV trade dua fase (pending -> reconciled), append-only
 │   ├── exchange/
@@ -138,7 +161,10 @@ TRADING_MODE punya tiga nilai: paper (default), testnet, live. Testnet tidak but
 │   │   └── report.py        # laporan teks, biaya per komponen, pembanding
 │   ├── live/
 │   │   ├── journal.py       # write-ahead log order: intent, result, unknown, reconciled
-│   │   └── runner.py        # loop utama, PositionStore, rekonsiliasi jurnal saat start
+│   │   ├── runner.py        # loop utama, PositionStore, rekonsiliasi jurnal saat start
+│   │   ├── preflight.py     # pemeriksaan kesiapan live tanpa order
+│   │   ├── stage.py         # penanda ukuran order live: minimum -> normal setelah siklus cukup
+│   │   └── checklist.py     # empat butir bukti paper run dari log, jurnal, ledger
 │   └── cli.py
 └── tests/
 ```
@@ -209,7 +235,7 @@ Kerjakan berurutan. Setiap tahap harus punya test yang lulus sebelum lanjut.
 5. Backtest engine + metrik. Test: strategi dummy yang selalu FLAT harus menghasilkan return 0 dan 0 trade. Strategi yang selalu LONG harus mendekati buy-and-hold dikurangi biaya. Selesai, bersama RiskManager minimal (sizing, minimum notional, stop lapis 1) yang interface-nya sudah final; tahap 6 melengkapi kill switch di kelas yang sama. Test tambahan: strategi mata-mata membuktikan keputusan bar N hanya melihat bar sampai N-1, eksekusi di open bar N, stop dan take profit dari high/low bar dengan fill di harga stop plus slippage, keduanya tembus dalam satu bar dihitung stop loss, biaya per komponen, --stress menggandakan fee/bursa/slippage tapi bukan pajak, posisi terbuka ditutup di close terakhir, sizing di bawah minimum notional menghentikan backtest.
 6. RiskManager + semua kill switch. Test: setiap kondisi kill switch dipicu secara sintetis dan terbukti menghentikan bot; sizing di bawah minimum notional menghentikan bot dengan pesan jelas. Selesai. Setiap pemicu melempar KillSwitchTriggered yang membawa keputusan flatten dari risk.flatten_on; equity awal hari UTC dipersist di live.state_path dan terbukti selamat dari restart; jendela order satu menit bergeser; satu koneksi sukses mereset hitungan gagal; file STOP dicek tiap iterasi. Batas rugi harian juga berlaku di backtest lewat RiskManager yang sama: posisi dijual di open bar berikutnya dan tidak ada posisi baru sampai hari UTC berikutnya.
 7. PaperAdapter di atas harga Tokocrypto + live runner di mode paper. Jalankan minimal beberapa hari, bandingkan dengan hasil backtest di periode sama. Kode selesai; menjalankannya beberapa hari adalah pekerjaan operator. PaperAdapter mengeksekusi dengan aturan backtest (ask atau bid plus slippage, fee per sisi, respons memuat fee) dan akunnya dipersist. Runner: file STOP, harga dan saldo, batas rugi harian, lalu satu keputusan per bar tutup (bar berjalan dibuang, warmup, stale, dan lubang seperti backtest), BARU stop lapis 1 dari harga; urutan keputusan-lalu-stop ini sama dengan backtest, kalau dibalik posisi yang keluar karena stop langsung masuk lagi di bar yang sama. Stale berarti exchange belum memberi bar yang seharusnya sudah tutup lebih lama dari toleransi, bukan bot yang terlambat: bot yang mulai jam :10 tetap memutuskan bar yang tutup jam :00. Bar terakhir yang diputuskan dipersist bersama catatan posisi, jadi restart di bar yang sama tidak memutuskan ulang. Jual yang tidak terisi tidak menghapus catatan posisi; terisi sebagian mengurangi jumlahnya. Fee yang dipotong dari base (Binance tanpa BNB) dikurangkan dari jumlah posisi. Posisi tanpa catatan direkonstruksi dari saldo dengan harga masuk dari pembelian terakhir di ledger yang belum dijual, dan hanya kalau tidak ada dari harga sekarang, dengan peringatan bahwa stop efektif melebar. Saat kill switch, order terbuka dibatalkan DULU baru flatten, karena stop lapis 2 mengunci aset. Setiap order lewat before_order, jurnal intent, kirim, jurnal result, ledger; jawaban hilang dicari lewat client_order_id dan tidak pernah dikirim ulang; saat start intent yang belum tertutup direkonsiliasi dan catatan posisi dicocokkan dengan saldo. Test paritas: runner paper dan run_backtest menghasilkan trade yang sama (sisi, bar, harga) untuk data yang sama, dan selisih harga isi per trade dicatat dengan tanda: nol untuk fill bersinyal, merugikan untuk stop loss karena paper mengisi di harga tick. Perintah compare-paper melakukan hal yang sama atas ledger paper sungguhan dan menyatakan bias satu arah (exit code 7) kalau pangsa fill yang merugikan mencapai live.bias_adverse_share dari minimal live.bias_min_trades pasangan. Perintah paper-checklist memeriksa dari log, jurnal, dan ledger apakah restart di tengah posisi, kegagalan jaringan yang pulih, kill switch dengan exit code 6, dan trade yang tertelusuri sudah terlihat; paper selesai diukur dari itu, bukan dari jumlah hari.
-8. Mode live di Tokocrypto. Kodenya sudah ditulis dan diuji dengan klien palsu, TIDAK diaktifkan: selain TRADING_MODE=live dan flag, config live.enabled harus true, dan preflight harus lulus sebelum loop dimulai. Order pertama dipaksa ke ukuran minimum exchange lewat penanda live.stage_path ("minimum"), dan naik ke ukuran normal hanya lewat perintah live-size --normal yang ditolak sebelum live.min_cycles_before_normal siklus masuk-keluar selesai. Preflight (juga perintah tersendiri): live.api_key_verified_date ada dan tidak lebih tua dari live.max_key_age_days, dengan pesan yang menyebut apa yang harus diperiksa di halaman API Management Tokocrypto (withdrawal mati, pembatasan IP kalau tersedia); kunci bisa membaca saldo, dan hanya itu, withdrawal tidak pernah dicoba; pasangan ada di load_markets, minimum notional terbaca, sizing dan ukuran minimum di atasnya; jam lewat pengukuran yang diperbaiki; venue mengiklankan STOP_LOSS_LIMIT. Lapis 2 dan urutan batalkan-stop-sebelum-keluar ada di Keputusan Desain. Ledger dua fase tetap berlaku: bot tidak pernah menyatakan ledger lengkap selama ada baris pending, dan merekonsiliasinya saat start dan setelah setiap fill.
+8. Mode live di Tokocrypto. Kodenya sudah ditulis dan diuji dengan klien palsu, TIDAK diaktifkan: selain TRADING_MODE=live dan flag, config live.enabled harus true, dan preflight harus lulus sebelum loop dimulai. Order pertama dipaksa ke ukuran minimum exchange lewat penanda live.stage_path ("minimum"), dan naik ke ukuran normal hanya lewat perintah live-size --normal yang ditolak sebelum live.min_cycles_before_normal siklus masuk-keluar selesai. Preflight (juga perintah tersendiri): live.api_key_verified_date ada dan tidak lebih tua dari live.max_key_age_days, dengan pesan yang menyebut apa yang harus diperiksa di halaman API Management Tokocrypto (withdrawal mati, pembatasan IP kalau tersedia); kunci bisa membaca saldo, dan hanya itu, withdrawal tidak pernah dicoba; pasangan ada di load_markets, minimum notional terbaca, sizing dan ukuran minimum di atasnya; jam lewat pengukuran yang diperbaiki; venue mengiklankan STOP_LOSS_LIMIT. Lapis 2 dan urutan batalkan-stop-sebelum-keluar ada di Keputusan Desain. Ledger dua fase tetap berlaku: bot tidak pernah menyatakan ledger lengkap selama ada baris pending, dan merekonsiliasinya saat start dan setelah setiap fill. Pengaktifannya lewat jalur trial live kecil di Keputusan Desain: live.enabled hanya ditulis ke config/local.yaml oleh live-start setelah preflight lulus dan pemilik mengetik SAYA SIAP, dan dikembalikan ke false oleh live-stop.
 
 ## Catatan Kepatuhan (bukan tugas coding, tapi jangan dihapus)
 

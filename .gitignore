@@ -3,6 +3,10 @@
 .env.*
 !.env.example
 
+# Overlay config milik pemilik (live.enabled, tanggal verifikasi kunci, pecahan posisi trial).
+# Ditulis oleh `tradebot local-set`; tidak pernah berisi kunci, tapi tetap bukan milik repo.
+/config/local.yaml
+
 # Artefak runtime, semuanya bisa dibuat ulang atau bersifat pribadi.
 # Dijangkar ke root dengan '/' di depan: pola 'data/' tanpa jangkar ikut mengabaikan
 # src/tradebot/data/, dan paket itu pernah hilang dari git karenanya.

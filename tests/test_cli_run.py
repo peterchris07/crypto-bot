@@ -69,6 +69,44 @@ def test_run_refuses_live_mode_until_enabled(
     assert "live.enabled masih false" in capsys.readouterr().err
 
 
+def test_status_in_live_mode_reads_the_live_supervisor_and_needs_the_flag(
+    project_dir: Path, config_path: Path, fake_public, capsys, monkeypatch
+):
+    monkeypatch.setenv("TRADING_MODE", "live")
+    monkeypatch.setenv("TOKOCRYPTO_API_KEY", "k" * 20)
+    monkeypatch.setenv("TOKOCRYPTO_API_SECRET", "s" * 20)
+    # tanpa flag: aturan dua kunci berlaku untuk status juga
+    code = cli.main(["--config", str(config_path), "status"])
+    assert code == cli.EXIT_CONFIG_ERROR
+    assert "menolak" in capsys.readouterr().err
+
+    (project_dir / "state").mkdir(exist_ok=True)
+    (project_dir / "state" / "paper_supervisor.pid").write_text("999999999\n")
+    code = cli.main(["--config", str(config_path), "status", "--i-know-what-im-doing"])
+    out = capsys.readouterr().out
+    assert code == cli.EXIT_OK, out
+    assert "mode live" in out
+    # pid paper tidak dibaca sebagai proses live
+    assert "proses: supervisor tidak berjalan (tidak ada state/live_supervisor.pid)" in out
+    (project_dir / "state" / "live_supervisor.pid").write_text("999999999\n")
+    code = cli.main(["--config", str(config_path), "status", "--i-know-what-im-doing"])
+    out = capsys.readouterr().out
+    assert "MATI (pid file basi)" in out
+
+
+def test_backtest_ignores_trading_mode_like_fetch_data(
+    project_dir: Path, config_path: Path, capsys, monkeypatch
+):
+    monkeypatch.setenv("TRADING_MODE", "live")
+    monkeypatch.delenv("TOKOCRYPTO_API_KEY", raising=False)
+    monkeypatch.delenv("TOKOCRYPTO_API_SECRET", raising=False)
+    code = cli.main(["--config", str(config_path), "backtest"])
+    err = capsys.readouterr().err
+    # sampai ke cek cache (exit 5), bukan ditolak karena mode/flag/kunci (exit 2)
+    assert code == cli.EXIT_DATA_ERROR, err
+    assert "fetch-data" in err
+
+
 def test_run_rejects_zero_iterations(project_dir: Path, config_path: Path, fake_public, capsys):
     assert (
         cli.main(["--config", str(config_path), "run", "--iterations", "0"])

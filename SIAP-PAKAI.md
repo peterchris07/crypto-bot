@@ -1,151 +1,152 @@
 # SIAP-PAKAI: keadaan bot dan apa yang menunggu Anda
 
-Ditulis 2026-09-12 setelah Langkah A sampai D dari prompt final selesai. Dokumen
-ini memberi tahu Anda apa yang sudah ada, apa yang belum, dan apa yang hanya
-bisa Anda kerjakan. Mode live TIDAK aktif. Tidak ada order asli yang pernah
-dikirim dari kode ini.
+Diperbarui 2026-09-13. Dokumen ini memberi tahu Anda apa yang sudah ada, apa yang
+belum, dan apa yang hanya bisa Anda kerjakan. Mode live TIDAK aktif. Tidak ada
+order asli yang pernah dikirim dari kode ini. Tidak ada nilai kunci di repo,
+di dokumen ini, atau di file mana pun selain .env di Mac Anda.
+
+## 0. Keputusan Anda: trial live kecil, bukan paper run
+
+Anda memutuskan melewati paper run dan langsung mencoba di akun Tokocrypto asli
+dengan modal sekitar dua juta rupiah. Kode sekarang menyediakan jalur itu dari
+Finder (live-setup, live-start, live-stop). Dua konsekuensi yang harus Anda
+terima secara sadar:
+
+- Keempat butir checklist (restart di tengah posisi, gangguan jaringan, kill
+  switch, trade tertelusuri) pertama kali teruji dengan uang sungguhan. Kerugian
+  maksimum dibatasi saldo USDT yang Anda setor, bukan oleh kode.
+- Kunci yang pernah Anda tempel ke chat dianggap bocor. Hapus kunci itu di
+  Tokocrypto dan buat yang baru. Kunci saja tanpa secret memang tidak bisa
+  menandatangani permintaan, tetapi tidak ada alasan memakainya lagi.
 
 ## 1. Keadaan sekarang
 
-Tahap 1 sampai 8 selesai secara kode, dengan catatan tahap 8 (mode live) ditulis
-dan diuji dengan klien palsu tetapi belum pernah dijalankan ke Tokocrypto asli
-dan masih terkunci: `live.enabled` di config bernilai false, dan perintah
-`tradebot run` mode live menolak jalan sampai nilai itu diubah DAN preflight
-lulus DAN dua kunci lain (TRADING_MODE=live di .env dan flag
-`--i-know-what-im-doing`) diberikan.
+Tahap 1 sampai 8 selesai secara kode. Tahap 8 (mode live) diuji dengan klien
+palsu, belum pernah dijalankan ke Tokocrypto asli, dan terkunci: `live.enabled`
+false sampai `live-start.command` menuliskannya ke config/local.yaml setelah
+preflight lulus dan Anda mengetik SAYA SIAP.
 
-Hasil `uv run pytest` terakhir, di mesin build (tanpa kunci, tanpa jaringan ke
+Hasil `uv run pytest` terakhir di mesin build (tanpa kunci, tanpa jaringan ke
 Tokocrypto):
 
 | Kategori | Jumlah | Alasan |
 | --- | --- | --- |
-| Lulus | 435 | test unit dan integrasi dengan klien palsu |
+| Lulus | 478 | test unit, integrasi dengan klien palsu, skrip shell dengan `uv` dan `caffeinate` palsu |
 | Dilewati karena kunci testnet Binance | 8 | BINANCE_TESTNET_API_KEY dan BINANCE_TESTNET_API_SECRET tidak ada di .env |
-| Dilewati karena kunci Tokocrypto | 1 | TOKOCRYPTO_API_KEY dan TOKOCRYPTO_API_SECRET tidak ada di .env; test ini juga mendokumentasikan celah startTime dan diharapkan GAGAL pada akun beriwayat panjang selama celah itu belum ditutup |
-| Gagal dijalankan karena jaringan | 8 | www.tokocrypto.com tidak terjangkau dari mesin build; di Mac Anda test ini jalan dan pada run terakhir yang Anda laporkan semuanya hijau setelah perbaikan fixture |
+| Dilewati karena kunci Tokocrypto | 1 | TOKOCRYPTO_API_KEY dan TOKOCRYPTO_API_SECRET tidak ada di .env; test ini mendokumentasikan celah startTime dan diharapkan GAGAL pada akun beriwayat panjang |
+| Gagal dijalankan karena jaringan | 8 | www.tokocrypto.com tidak terjangkau dari mesin build (kebijakan jaringan sesi); di Mac Anda test ini jalan |
 
-Pytest menampilkan ketiga kategori itu terpisah di bagian merah sebelum ringkasan
-akhir, karena baris terakhir pytest sendiri menggabungkan semuanya sebagai
-"skipped". Test yang dilewati atau gagal dijalankan BUKAN test yang lulus;
-angka 435 tidak mencakupnya. Di Mac Anda dengan jaringan, angka yang diharapkan
-adalah 443 lulus dan 9 dilewati karena kunci.
+Test yang dilewati atau gagal dijalankan BUKAN test yang lulus; angka 478 tidak
+mencakupnya. Di Mac Anda dengan jaringan, yang diharapkan 486 lulus dan 9
+dilewati karena kunci. Setelah kunci Tokocrypto ada di .env, test berkunci itu
+ikut jalan.
 
-Cabang: `main` sudah berisi semua pekerjaan (fast-forward ke commit yang sama
-dengan `claude/elegant-pascal-x4swez`). Cabang `tahap-2-tokocrypto` sudah
-tercakup penuh oleh main tetapi penghapusannya di origin tidak bisa dilakukan
-dari lingkungan build; lihat bagian 2.
+Yang baru sejak laporan sebelumnya:
+
+- Catatan per mode: paper tetap di state/, trades/, logs/; live ke state/live/,
+  trades/live/, logs/live/. Posisi atau jurnal simulasi tidak bisa terbaca
+  sebagai uang asli.
+- config/local.yaml (tidak di-commit) untuk live.enabled, tanggal verifikasi
+  kunci, dan pecahan posisi trial, ditulis lewat `tradebot local-set` yang
+  memvalidasi dan mengembalikan file kalau ditolak.
+- Skrip live-setup, live-start, live-stop, supervisor per mode, dan file
+  `.command` yang menambahkan flag live sendiri.
+
+Cabang: `main` berisi semua pekerjaan. Cabang `tahap-2-tokocrypto` tercakup
+penuh oleh main, tetapi penghapusannya di origin ditolak gateway git dari
+lingkungan build; satu perintah dari Mac Anda (bagian 2a).
 
 ## 2. Hal yang hanya bisa Anda lakukan
 
-Urutannya penting. Jangan lompat ke kunci live sebelum semua di atasnya OK.
+Urutannya penting. Semuanya dari Finder kecuali 2a dan 2b.
 
-### 2a. Hapus cabang lama di origin
-
-Dari Terminal di folder repo (sekali saja):
+### 2a. Hapus cabang lama di origin (sekali)
 
 ```bash
 git fetch origin
-git branch --merged origin/main
+git branch -r --merged origin/main
 git push origin --delete tahap-2-tokocrypto
 ```
 
-Baris kedua memastikan cabang itu tercakup main sebelum dihapus.
+### 2b. Ambil kode terbaru dan pasang file .command
 
-### 2b. Kunci testnet Binance, untuk menghijaukan 8 test
+Di Terminal, di folder repo:
 
-1. Buka https://testnet.binance.vision, masuk dengan akun GitHub, buat HMAC key.
-2. Tulis ke `.env` di root repo (file ini tidak pernah di-commit):
+```bash
+git pull origin main
+scripts/install-commands.sh --force
+```
 
-   ```
-   BINANCE_TESTNET_API_KEY=...
-   BINANCE_TESTNET_API_SECRET=...
-   ```
+`--force` perlu sekali ini: selain menambah live-setup.command,
+live-start.command, dan live-stop.command, file status, preflight, checklist,
+compare, dan live-size yang lama harus dibuat ulang supaya menambahkan flag
+live sendiri setelah .env berisi TRADING_MODE=live.
 
-3. Jalankan `tests.command` dari Finder (atau `uv run pytest`). Bagian
-   "dilewati karena kunci" harus tinggal 1 (Tokocrypto), dan test
-   `tests/test_testnet_integration.py` termasuk satu putaran order sungguhan di
-   testnet harus hijau. Kalau salah satu merah, laporkan outputnya; jangan
-   lanjut ke langkah berikutnya.
+Kalau paper run masih jalan dari sesi sebelumnya, hentikan dulu dengan
+`paper-stop.command`; paper dan live tidak dijalankan bersamaan.
 
-### 2c. Paper run sampai keempat butir checklist OK
+### 2c. Di aplikasi Tokocrypto
 
-Butuh hari, bukan menit. Bot paper membaca harga asli Tokocrypto dan
-mensimulasikan akun.
+1. Hapus API key yang pernah ditempel ke chat.
+2. Buat API key baru khusus bot: izin spot trading saja, withdrawal MATI,
+   pembatasan IP diisi IP Mac Anda kalau halaman itu menyediakannya. Simpan key
+   dan secret hanya untuk diketik ke live-setup; jangan ke chat, catatan, atau
+   email.
+3. Beli USDT dengan IDR sebesar modal trial di Spot, pasangan USDT/IDR (order
+   market). Bot hanya memperdagangkan BTC/USDT dan tidak menyentuh IDR; dua juta
+   rupiah menjadi sekitar seratus dua puluhan USDT tergantung kurs hari itu,
+   dipotong biaya sekitar 0,4 persen sekali.
 
-1. `fetch-data.command`, lalu `paper-start.command`. Bot berjalan lewat launchd
-   dan supervisor; `status.command` menunjukkan proses, restart supervisor, dan
-   ringkasan lainnya kapan saja.
-2. Biarkan berjalan sampai `paper-checklist.command` menyatakan keempat butir
-   OK:
-   - restart di tengah posisi tanpa order ganda (matikan dengan
-     `paper-stop.command` saat posisi terbuka, lalu `paper-start.command`);
-   - gangguan jaringan yang ditangani dan pulih (cabut Wi-Fi beberapa menit
-     saat bot jalan);
-   - kill switch berhenti dengan exit code 6 (buat file `STOP` di root repo,
-     atau biarkan batas rugi harian tercapai);
-   - minimal `live.checklist_min_fills` (4) fill yang bisa ditelusuri dari
-     jurnal ke ledger.
-3. Setelah itu `compare-paper.command`. Kalau keluar "BIAS SATU ARAH
-   TERDETEKSI" (exit code 7) pada fill bersinyal, asumsi `costs.slippage_rate`
-   terlalu longgar dan backtest terlalu optimis; jangan lanjut sebelum angkanya
-   diperbaiki dan backtest diulang.
+### 2d. `live-setup.command`
 
-### 2d. Periksa halaman API Management Tokocrypto
+Jendela Terminal terbuka dan meminta:
 
-Untuk kunci yang akan dipakai bot (buat kunci baru khusus bot):
+1. API key, lalu secret. Ketikan tidak ditampilkan. Keduanya hanya ditulis ke
+   .env (izin 600), tidak ke layar, log, atau argumen proses.
+2. Tiga pertanyaan halaman API Management; jawab YA persis hanya kalau benar.
+   Tanggal hari ini dicatat ke config/local.yaml sebagai
+   live.api_key_verified_date; preflight menolak tanggal kosong atau lebih tua
+   dari 90 hari.
+3. Pecahan equity per posisi untuk trial; Enter berarti 0,25, batas maksimum
+   config. Dengan modal sekitar seratus dua puluh USDT, 0,10 menghasilkan
+   sekitar dua belas USDT per posisi yang bisa jatuh di bawah minimum notional;
+   0,25 memberi ruang. Modal trial itulah batas kerugian, bukan pecahan ini.
+4. Preflight tanpa order: tanggal verifikasi, kunci bisa membaca saldo (hanya
+   itu; withdrawal tidak pernah dicoba), pasangan dan minimum notional, sizing
+   dan ukuran minimum di atasnya, jam, dukungan stop order. Semua harus OK.
+   Kalau saldo USDT kurang, kembali ke 2c.
 
-1. Izin withdrawal MATI. Ini yang paling penting; bot tidak pernah dan tidak
-   boleh bisa menarik dana.
-2. Pembatasan IP aktif kalau halaman itu menyediakannya, diisi IP mesin bot.
-   Kalau IP rumah berubah-ubah, catat bahwa pembatasan ini tidak tersedia
-   untuk Anda dan terima risikonya secara sadar.
-3. Izin trading spot saja; tidak ada margin atau futures.
-4. Catat tanggal hari ini di `config/default.yaml` pada
-   `live.api_key_verified_date` dengan format YYYY-MM-DD. Preflight menolak
-   nilai kosong atau lebih tua dari `live.max_key_age_days` (90 hari); ulangi
-   pemeriksaan ini setiap 90 hari.
+### 2e. `live-start.command`
 
-### 2e. Kunci live Tokocrypto, hanya setelah 2b sampai 2d OK
+Preflight sekali lagi, lalu diminta mengetik SAYA SIAP. Setelah itu
+live.enabled menjadi true di config/local.yaml, data diunduh, dan LaunchAgent
+`com.tradebot.live` mulai menjalankan supervisor. Order pertama berukuran
+minimum exchange, bukan hasil sizing. Stop lapis 1 di bot, lapis 2 di
+exchange dengan jarak dua kali lipat.
 
-1. Tulis ke `.env`:
+### 2f. Selama trial
 
-   ```
-   TOKOCRYPTO_API_KEY=...
-   TOKOCRYPTO_API_SECRET=...
-   ```
+- `status.command` kapan saja: proses, restart supervisor, posisi, stop lapis
+  2, tahap ukuran, trade, ledger, checklist, compare.
+- `live-stop.command` untuk berhenti: file STOP, bot berhenti dengan exit 6,
+  agent dilepas, live.enabled kembali false. Posisi yang dipegang tidak dijual
+  otomatis; stop lapis 2 tetap di exchange.
+- Setelah minimal 3 siklus masuk-keluar benar, `live-size.command` menunjukkan
+  siklus itu. Naik ke ukuran normal hanya lewat Terminal:
+  `uv run tradebot live-size --normal --i-know-what-im-doing`.
+- Jangan pakai akun bot untuk transaksi manual selama bot jalan (celah
+  startTime di bagian 3). Konversi IDR ke USDT sebelum live-start tidak
+  masalah karena belum ada order bot yang menunggu jawaban.
+- Kalau `tradebot ledger-status` menyebut baris pending, ledger belum lengkap;
+  bot merekonsiliasinya saat start dan setelah tiap fill.
 
-   Jangan tulis nilainya di tempat lain mana pun, termasuk chat.
-2. Jalankan `tests.command`. Test Tokocrypto berkunci sekarang jalan; pada
-   akun baru dengan riwayat pendek test itu hijau, pada akun beriwayat panjang
-   ia gagal karena celah startTime (bagian 3) dan itu informasi, bukan alasan
-   melonggarkan test.
-3. Jalankan `preflight.command`. Semua baris harus OK: tanggal verifikasi
-   kunci, kunci bisa membaca saldo (hanya itu yang dicoba; withdrawal tidak
-   pernah dicoba), pasangan ada di load_markets, minimum notional terbaca dan
-   ukuran sizing di atasnya, dukungan stop order di venue, dan time drift.
-   Preflight tidak mengirim order.
+### 2g. Kunci testnet Binance (opsional, untuk 8 test yang dilewati)
 
-### 2f. Menyatakan siap mengaktifkan live
-
-Ini keputusan Anda dan tidak diambil oleh kode. Kalau semua di atas OK:
-
-1. Isi saldo USDT di Tokocrypto secukupnya untuk minimum notional ditambah
-   ruang fee, bukan seluruh modal.
-2. Ubah `live.enabled: true` di config, pastikan `TRADING_MODE=live` di .env,
-   lalu jalankan dari Terminal:
-
-   ```bash
-   uv run tradebot run --i-know-what-im-doing
-   ```
-
-3. Order pertama dipaksa ke ukuran minimum exchange, bukan hasil sizing.
-   Setelah minimal `live.min_cycles_before_normal` (3) siklus masuk dan keluar
-   benar, `status.command` menunjukkan siklus itu; naikkan ke ukuran normal
-   secara sadar dengan `uv run tradebot live-size --normal`
-   (`live-size.command` hanya menampilkan tahap saat ini). Kembalikan dengan
-   `--minimum` kapan saja.
-4. Ledger harus tanpa baris pending sebelum bot menyatakan lengkap; perintah
-   `tradebot ledger-status` keluar dengan exit code 4 selama ada yang pending.
+Buka https://testnet.binance.vision, masuk dengan GitHub, buat HMAC key, tulis
+BINANCE_TESTNET_API_KEY dan BINANCE_TESTNET_API_SECRET ke .env (baris lain di
+.env tidak diganggu), lalu `tests.command`. Ini menghijaukan test integrasi
+testnet termasuk satu putaran order sungguhan di testnet. Tidak menjadi syarat
+trial live karena Anda memilih menguji langsung di venue asli.
 
 ## 3. Celah yang diketahui
 
@@ -159,8 +160,13 @@ Masing-masing menyebut apa yang membuatnya muncul.
   tidak pernah masuk, padahal jurnal write-ahead ada untuk mencegah kesimpulan
   itu. Urutan hasil endpoint riwayat (naik atau turun) belum terverifikasi
   dengan kunci asli. Penutupnya: meneruskan startTime dari waktu niat di
-  jurnal; belum dikerjakan. Mitigasi sementara: jangan memakai akun bot untuk
-  transaksi manual.
+  jurnal; belum dikerjakan. Mitigasi: jangan memakai akun bot untuk transaksi
+  manual selama bot jalan.
+- **Trial live menggantikan paper run.** Keempat butir checklist belum pernah
+  terlihat di venue asli; trial inilah ujinya, dengan uang sungguhan yang
+  dibatasi saldo setoran. Muncul karena keputusan Anda melewati paper.
+- **Konversi IDR manual.** Bot tidak punya jalur order USDT/IDR; jalur itu
+  sengaja tidak ditulis supaya tidak ada order tanpa test di akun asli.
 - **Backtest tanpa batas pasar.** Backtest dari CLI tidak membulatkan jumlah ke
   step exchange dan tidak mengecek minimum notional; runner paper dan live
   melakukannya. Muncul sebagai selisih kecil jumlah antara backtest dan paper.
@@ -168,30 +174,30 @@ Masing-masing menyebut apa yang membuatnya muncul.
   harga yang terlihat saat dicek, backtest di level stop. Selisihnya selalu ke
   arah merugikan dan terlihat di compare-paper; bukan bug, tapi bias yang harus
   diperhitungkan.
-- **Lapis 2 tidak ada di paper.** PaperAdapter tidak mensimulasikan stop order
-  di exchange, jadi jalur lapis 2 (pasang setelah masuk, batalkan sebelum
-  keluar, serap eksekusi saat bot bangun) hanya teruji dengan klien palsu dan
-  baru akan berjalan sungguhan di testnet dan live. Kalau venue tidak
-  melaporkan dukungan stop order, mode live gagal keras.
+- **Lapis 2 belum pernah jalan di venue asli.** Jalur pasang-setelah-masuk,
+  batalkan-sebelum-keluar, dan serap-eksekusi-saat-bangun hanya teruji dengan
+  klien palsu. Kalau venue tidak melaporkan dukungan stop order, preflight dan
+  mode live gagal keras; supervisor tidak memulai ulang setelah exit 9.
 - **Data historis sejak September 2025.** Menarik lebih jauh menabrak jendela
   pemeliharaan lebih panjang dari `data.max_gap_bars` dan berhenti; daftar
-  downtime terkonfirmasi belum ada. Akibatnya backtest hanya mencakup satu
-  rezim pasar.
+  downtime terkonfirmasi belum ada. Backtest hanya mencakup satu rezim pasar.
 - **Laptop tidur.** Menutup tutup MacBook membuat macOS tidur walau caffeinate
   jalan. Bot melanjutkan setelah bangun, bar yang terlewat dilewati sebagai
   stale, dan kill switch gagal koneksi bisa menyala kalau jaringan lambat
-  pulih. Stop lapis 2 di exchange adalah jaring untuk kondisi ini, dan hanya
-  ada di testnet dan live.
+  pulih. Stop lapis 2 di exchange adalah jaring untuk kondisi ini.
 - **Test yang bergantung lingkungan.** 8 test testnet, 1 test Tokocrypto
   berkunci, dan 8 test network hanya jalan di mesin dengan kunci dan jaringan
   yang sesuai. Ringkasan pytest menyebutnya terpisah; jangan membaca baris
   "skipped" pytest sebagai lulus.
-- **Time drift diukur, bukan dijamin.** Pengukuran memakai satu panggilan
-  pemanasan lalu 5 sampel dengan rtt terkecil. Kalau rtt terbaik masih terlalu
-  besar untuk memutuskan terhadap batas 1000 ms, bot melaporkan pengukuran
-  tidak konklusif, bukan jam melenceng, dan hanya melanjutkan kalau selisih
-  ditambah setengah rtt masih di bawah recv_window 5000 ms. Jaringan yang
-  sangat lambat karena itu bisa menghentikan start dengan alasan pengukuran.
+- **Time drift diukur, bukan dijamin.** Satu panggilan pemanasan lalu 5 sampel
+  dengan rtt terkecil. Kalau rtt terbaik masih terlalu besar untuk memutuskan
+  terhadap batas 1000 ms, bot melaporkan pengukuran tidak konklusif, bukan jam
+  melenceng, dan hanya melanjutkan kalau selisih ditambah setengah rtt masih di
+  bawah recv_window 5000 ms.
+- **Skrip macOS diuji di Linux dengan tiruan.** bash -n, penulisan .env,
+  pemasang .command, dan logika supervisor diuji dengan `uv` dan `caffeinate`
+  palsu; launchd sendiri dan perilaku Terminal saat `read -s` baru terlihat di
+  Mac Anda.
 
 ## 4. Yang belum dibuktikan sistem ini
 
@@ -205,12 +211,15 @@ Setiap putaran harus menghasilkan lebih dari 1,11 persen hanya untuk impas,
 sebelum dibandingkan dengan buy-and-hold yang membayar biaya itu sekali.
 Konsekuensinya, strategi dengan banyak sinyal mati oleh biaya: seratus putaran
 setahun berarti lebih dari 100 persen biaya, dan crossover di pasar mendatar
-menghasilkan justru itu. Backtest yang ada mencakup kurang dari satu tahun
-data, satu rezim pasar, tanpa holdout yang tak tersentuh, dan RESEARCH.md
-menetapkan bahwa hipotesis yang gagal di holdout selesai tanpa putaran kedua.
-Semua infrastruktur di sini (jurnal, ledger, kill switch, stop dua lapis,
-preflight, ukuran minimum) ada untuk membatasi kerugian dari kesalahan
-operasional; tidak satu pun membuat strateginya menguntungkan. Sebelum uang
-asli masuk, keputusan yang jujur adalah menganggap ekspektansinya nol atau
-negatif sampai backtest --stress dan paper run beberapa minggu menunjukkan
-sebaliknya.
+menghasilkan justru itu. Dengan modal trial sekitar seratus dua puluh USDT dan
+order minimum sekitar sepuluh USDT, satu putaran membayar sekitar sebelas sen
+USDT; trial ini menguji operasi, bukan ekspektansi, karena beberapa minggu dan
+belasan trade terlalu sedikit untuk membedakan edge dari keberuntungan.
+Backtest yang ada mencakup kurang dari satu tahun data, satu rezim pasar,
+tanpa holdout yang tak tersentuh, dan RESEARCH.md menetapkan bahwa hipotesis
+yang gagal di holdout selesai tanpa putaran kedua. Semua infrastruktur di sini
+(jurnal, ledger, kill switch, stop dua lapis, preflight, ukuran minimum) ada
+untuk membatasi kerugian dari kesalahan operasional; tidak satu pun membuat
+strateginya menguntungkan. Keputusan yang jujur: anggap ekspektansinya nol atau
+negatif sampai backtest --stress dan catatan trade live berbulan-bulan
+menunjukkan sebaliknya.
