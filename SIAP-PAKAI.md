@@ -33,13 +33,13 @@ Tokocrypto):
 
 | Kategori | Jumlah | Alasan |
 | --- | --- | --- |
-| Lulus | 528 | test unit, integrasi dengan klien palsu, skrip shell dengan `uv`, `caffeinate`, dan `launchctl` palsu |
+| Lulus | 538 | test unit, integrasi dengan klien palsu, skrip shell dengan `uv`, `caffeinate`, dan `launchctl` palsu |
 | Dilewati karena kunci testnet Binance | 8 | BINANCE_TESTNET_API_KEY dan BINANCE_TESTNET_API_SECRET tidak ada di .env |
 | Dilewati karena kunci Tokocrypto | 1 | TOKOCRYPTO_API_KEY dan TOKOCRYPTO_API_SECRET tidak ada di .env; test ini mendokumentasikan celah startTime dan diharapkan GAGAL pada akun beriwayat panjang |
 | Gagal dijalankan karena jaringan | 8 | www.tokocrypto.com tidak terjangkau dari mesin build (kebijakan jaringan sesi); di Mac Anda test ini jalan |
 
-Test yang dilewati atau gagal dijalankan BUKAN test yang lulus; angka 528 tidak
-mencakupnya. Di Mac Anda dengan jaringan, yang diharapkan 536 lulus dan 9
+Test yang dilewati atau gagal dijalankan BUKAN test yang lulus; angka 538 tidak
+mencakupnya. Di Mac Anda dengan jaringan, yang diharapkan 546 lulus dan 9
 dilewati karena kunci. Setelah kunci Tokocrypto ada di .env, test berkunci itu
 ikut jalan.
 
