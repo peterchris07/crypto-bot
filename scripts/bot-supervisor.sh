@@ -68,3 +68,15 @@ while true; do
 done
 write_state false
 rm -f "$PID_FILE"
+# Berhenti tanpa mulai ulang (kill switch, config, preflight, menyerah): jangan biarkan
+# launchd menghidupkan bot lagi di login berikutnya tanpa persetujuan. Live dimatikan lagi
+# (live-start meminta SAYA SIAP untuk menyalakannya), lalu agent ini dilepas. bootout
+# membunuh proses ini juga, jadi harus menjadi perintah terakhir.
+if [ "$MODE" = live ]; then
+  uv run tradebot local-set live.enabled=false --i-know-what-im-doing >> "$OUT" 2>&1 \
+    || echo "$(stamp) supervisor[$MODE]: GAGAL mengembalikan live.enabled ke false; jalankan live-stop" >> "$OUT"
+fi
+echo "$(stamp) supervisor[$MODE]: melepas agent com.tradebot.$MODE dari launchd" >> "$OUT"
+if command -v launchctl >/dev/null 2>&1; then
+  launchctl bootout "gui/$(id -u)/com.tradebot.$MODE" 2>/dev/null || true
+fi

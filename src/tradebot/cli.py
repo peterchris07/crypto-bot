@@ -11,6 +11,7 @@ TRADING_MODE=live juga harus ada.
 from __future__ import annotations
 
 import argparse
+import fcntl
 import logging
 import os
 import sys
@@ -640,6 +641,34 @@ def _live_size(settings: Settings, normal: bool, minimum: bool) -> int:
 
 
 def _run(settings: Settings, iterations: int | None) -> int:
+    if iterations is not None and iterations < 1:
+        print("CONFIG ERROR: --iterations harus >= 1", file=sys.stderr)
+        return EXIT_CONFIG_ERROR
+    root = settings.root
+    # Satu runner per mode: bot manual di samping LaunchAgent akan memutuskan bar yang sama
+    # dua kali. Kunci file dilepas otomatis saat proses berakhir, termasuk saat crash.
+    lock_path = root / "state" / f"{settings.mode_dir}run.lock"
+    lock_path.parent.mkdir(parents=True, exist_ok=True)
+    lock_file = open(lock_path, "w")  # noqa: SIM115 (dipegang sepanjang run)
+    try:
+        fcntl.flock(lock_file, fcntl.LOCK_EX | fcntl.LOCK_NB)
+    except OSError:
+        lock_file.close()
+        print(
+            f"CONFIG ERROR: bot {settings.mode.value} sudah jalan di proses lain (kunci "
+            f"{lock_path}); hentikan yang itu dulu (paper-stop/live-stop) sebelum menjalankan "
+            "run lagi.",
+            file=sys.stderr,
+        )
+        return EXIT_CONFIG_ERROR
+    try:
+        return _run_locked(settings, iterations)
+    finally:
+        fcntl.flock(lock_file, fcntl.LOCK_UN)
+        lock_file.close()
+
+
+def _run_locked(settings: Settings, iterations: int | None) -> int:
     from tradebot.config import TradingMode
     from tradebot.exchange.factory import build_adapter
     from tradebot.ledger import Ledger
@@ -650,9 +679,6 @@ def _run(settings: Settings, iterations: int | None) -> int:
     from tradebot.live.stage import LiveStageStore
     from tradebot.strategy import build_strategy
 
-    if iterations is not None and iterations < 1:
-        print("CONFIG ERROR: --iterations harus >= 1", file=sys.stderr)
-        return EXIT_CONFIG_ERROR
     root = settings.root
     risk = _build_risk(settings)
     adapter = build_adapter(settings)
@@ -662,8 +688,9 @@ def _run(settings: Settings, iterations: int | None) -> int:
         if not settings.live.enabled:
             print(
                 "CONFIG ERROR: mode live belum diaktifkan: live.enabled masih false di config. "
-                "Syaratnya: paper-checklist OK, preflight lulus, dan Anda menyatakan siap "
-                "dengan mengubah live.enabled ke true secara sadar.",
+                "Jalur yang disediakan: live-setup.command lalu live-start.command, yang "
+                "menjalankan preflight, meminta ketik SAYA SIAP, dan menulis live.enabled=true "
+                "ke config/local.yaml lewat `tradebot local-set`. Jangan ubah default.yaml.",
                 file=sys.stderr,
             )
             return EXIT_CONFIG_ERROR

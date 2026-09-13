@@ -43,6 +43,8 @@ make_command "preflight"       'uv run tradebot preflight $FLAG' flag
 make_command "paper-checklist" 'uv run tradebot paper-checklist $FLAG' flag
 make_command "compare-paper"   'uv run tradebot compare-paper $FLAG' flag
 make_command "live-size"       'uv run tradebot live-size $FLAG' flag
+make_command "check-exchange"  'uv run tradebot check-exchange $FLAG' flag
+make_command "ledger-status"   'uv run tradebot ledger-status $FLAG' flag
 make_command "paper-start"     'scripts/paper-start.sh'
 make_command "paper-stop"      'scripts/paper-stop.sh'
 make_command "live-setup"      'scripts/live-setup.sh'

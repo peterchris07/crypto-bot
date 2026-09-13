@@ -28,16 +28,35 @@ def _copy_scripts(target: Path) -> Path:
 
 
 def _fake_bin(target: Path, exit_code: int) -> Path:
-    """`uv` palsu mencatat argumennya dan keluar dengan kode tertentu; caffeinate meneruskan."""
+    """`uv` palsu mencatat argumennya; `tradebot run` keluar dengan kode tertentu, perintah
+    lain sukses. caffeinate meneruskan; launchctl hanya mencatat argumennya."""
     fake = target / "bin"
     fake.mkdir()
     (fake / "uv").write_text(
-        '#!/bin/bash\nprintf "%s\\n" "$*" >> "$FAKE_UV_LOG"\nexit "$FAKE_UV_EXIT"\n'
+        "#!/bin/bash\n"
+        'printf "%s\\n" "$*" >> "$FAKE_UV_LOG"\n'
+        'case "$*" in "run tradebot run"*) exit "$FAKE_UV_EXIT" ;; esac\n'
+        "exit 0\n"
     )
     (fake / "caffeinate").write_text('#!/bin/bash\nshift 2\nexec "$@"\n')
-    for name in ("uv", "caffeinate"):
+    (fake / "launchctl").write_text(
+        '#!/bin/bash\nprintf "%s\\n" "$*" >> "${FAKE_LAUNCHCTL_LOG:-/dev/null}"\nexit 0\n'
+    )
+    for name in ("uv", "caffeinate", "launchctl"):
         (fake / name).chmod(0o755)
     return fake
+
+
+def _fake_env(tmp_path: Path, fake: Path, exit_code: int, max_restarts: int) -> dict:
+    return {
+        **os.environ,
+        "PATH": f"{fake}:{os.environ['PATH']}",
+        "HOME": str(tmp_path / "home"),
+        "FAKE_UV_LOG": str(tmp_path / "uv.log"),
+        "FAKE_LAUNCHCTL_LOG": str(tmp_path / "launchctl.log"),
+        "FAKE_UV_EXIT": str(exit_code),
+        "MAX_RESTARTS": str(max_restarts),
+    }
 
 
 @pytest.mark.parametrize("script", sorted(p.name for p in SCRIPTS.glob("*.sh")))
@@ -102,8 +121,10 @@ def test_install_commands_adds_flag_detection_only_where_needed(tmp_path: Path):
     names = sorted(p.name for p in tmp_path.glob("*.command"))
     assert names == [
         "backtest.command",
+        "check-exchange.command",
         "compare-paper.command",
         "fetch-data.command",
+        "ledger-status.command",
         "live-setup.command",
         "live-size.command",
         "live-start.command",
@@ -133,14 +154,7 @@ def test_supervisor_live_passes_the_flag_and_does_not_restart_after_preflight_fa
 ):
     scripts = _copy_scripts(tmp_path)
     fake = _fake_bin(tmp_path, exit_code=9)
-    log = tmp_path / "uv.log"
-    env = {
-        **os.environ,
-        "PATH": f"{fake}:{os.environ['PATH']}",
-        "FAKE_UV_LOG": str(log),
-        "FAKE_UV_EXIT": "9",
-        "MAX_RESTARTS": "3",
-    }
+    env = _fake_env(tmp_path, fake, exit_code=9, max_restarts=3)
     result = subprocess.run(
         ["bash", str(scripts / "bot-supervisor.sh"), "live"],
         capture_output=True,
@@ -150,25 +164,26 @@ def test_supervisor_live_passes_the_flag_and_does_not_restart_after_preflight_fa
         timeout=30,
     )
     assert result.returncode == 0, result.stderr
-    assert log.read_text().splitlines() == ["run tradebot run --i-know-what-im-doing"]
+    # setelah berhenti tanpa mulai ulang: live dimatikan lagi dan agent dilepas dari launchd,
+    # supaya login berikutnya tidak menghidupkan bot live tanpa persetujuan
+    assert (tmp_path / "uv.log").read_text().splitlines() == [
+        "run tradebot run --i-know-what-im-doing",
+        "run tradebot local-set live.enabled=false --i-know-what-im-doing",
+    ]
+    launchctl = (tmp_path / "launchctl.log").read_text().splitlines()
+    assert launchctl == [f"bootout gui/{os.getuid()}/com.tradebot.live"]
     state = json.loads((tmp_path / "state" / "live_supervisor.json").read_text())
     assert state["restarts"] == 0 and state["last_exit_code"] == 9 and state["running"] is False
     assert not (tmp_path / "state" / "live_supervisor.pid").exists()
     out = (tmp_path / "logs" / "live.out").read_text()
     assert "tidak dimulai ulang (exit 9)" in out
+    assert stat.S_IMODE((tmp_path / "logs" / "live.out").stat().st_mode) == 0o600
 
 
 def test_supervisor_paper_never_passes_the_flag_and_gives_up_after_max_restarts(tmp_path: Path):
     scripts = _copy_scripts(tmp_path)
     fake = _fake_bin(tmp_path, exit_code=3)
-    log = tmp_path / "uv.log"
-    env = {
-        **os.environ,
-        "PATH": f"{fake}:{os.environ['PATH']}",
-        "FAKE_UV_LOG": str(log),
-        "FAKE_UV_EXIT": "3",
-        "MAX_RESTARTS": "0",
-    }
+    env = _fake_env(tmp_path, fake, exit_code=3, max_restarts=0)
     result = subprocess.run(
         ["bash", str(scripts / "paper-supervisor.sh")],
         capture_output=True,
@@ -178,10 +193,44 @@ def test_supervisor_paper_never_passes_the_flag_and_gives_up_after_max_restarts(
         timeout=30,
     )
     assert result.returncode == 0, result.stderr
-    assert log.read_text().splitlines() == ["run tradebot run"]
+    assert (tmp_path / "uv.log").read_text().splitlines() == ["run tradebot run"]
+    launchctl = (tmp_path / "launchctl.log").read_text().splitlines()
+    assert launchctl == [f"bootout gui/{os.getuid()}/com.tradebot.paper"]
     state = json.loads((tmp_path / "state" / "paper_supervisor.json").read_text())
     assert state["restarts"] == 1 and state["last_exit_code"] == 3
     assert "menyerah setelah 0 kali" in (tmp_path / "logs" / "paper.out").read_text()
+
+
+def test_bot_start_live_installs_the_agent_and_unloads_the_other_mode(tmp_path: Path):
+    scripts = _copy_scripts(tmp_path)
+    fake = _fake_bin(tmp_path, exit_code=0)
+    env = _fake_env(tmp_path, fake, exit_code=0, max_restarts=0)
+    (tmp_path / ".env").write_text("TRADING_MODE=live\n")
+    (tmp_path / "config").mkdir()
+    (tmp_path / "config" / "local.yaml").write_text("live:\n  enabled: true\n")
+    result = subprocess.run(
+        ["bash", str(scripts / "bot-start.sh"), "live"],
+        capture_output=True,
+        text=True,
+        cwd=tmp_path,
+        env=env,
+        timeout=60,
+    )
+    assert result.returncode == 0, result.stderr + result.stdout
+    plist = tmp_path / "home" / "Library" / "LaunchAgents" / "com.tradebot.live.plist"
+    assert plist.exists()
+    assert "<string>live</string>" in plist.read_text() and "bot-supervisor.sh" in plist.read_text()
+    uid = os.getuid()
+    launchctl = (tmp_path / "launchctl.log").read_text().splitlines()
+    # agent mode lain dilepas dulu (paper dan live tidak bersamaan, juga setelah login berikutnya),
+    # lalu agent ini dilepas dan dipasang; bootstrap dengan RunAtLoad sudah memulainya
+    assert launchctl[:3] == [
+        f"bootout gui/{uid}/com.tradebot.paper",
+        f"bootout gui/{uid}/com.tradebot.live",
+        f"bootstrap gui/{uid} {plist}",
+    ]
+    assert not any(line.startswith("kickstart") for line in launchctl)
+    assert (tmp_path / "uv.log").read_text().splitlines() == ["run tradebot fetch-data"]
 
 
 def test_supervisor_rejects_unknown_mode(tmp_path: Path):

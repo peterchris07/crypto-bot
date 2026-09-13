@@ -239,6 +239,32 @@ def test_read_only_commands_do_not_append_their_banner_to_the_bot_log(
     assert f"log terakhir: {last_line}" in out
 
 
+def test_run_refuses_a_second_runner_in_the_same_mode(
+    project_dir: Path, config_path: Path, fake_public, capsys
+):
+    """Bot manual di samping LaunchAgent akan memutuskan bar yang sama dua kali: kunci file."""
+    import fcntl
+
+    lock_path = project_dir / "state" / "run.lock"
+    lock_path.parent.mkdir(exist_ok=True)
+    holder = open(lock_path, "w")  # noqa: SIM115
+    fcntl.flock(holder, fcntl.LOCK_EX | fcntl.LOCK_NB)
+    try:
+        code = cli.main(["--config", str(config_path), "run", "--iterations", "1"])
+        err = capsys.readouterr().err
+        assert code == cli.EXIT_CONFIG_ERROR
+        assert "sudah jalan" in err and "run.lock" in err
+        assert not (project_dir / "state" / "paper_account.json").exists()
+    finally:
+        fcntl.flock(holder, fcntl.LOCK_UN)
+        holder.close()
+    # setelah kunci lepas, run berjalan normal dan melepas kuncinya lagi saat selesai
+    assert cli.main(["--config", str(config_path), "run", "--iterations", "1"]) == cli.EXIT_OK
+    capsys.readouterr()
+    with open(lock_path, "w") as probe:
+        fcntl.flock(probe, fcntl.LOCK_EX | fcntl.LOCK_NB)
+
+
 def test_run_rejects_zero_iterations(project_dir: Path, config_path: Path, fake_public, capsys):
     assert (
         cli.main(["--config", str(config_path), "run", "--iterations", "0"])

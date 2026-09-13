@@ -24,20 +24,22 @@ terima secara sadar:
 Tahap 1 sampai 8 selesai secara kode. Tahap 8 (mode live) diuji dengan klien
 palsu, belum pernah dijalankan ke Tokocrypto asli, dan terkunci: `live.enabled`
 false sampai `live-start.command` menuliskannya ke config/local.yaml setelah
-preflight lulus dan Anda mengetik SAYA SIAP.
+preflight lulus dan Anda mengetik SAYA SIAP (perintah `tradebot local-set
+live.enabled=true --i-know-what-im-doing` dari Terminal juga bisa, tanpa
+pertanyaan; live-stop dan supervisor mengembalikannya ke false).
 
 Hasil `uv run pytest` terakhir di mesin build (tanpa kunci, tanpa jaringan ke
 Tokocrypto):
 
 | Kategori | Jumlah | Alasan |
 | --- | --- | --- |
-| Lulus | 478 | test unit, integrasi dengan klien palsu, skrip shell dengan `uv` dan `caffeinate` palsu |
+| Lulus | 519 | test unit, integrasi dengan klien palsu, skrip shell dengan `uv`, `caffeinate`, dan `launchctl` palsu |
 | Dilewati karena kunci testnet Binance | 8 | BINANCE_TESTNET_API_KEY dan BINANCE_TESTNET_API_SECRET tidak ada di .env |
 | Dilewati karena kunci Tokocrypto | 1 | TOKOCRYPTO_API_KEY dan TOKOCRYPTO_API_SECRET tidak ada di .env; test ini mendokumentasikan celah startTime dan diharapkan GAGAL pada akun beriwayat panjang |
 | Gagal dijalankan karena jaringan | 8 | www.tokocrypto.com tidak terjangkau dari mesin build (kebijakan jaringan sesi); di Mac Anda test ini jalan |
 
-Test yang dilewati atau gagal dijalankan BUKAN test yang lulus; angka 478 tidak
-mencakupnya. Di Mac Anda dengan jaringan, yang diharapkan 486 lulus dan 9
+Test yang dilewati atau gagal dijalankan BUKAN test yang lulus; angka 519 tidak
+mencakupnya. Di Mac Anda dengan jaringan, yang diharapkan 527 lulus dan 9
 dilewati karena kunci. Setelah kunci Tokocrypto ada di .env, test berkunci itu
 ikut jalan.
 
@@ -140,8 +142,13 @@ exchange dengan jarak dua kali lipat.
 - Jangan pakai akun bot untuk transaksi manual selama bot jalan (celah
   startTime di bagian 3). Konversi IDR ke USDT sebelum live-start tidak
   masalah karena belum ada order bot yang menunggu jawaban.
-- Kalau `tradebot ledger-status` menyebut baris pending, ledger belum lengkap;
-  bot merekonsiliasinya saat start dan setelah tiap fill.
+- Kalau `ledger-status.command` menyebut baris pending, ledger belum lengkap;
+  bot merekonsiliasinya saat start dan setelah tiap fill. Dari Terminal,
+  setiap perintah yang membaca catatan live butuh flag:
+  `uv run tradebot ledger-status --i-know-what-im-doing`.
+- Jangan menjalankan `tradebot run` sendiri dari Terminal saat agent hidup;
+  kunci file state/live/run.lock menolaknya supaya tidak ada dua bot pada bar
+  yang sama.
 
 ### 2g. Kunci testnet Binance (opsional, untuk 8 test yang dilewati)
 

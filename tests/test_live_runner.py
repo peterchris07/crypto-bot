@@ -25,7 +25,7 @@ from tradebot.exchange.tokocrypto_adapter import TokocryptoAdapter
 from tradebot.ledger import Ledger
 from tradebot.live.journal import OrderJournal
 from tradebot.live.preflight import minimum_order_amount
-from tradebot.live.runner import EXIT_EXCHANGE_ERROR, PositionStore, Runner
+from tradebot.live.runner import EXIT_EXCHANGE_ERROR, EXIT_KILL_SWITCH, PositionStore, Runner
 from tradebot.live.stage import MINIMUM, NORMAL, LiveStageStore
 from tradebot.risk import DailyStateStore, RiskManager
 from tradebot.strategy.base import Signal
@@ -306,6 +306,60 @@ def test_stop_executed_while_bot_was_down_is_absorbed_on_start(live_settings, pr
     )
     assert client2.count("create_order") == 0 and client.count("create_order") == orders_before
     assert LiveStageStore(project_dir / live_settings.live.stage_path).load().cycles_completed == 1
+
+
+def test_stop_file_keeps_position_and_exchange_stop_armed(live_settings, project_dir):
+    """live-stop membuat file STOP: bot berhenti TANPA menjual dan TANPA melepas jaring
+    lapis 2; stop di exchange tetap terbuka selama bot mati (itu janji README)."""
+    strategy = Scripted({ts(2): Signal.LONG}, lookback=2)
+    runner, client, advance = build_live(live_settings, project_dir, [100.0] * 8, strategy)
+    advance(3)
+    runner.start()
+    runner.iterate()
+    stop_id = runner.position.stop_order_id
+    assert stop_id and open_stop_orders(client)
+    client.calls.clear()
+    (project_dir / "STOP").write_text("", encoding="utf-8")
+    advance(4)
+    assert runner.run(max_iterations=5) == EXIT_KILL_SWITCH
+    assert "cancel_all_orders" not in call_names(client)
+    assert "cancel_order" not in call_names(client)
+    assert client.orders[stop_id]["status"] == "open" and open_stop_orders(client)
+    assert runner.position is not None and runner.position.stop_order_id == stop_id
+    saved = PositionStore(project_dir / live_settings.live.position_path).load()
+    assert saved is not None and saved.stop_order_id == stop_id
+
+
+def test_minimum_size_position_survives_restart_after_a_small_dip(live_settings, project_dir):
+    """Order pertama live berukuran minimum exchange: setelah harga turun 1 persen notionalnya
+    di bawah min_cost. Restart tidak boleh menghapus catatan dan mengorbankan lot beserta
+    stop lapis 2-nya; yang menentukan adalah jumlah base yang masih ada, bukan notional."""
+    strategy = Scripted({ts(2): Signal.LONG}, lookback=2)
+    runner, client, advance = build_live(live_settings, project_dir, [100.0] * 8, strategy)
+    advance(3)
+    runner.start()
+    runner.iterate()
+    position = runner.position
+    min_cost = runner.limits.min_cost
+    assert position.amount * 100.0 <= min_cost * 1.05, "memang ukuran minimum"
+    stop_id = position.stop_order_id
+
+    runner2, client2, advance2 = build_live(
+        live_settings, project_dir, [99.0] * 8, strategy
+    )  # harga turun 1%: notional < min_cost, tapi lot masih ada
+    client2.orders, client2.open_orders, client2.trades = (
+        client.orders,
+        client.open_orders,
+        client.trades,
+    )
+    client2.balance = client.balance
+    assert client2.balance["total"]["BTC"] * 99.0 < min_cost
+    advance2(3, minutes=30)
+    runner2.start()
+    assert runner2.position is not None, "catatan posisi dihapus padahal lot masih dipegang"
+    assert runner2.position.stop_order_id == stop_id
+    assert runner2.position.amount == pytest.approx(client2.balance["total"]["BTC"], rel=1e-9)
+    assert client2.count("create_order") == 0
 
 
 def test_stop_executed_between_iterations_means_no_sell_order(live_settings, project_dir):

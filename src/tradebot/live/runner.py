@@ -234,7 +234,13 @@ class Runner:
         base_total = balance.total(self.base)
         ticker = self.adapter.fetch_ticker(self.symbol)
         min_cost = (self.limits.min_cost if self.limits else None) or 0.0
-        holds_base = base_total * ticker.last > min_cost and base_total > 0
+        if self.position is not None:
+            # Dengan catatan posisi, yang menentukan adalah lot-nya masih ada, bukan notional:
+            # order pertama live berukuran minimum exchange, jadi turun 1 persen saja sudah
+            # membuat notional < min_cost padahal lot dan stop lapis 2-nya masih dipegang.
+            holds_base = base_total > 0 and base_total >= self.position.amount * 0.5
+        else:
+            holds_base = base_total * ticker.last > min_cost and base_total > 0
         if self.position is not None and not holds_base:
             log.warning(
                 "catatan posisi %s tapi saldo %s hanya %s; catatan dihapus, dianggap FLAT",
@@ -747,22 +753,31 @@ class Runner:
 
     def _halt(self, exc: KillSwitchTriggered) -> int:
         log.error("%s", exc)
-        # Urutan penting: stop lapis 2 (tahap 8) mengunci aset, jadi order terbuka dibatalkan
-        # DULU; order keluar yang dikirim sebelum itu ditolak karena saldo terkunci.
-        cancel_ok = True
-        try:
-            self.adapter.cancel_all_orders(self.symbol)
-        except ExchangeError as cancel_exc:
-            cancel_ok = False
-            log.error("cancel_all_orders gagal: %s", cancel_exc)
         if exc.flatten and self.position is not None:
-            if not cancel_ok:
-                log.error("flatten tidak dikirim karena pembatalan order gagal; posisi dipegang")
+            # Urutan penting: stop lapis 2 (tahap 8) mengunci aset, jadi order terbuka
+            # dibatalkan DULU; order keluar yang dikirim sebelum itu ditolak karena saldo
+            # terkunci.
+            try:
+                self.adapter.cancel_all_orders(self.symbol)
+            except ExchangeError as cancel_exc:
+                log.error(
+                    "cancel_all_orders gagal: %s; flatten tidak dikirim, posisi dipegang",
+                    cancel_exc,
+                )
             else:
                 try:
                     self._sell(ExitReason.KILL_SWITCH.value)
                 except (ExchangeError, RiskError) as sell_exc:
                     log.error("flatten gagal: %s; posisi tetap dipegang", sell_exc)
+        elif self.position is not None:
+            # Tanpa flatten (file STOP, gagal koneksi, runaway): posisi dipegang dan jaring
+            # lapis 2 di exchange TIDAK dilepas; itulah gunanya selama bot mati.
+            log.error(
+                "posisi %s dipegang; stop lapis 2 di exchange tetap terpasang (id %s, harga %s)",
+                self.position.amount,
+                self.position.stop_order_id,
+                self.position.stop_price,
+            )
         log.error("BOT BERHENTI: %s (exit code %d)", exc.switch.value, EXIT_KILL_SWITCH)
         return EXIT_KILL_SWITCH
 

@@ -35,6 +35,12 @@ echo "== pasang $PLIST"
 # Nilai di-escape untuk XML oleh render-plist.sh; path repo dengan '&' atau '#' aman.
 scripts/render-plist.sh "$MODE" "$REPO" "$PATH" > "$PLIST.tmp"
 mv -f "$PLIST.tmp" "$PLIST"
+# Agent mode lain dilepas juga: setelah kill switch pid file-nya sudah hilang tetapi
+# agent-nya masih terdaftar di launchd dan akan hidup lagi di login berikutnya.
+for other in paper live; do
+  [ "$other" = "$MODE" ] && continue
+  launchctl bootout "gui/$(id -u)/com.tradebot.$other" 2>/dev/null || true
+done
 launchctl bootout "gui/$(id -u)/$LABEL" 2>/dev/null || true
 # RunAtLoad=true: bootstrap sudah memulai job. Jangan tambahkan kickstart dengan flag -k:
 # itu membunuh instance pertama (beserta caffeinate/uv/python) lalu memulai yang kedua.

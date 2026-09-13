@@ -126,8 +126,9 @@ live:
   # paper-checklist: minimal fill yang tertelusuri dari niat di jurnal sampai baris ledger.
   checklist_min_fills: 4
   # Tahap 8. Mode live menolak jalan selama enabled false, walau TRADING_MODE=live dan flag
-  # --i-know-what-im-doing diberikan. Ubah ke true hanya setelah paper run selesai (paper-checklist
-  # OK), preflight lulus, dan Anda menyatakan siap.
+  # --i-know-what-im-doing diberikan. JANGAN ubah di file ini: live-start.command menulis true
+  # ke config/local.yaml (lewat `tradebot local-set`) setelah preflight lulus dan Anda mengetik
+  # SAYA SIAP; live-stop dan supervisor mengembalikannya ke false.
   enabled: false
   # Tanggal terakhir Anda memeriksa halaman API Management Tokocrypto: izin withdrawal MATI,
   # pembatasan IP aktif kalau tersedia. Kosong berarti belum pernah; preflight menolak.
