@@ -3,6 +3,26 @@
 Dikunci 2026-09-13, SEBELUM skrining dijalankan. Perubahan setelah melihat hasil
 tidak sah. Ini percobaan ke-2 dan ke-3 dalam hitungan riset (baseline EMA ke-1).
 
+## Amandemen 2026-09-13 (sebelum hasil riset dilihat), dan satu pelanggaran
+
+Pemilik menegaskan: skrining berjalan di PERIODE RISET SAJA (2017-08-17 sampai
+2022-12-31). Validasi (2023-2024) tidak dihitung dan tidak dilihat; holdout
+(2025 ke atas) tetap dikunci. Versi pertama dokumen ini menyebut riset dan
+validasi; skrip pun mengunduh data sampai 2024-12 dan menghitung keduanya.
+
+Pelanggaran yang harus dicatat, bukan disembunyikan: skrining versi pertama
+sempat berjalan sampai selesai sebelum penegasan itu diterapkan, dan dua baris
+ringkasan periode validasi untuk konfigurasi 28 hari (CAGR top-5, keranjang,
+BTC, MDD) terlihat oleh asisten di ekor log. Angka itu tidak dicatat di mana
+pun, file hasilnya dihapus, data 2023-2024 di cache dihapus, dan skrip diubah
+supaya tidak lagi mengunduh atau menghitung periode itu. Konsekuensinya untuk
+Aturan Keras Riset nomor 2: validasi H1 sudah "tersentuh" sekali secara tidak
+sengaja pada tingkat skrining kotor; pemilik yang memutuskan apakah validasi
+H1 masih dianggap bersih. Holdout tidak pernah diunduh.
+
+Kriteria gugur di bawah ikut berubah: keputusan gugur diambil dari periode
+riset saja.
+
 ## Pertanyaan tunggal
 
 Berapa selisih return tahunan (KOTOR, tanpa biaya) antara keranjang top-5
@@ -65,15 +85,16 @@ dibangun.
 
 ## Yang dilaporkan
 
-Per periode (riset, validasi) dan per konfigurasi: return kumulatif, return
-tahunan (CAGR), max drawdown, jumlah rebalance, rata-rata rotasi per rebalance
-(untuk memperbarui perkiraan biaya), dan selisih tahunan top-5 dikurangi
-keranjang-20. Kedua konfigurasi dilaporkan, bukan yang terbaik saja.
+Periode riset saja, per konfigurasi: return kumulatif, return tahunan (CAGR),
+max drawdown, jumlah rebalance, rata-rata rotasi per rebalance (untuk
+memperbarui perkiraan biaya), dan selisih tahunan top-5 dikurangi
+keranjang-20. Kedua konfigurasi dilaporkan, bukan yang terbaik saja. Selisih
+terhadap BTC ikut dilaporkan sebagai konteks, bukan kriteria.
 
 ## Kriteria gugur (untuk skrining ini)
 
-H1 gugur kalau, pada periode riset DAN validasi, selisih tahunan kotor top-5
-dikurangi keranjang-20 kurang dari 9 persen untuk KEDUA konfigurasi. Kalau
-salah satu konfigurasi melewati 9 persen di kedua periode, baru engine
-portofolio dibangun dan kriteria gugur RESEARCH.md (kalah dari buy-and-hold
-BTC bersih, atau drawdown lebih dari 1,5x drawdown BTC) diuji dengan biaya.
+H1 gugur kalau, pada periode riset, selisih tahunan kotor top-5 dikurangi
+keranjang-20 kurang dari 9 persen untuk KEDUA konfigurasi. Kalau salah satu
+konfigurasi melewati 9 persen, pemilik memutuskan apakah engine portofolio
+dibangun; kriteria gugur RESEARCH.md (kalah dari buy-and-hold BTC bersih,
+atau drawdown lebih dari 1,5x drawdown BTC) baru diuji dengan biaya di sana.

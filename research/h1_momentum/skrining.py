@@ -1,6 +1,7 @@
 """Skrining kotor H1 sesuai PRAREGISTRASI.md: top-5 momentum 30 hari vs keranjang bobot
-sama 20 koin paling likuid, tanpa biaya, tanpa engine. Hanya periode riset dan validasi;
-holdout (2025-01-01 ke atas) tidak diunduh dan tidak dihitung.
+sama 20 koin paling likuid, tanpa biaya, tanpa engine. HANYA periode riset (sampai
+2022-12-31); validasi (2023-2024) dan holdout (2025 ke atas) tidak diunduh dan tidak
+dihitung.
 
     uv run python research/h1_momentum/skrining.py [--cache DIR]
 
@@ -19,7 +20,7 @@ import tempfile
 import time
 import zipfile
 from concurrent.futures import ThreadPoolExecutor
-from datetime import UTC, datetime, timedelta
+from datetime import datetime, timedelta
 from pathlib import Path
 
 import numpy as np
@@ -30,7 +31,7 @@ from langkah0_arsip_binance import BASE, OUT, get  # noqa: E402
 
 RESEARCH = (pd.Timestamp("2017-08-17"), pd.Timestamp("2022-12-31"))
 VALIDATION = (pd.Timestamp("2023-01-01"), pd.Timestamp("2024-12-31"))
-LAST_MONTH = "2024-12"  # holdout dikunci: tidak ada data 2025 ke atas yang diunduh
+LAST_MONTH = "2022-12"  # riset saja: validasi dan holdout tidak diunduh
 STABLE_OR_RWA = {
     "USDC", "BUSD", "TUSD", "USDP", "DAI", "FDUSD", "USD1", "RLUSD", "EUR", "EURI", "AEUR",
     "PAXG", "XAUT", "USDE", "USDS", "PYUSD", "GBP", "TRY", "BRL", "UST", "USTC", "USDD",
@@ -182,17 +183,19 @@ def simulate(close: pd.DataFrame, qvol: pd.DataFrame, step_days: int, end: pd.Ti
     value_top = 1.0
     value_basket = 1.0
 
+    close_ff = close.ffill()  # hari tanpa bar (pemeliharaan) dinilai di close terakhir
+    last_valid = {seg: close[seg].last_valid_index() for seg in close.columns}
+
     def portfolio_value(
         units: dict[str, float], frozen: float, t: pd.Timestamp
     ) -> tuple[float, dict, float]:
         total = frozen
         live_units = {}
         for seg, u in units.items():
-            px = close.at[t, seg]
-            if np.isnan(px):
-                last = close[seg].loc[:t].dropna()
-                frozen += u * float(last.iloc[-1])  # segmen berakhir: keluar di close terakhir
-                total += u * float(last.iloc[-1])
+            px = float(close_ff.at[t, seg])
+            if t > last_valid[seg]:
+                frozen += u * px  # segmen berakhir (delisting/putus seri): keluar di close terakhir
+                total += u * px
             else:
                 total += u * px
                 live_units[seg] = u
@@ -218,7 +221,7 @@ def simulate(close: pd.DataFrame, qvol: pd.DataFrame, step_days: int, end: pd.Ti
         px_now = close.loc[t]
         px_then = close.loc[t0]
         window = qvol.loc[t0 + pd.Timedelta(days=1) : t]
-        eligible = px_now.notna() & px_then.notna() & (window.notna().sum() >= lookback)
+        eligible = px_now.notna() & px_then.notna() & (window.notna().sum() >= lookback - 3)
         eligible_syms = list(px_now.index[eligible])
         if len(eligible_syms) < MIN_ELIGIBLE:
             next_rebalance = t + pd.Timedelta(days=step_days) if start_effective else None
@@ -285,14 +288,14 @@ def main() -> None:
     )
     results = {"meta": meta, "configs": {}}
     for step in REBALANCE_DAYS:
-        sim = simulate(close, qvol, step, VALIDATION[1])
+        sim = simulate(close, qvol, step, RESEARCH[1])
         entry = {
             "start_effective": sim["start_effective"],
             "rebalances": sim["rebalances"],
             "avg_rotation_of_5": sim["avg_rotation"],
             "periods": {},
         }
-        for name, (a, b) in (("riset", RESEARCH), ("validasi", VALIDATION)):
+        for name, (a, b) in (("riset", RESEARCH),):
             top = period_stats(sim["nav_top"], a, b)
             basket = period_stats(sim["nav_basket"], a, b)
             btc = period_stats(sim["nav_btc"], a, b)
