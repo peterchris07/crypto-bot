@@ -119,6 +119,22 @@ Jendela Terminal terbuka dan meminta:
    dan ukuran minimum di atasnya, jam, dukungan stop order. Semua harus OK.
    Kalau saldo USDT kurang, kembali ke 2c.
 
+### 2d-2. `pipe-test.command`: uji pipa sekali jalan, uang asli ukuran minimum
+
+Sebelum live-start, buktikan jalur ordernya dengan satu putaran yang Anda
+tunggui dari layar: preflight lengkap, tampilan ukuran order (sekitar 7e-05
+BTC, ~5,4 USDT pada saldo 39,85 USDT dan min_cost 5 USDT), perkiraan rupiah
+dan biaya bolak-balik, lalu ketik UJI PIPA persis. Setelah itu bot membeli
+market, memasang stop lapis 2 dan memverifikasinya lewat fetch_open_orders,
+menunggu 60 detik, membatalkan stop dulu dan memverifikasi hilang, menjual
+market, memverifikasi flat, dan merekonsiliasi ledger sampai fee terisi.
+Laporan akhir menyebut harga beli dan jual, fee, untung atau rugi bersih dalam
+USDT dan rupiah, bukti stop lapis 2, baris jurnal dan ledger, dan vonis
+JALUR ORDER TERBUKTI atau GAGAL di langkah berapa. Kalau gagal, laporan
+menyebut apakah Anda masih memegang BTC, order terbuka yang tertinggal, dan
+apa yang harus dilakukan manual di aplikasi Tokocrypto; akun flat dan bersih
+diutamakan. Biaya satu putaran sekitar 0,06 USDT ditambah slippage.
+
 ### 2e. `live-start.command`
 
 Preflight sekali lagi, data diunduh (kalau jaringan mati, berhenti di sini

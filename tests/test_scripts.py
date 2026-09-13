@@ -132,6 +132,7 @@ def test_install_commands_adds_flag_detection_only_where_needed(tmp_path: Path):
         "paper-checklist.command",
         "paper-start.command",
         "paper-stop.command",
+        "pipe-test.command",
         "preflight.command",
         "status.command",
         "tests.command",

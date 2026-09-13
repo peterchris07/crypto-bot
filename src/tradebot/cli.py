@@ -230,7 +230,59 @@ def build_parser() -> argparse.ArgumentParser:
     )
     local_unset.add_argument("keys", nargs="+", metavar="section.key", help="Satu atau lebih key.")
     _add_live_flag(local_unset)
+
+    pipe = sub.add_parser(
+        "pipe-test",
+        help=(
+            "Uji pipa live sekali jalan dengan uang asli berukuran minimum: preflight, "
+            "konfirmasi ketik UJI PIPA, beli market, stop lapis 2 (diverifikasi), tunggu 60 "
+            "detik, batalkan stop lalu jual, verifikasi flat, rekonsiliasi ledger. Satu putaran, "
+            "tidak ada loop, ukuran tidak bisa dinaikkan."
+        ),
+    )
+    _add_live_flag(pipe)
     return parser
+
+
+def _pipe_test(settings: Settings) -> int:
+    from tradebot.exchange.factory import build_adapter
+    from tradebot.ledger import Ledger
+    from tradebot.live.journal import OrderJournal
+    from tradebot.live.pipe_test import PipeTest
+
+    if settings.mode is not TradingMode.LIVE:
+        print(
+            "CONFIG ERROR: pipe-test hanya di mode live (TRADING_MODE=live di .env dan flag "
+            f"{LIVE_FLAG}); di paper atau testnet tidak ada yang dibuktikan.",
+            file=sys.stderr,
+        )
+        return EXIT_CONFIG_ERROR
+    root = settings.root
+    lock_path = root / "state" / f"{settings.mode_dir}run.lock"
+    lock_path.parent.mkdir(parents=True, exist_ok=True)
+    lock_file = open(lock_path, "w")  # noqa: SIM115 (dipegang sepanjang uji)
+    try:
+        fcntl.flock(lock_file, fcntl.LOCK_EX | fcntl.LOCK_NB)
+    except OSError:
+        lock_file.close()
+        print(
+            f"CONFIG ERROR: bot live sedang jalan (kunci {lock_path}); hentikan dulu dengan "
+            "live-stop sebelum uji pipa.",
+            file=sys.stderr,
+        )
+        return EXIT_CONFIG_ERROR
+    try:
+        pipe = PipeTest(
+            settings,
+            build_adapter(settings),
+            _build_risk(settings),
+            OrderJournal(root / settings.live.journal_path),
+            Ledger(root / settings.live.trades_csv),
+        )
+        return pipe.run()
+    finally:
+        fcntl.flock(lock_file, fcntl.LOCK_UN)
+        lock_file.close()
 
 
 def _scrub(message: str, values: Mapping[str, Any]) -> str:
@@ -997,6 +1049,8 @@ def main(argv: Sequence[str] | None = None) -> int:
         return _local_set(settings, args)
     if args.command == "local-unset":
         return _local_unset(settings, args)
+    if args.command == "pipe-test":
+        return _pipe_test(settings)
 
     parser.error(f"perintah tidak dikenal: {args.command}")
     return EXIT_CONFIG_ERROR

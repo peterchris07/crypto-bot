@@ -23,6 +23,8 @@ lalu menunggu tombol ditekan supaya jendelanya tidak langsung tertutup.
 | live-start | preflight, ketik SAYA SIAP, `live.enabled=true`, LaunchAgent `com.tradebot.live` |
 | live-stop | STOP, lepas agent, `live.enabled=false` |
 | live-size | penanda ukuran order live (minimum atau normal) |
+| pipe-test | uji pipa sekali jalan dengan uang asli ukuran minimum: preflight, ketik UJI PIPA, beli, stop lapis 2, tunggu, batal, jual, flat, ledger |
+| check-exchange / ledger-status | cek koneksi dan ledger per mode |
 | backtest | backtest lalu backtest --stress |
 | fetch-data | unduh OHLCV ke cache |
 | tests | `uv run pytest` |
