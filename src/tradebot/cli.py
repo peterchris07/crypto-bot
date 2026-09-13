@@ -14,7 +14,8 @@ import argparse
 import logging
 import os
 import sys
-from collections.abc import Sequence
+from collections.abc import Mapping, Sequence
+from typing import Any
 
 from tradebot import __version__
 from tradebot.config import (
@@ -38,6 +39,20 @@ EXIT_KILL_SWITCH = 6
 EXIT_BIAS_DETECTED = 7
 EXIT_CHECKLIST_INCOMPLETE = 8
 EXIT_PREFLIGHT_FAILED = 9
+
+# Perintah yang hanya membaca catatan dan config: tidak menambah baris ke log bot.
+READ_ONLY_COMMANDS = frozenset(
+    {
+        "check-config",
+        "ledger-status",
+        "status",
+        "paper-checklist",
+        "compare-paper",
+        "live-size",
+        "local-set",
+        "local-unset",
+    }
+)
 
 
 def _add_live_flag(parser: argparse.ArgumentParser) -> None:
@@ -204,17 +219,40 @@ def build_parser() -> argparse.ArgumentParser:
         "assignments", nargs="+", metavar="section.key=nilai", help="Satu atau lebih nilai."
     )
     _add_live_flag(local_set)
+
+    local_unset = sub.add_parser(
+        "local-unset",
+        help=(
+            "Hapus key dari config/local.yaml lalu muat ulang untuk validasi; kalau ditolak, "
+            "file dikembalikan. Juga jalan saat overlay rusak, supaya bisa diperbaiki."
+        ),
+    )
+    local_unset.add_argument("keys", nargs="+", metavar="section.key", help="Satu atau lebih key.")
+    _add_live_flag(local_unset)
     return parser
+
+
+def _scrub(message: str, values: Mapping[str, Any]) -> str:
+    """Nilai yang ditolak bisa saja kunci yang salah tempel: jangan pernah dipantulkan."""
+    for key, value in values.items():
+        text = str(value)
+        if len(text) >= 4:
+            message = message.replace(text, f"<nilai {key}>")
+    return message
 
 
 def _local_set(settings: Settings, args: argparse.Namespace) -> int:
     from tradebot.localconfig import LOCAL_CONFIG_NAME, parse_assignment, set_local_values
 
-    try:
-        values = dict(parse_assignment(text) for text in args.assignments)
-    except ValueError as exc:
-        print(f"CONFIG ERROR: {exc}", file=sys.stderr)
-        return EXIT_CONFIG_ERROR
+    values: dict[str, Any] = {}
+    for text in args.assignments:
+        try:
+            key, value = parse_assignment(text)
+        except ValueError as exc:
+            raw = text.split("=", 1)[-1]
+            print(f"CONFIG ERROR: {_scrub(str(exc), {'?': raw})}", file=sys.stderr)
+            return EXIT_CONFIG_ERROR
+        values[key] = value
     forbidden = [
         k
         for k in values
@@ -229,24 +267,46 @@ def _local_set(settings: Settings, args: argparse.Namespace) -> int:
         )
         return EXIT_CONFIG_ERROR
 
-    path = settings.root / "config" / LOCAL_CONFIG_NAME
+    config_dir = settings.config_path.parent
+    path = config_dir / LOCAL_CONFIG_NAME
     backup = path.read_bytes() if path.exists() else None
     try:
-        set_local_values(settings.root, values)
-        load_settings(
-            settings.config_path,
-            i_know_what_im_doing=args.i_know_what_im_doing,
-        )
+        set_local_values(config_dir, values)
+        load_settings(settings.config_path, i_know_what_im_doing=args.i_know_what_im_doing)
     except ConfigError as exc:
+        if backup is None:
+            path.unlink(missing_ok=True)
+        else:
+            path.write_bytes(backup)
+        print(
+            f"CONFIG ERROR: {_scrub(str(exc), values)}; {LOCAL_CONFIG_NAME} dikembalikan",
+            file=sys.stderr,
+        )
+        return EXIT_CONFIG_ERROR
+    print(f"ditulis ke {path}:")
+    for key, value in values.items():
+        shown = value if not isinstance(value, str) or len(value) <= 24 else "<teks panjang>"
+        print(f"  {key}: {shown}")
+    return EXIT_OK
+
+
+def _local_unset(settings: Settings, args: argparse.Namespace) -> int:
+    from tradebot.localconfig import LOCAL_CONFIG_NAME, unset_local_values
+
+    config_dir = settings.config_path.parent
+    path = config_dir / LOCAL_CONFIG_NAME
+    backup = path.read_bytes() if path.exists() else None
+    try:
+        unset_local_values(config_dir, args.keys)
+        load_settings(settings.config_path, i_know_what_im_doing=args.i_know_what_im_doing)
+    except (ConfigError, ValueError) as exc:
         if backup is None:
             path.unlink(missing_ok=True)
         else:
             path.write_bytes(backup)
         print(f"CONFIG ERROR: {exc}; {LOCAL_CONFIG_NAME} dikembalikan", file=sys.stderr)
         return EXIT_CONFIG_ERROR
-    print(f"ditulis ke {path}:")
-    for key, value in values.items():
-        print(f"  {key}: {value}")
+    print(f"dihapus dari {path}: {', '.join(args.keys)}")
     return EXIT_OK
 
 
@@ -372,6 +432,22 @@ def _status(settings: Settings) -> int:
         print(f"proses: supervisor pid {pid} {'HIDUP' if alive else 'MATI (pid file basi)'}")
     else:
         print(f"proses: supervisor tidak berjalan (tidak ada state/{sup_name}.pid)")
+    # Mode lain yang sedang jalan harus terlihat: setelah live-setup, .env berisi
+    # TRADING_MODE=live, jadi status.command menampilkan catatan live walau yang jalan paper.
+    for other in ("paper", "testnet", "live"):
+        if other == settings.mode.value:
+            continue
+        other_pid = root / "state" / f"{other}_supervisor.pid"
+        if other_pid.exists():
+            try:
+                os.kill(int(other_pid.read_text().strip()), 0)
+            except (OSError, ValueError):
+                continue
+            other_pid_text = other_pid.read_text().strip()
+            print(
+                f"PERHATIAN: supervisor {other} sedang HIDUP (pid {other_pid_text}); "
+                f"status ini menampilkan catatan {settings.mode.value}, bukan {other}"
+            )
     supervisor_state = root / "state" / f"{sup_name}.json"
     if supervisor_state.exists():
         try:
@@ -387,7 +463,7 @@ def _status(settings: Settings) -> int:
             if restarts > 0:
                 line += (
                     "; PERHATIAN: mulai ulang berarti bot pernah mati karena error, "
-                    "lihat logs/paper.out"
+                    f"lihat logs/{settings.mode.value}.out"
                 )
             print(line)
         except (OSError, ValueError) as exc:
@@ -853,13 +929,19 @@ def main(argv: Sequence[str] | None = None) -> int:
             args.config,
             i_know_what_im_doing=getattr(args, "i_know_what_im_doing", False),
             environ=environ,
+            # overlay yang rusak harus tetap bisa diperbaiki lewat local-set/local-unset
+            ignore_local=args.command in ("local-set", "local-unset"),
         )
     except ConfigError as exc:
         print(f"CONFIG ERROR: {exc}", file=sys.stderr)
         return EXIT_CONFIG_ERROR
 
-    logger = setup_logging(settings)
-    log_startup_banner(logger, settings)
+    # Perintah baca-saja tidak menulis ke log bot: kalau tidak, "log terakhir" di status
+    # selalu berisi banner status sendiri, bukan baris terakhir bot.
+    read_only = args.command in READ_ONLY_COMMANDS
+    logger = setup_logging(settings, to_file=not read_only)
+    if not read_only:
+        log_startup_banner(logger, settings)
 
     if args.command == "check-config":
         print(describe(settings))
@@ -886,6 +968,8 @@ def main(argv: Sequence[str] | None = None) -> int:
         return _live_size(settings, args.normal, args.minimum)
     if args.command == "local-set":
         return _local_set(settings, args)
+    if args.command == "local-unset":
+        return _local_unset(settings, args)
 
     parser.error(f"perintah tidak dikenal: {args.command}")
     return EXIT_CONFIG_ERROR

@@ -101,17 +101,22 @@ def test_credentials_repr_and_str_never_contain_secret():
     for text in (repr(creds), str(creds), f"{creds}", describe_like(creds)):
         assert "SUPERSECRETVALUE9876" not in text
         assert "abcdEFGHijklMNOP1234" not in text
-        assert "abcd***" in text
+        # tidak satu karakter pun dari kunci: hanya panjangnya
+        assert "abcd" not in text and "***(20 karakter)" in text
 
 
 def describe_like(creds: Credentials) -> str:
     return f"kunci: {creds!r}"
 
 
-def test_mask_secret_short_values_are_fully_hidden():
-    assert mask_secret("short") == "***"
-    assert mask_secret("12345678") == "***"
-    assert mask_secret("123456789") == "1234***"
+def test_mask_secret_never_reveals_any_character_of_the_value():
+    """Empat karakter pertama pun tidak boleh bocor ke layar, log, atau logs/*.out."""
+    assert mask_secret("short") == "***(5 karakter)"
+    assert mask_secret("abcdefghij") == "***(10 karakter)"
+    value = "Zq8LmN3vR7tYwX2pKc9HbD4F"
+    masked = mask_secret(value)
+    assert masked == "***(24 karakter)"
+    assert all(value[i : i + 2] not in masked for i in range(len(value) - 1))
 
 
 def test_read_env_process_environment_wins_over_dotenv(tmp_path: Path):
@@ -289,7 +294,7 @@ def test_describe_masks_credentials(project_dir: Path, config_path: Path):
     text = describe(load_settings(config_path, environ={}))
     assert "neverprintthis0000" not in text
     assert "visiblekeyprefix9999" not in text
-    assert "visi***" in text
+    assert "visi" not in text and "***(20 karakter)" in text
     assert "mode: testnet" in text
 
 
@@ -412,7 +417,8 @@ def test_local_overlay_is_optional_and_merged_over_default(project_dir: Path, co
     # yang tidak disebut overlay tetap dari default.yaml
     assert settings.risk.max_position_fraction == 0.25
     assert settings.strategy.fast_period == 20
-    assert "config lokal: " in describe(settings)
+    assert f"config lokal: {project_dir / 'config' / 'local.yaml'}" in describe(settings)
+    assert "config lokal: tidak ada" in describe(base)
 
 
 def test_local_overlay_unknown_key_is_refused_with_its_path(project_dir: Path, config_path: Path):
@@ -506,3 +512,24 @@ def test_real_default_yaml_separates_live_state_from_paper():
         assert "/live/" in live_value or live_value.endswith("/live"), (section, key, live_value)
     # STOP tetap satu untuk semua mode: menghentikan apa pun yang jalan
     assert paper.stop_file_path == live.stop_file_path
+
+
+@pytest.mark.parametrize(
+    ("section", "key", "value"),
+    [
+        ("risk", "stop_file", "{mode_dir}STOP"),
+        ("data", "cache_dir", "data/{mode_dir}"),
+        ("exchange", "symbol", "{mode_dir}BTC/USDT"),
+    ],
+)
+def test_placeholder_outside_mode_path_fields_is_refused(project_dir: Path, section, key, value):
+    """{mode_dir} yang diam-diam tinggal literal akan mematikan STOP atau cache; tolak keras."""
+    path = _write_config(project_dir, lambda raw: raw[section].__setitem__(key, value))
+    with pytest.raises(ConfigError, match=rf"{section}\.{key}.*mode_dir"):
+        load_settings(path, environ={})
+
+
+def test_logging_dir_must_not_be_empty(project_dir: Path):
+    path = _write_config(project_dir, lambda raw: raw["logging"].__setitem__("dir", ""))
+    with pytest.raises(ConfigError, match="logging.dir"):
+        load_settings(path, environ={})

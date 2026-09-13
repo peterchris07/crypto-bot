@@ -62,7 +62,9 @@ def test_secrets_are_masked_in_console_and_file(project_dir: Path, config_path: 
         assert key not in text
         assert secret not in text
         assert "***" in text
-        assert "AKIA***" in text, "banner boleh menampilkan 4 karakter pertama kunci"
+        assert "AKIA" not in text and "***(24 karakter)" in text, (
+            "banner tidak menampilkan satu karakter pun dari kunci, hanya panjangnya"
+        )
 
 
 def test_banner_states_mode_symbol_and_costs(config_path: Path):

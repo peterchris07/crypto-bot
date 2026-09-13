@@ -104,8 +104,8 @@ def credential_env_vars(venue_id: str, sandbox: bool) -> tuple[str, str]:
 def mask_secret(value: str) -> str:
     """Tampilkan 4 karakter pertama saja: cukup untuk membedakan kunci, tidak untuk dipakai."""
     if len(value) <= 8:
-        return "***"
-    return value[:4] + "***"
+        return f"***({len(value)} karakter)"
+    return f"***({len(value)} karakter)"
 
 
 @dataclass(frozen=True)
@@ -472,7 +472,28 @@ def _expand_mode_paths(settings: Settings) -> Settings:
             updates[section] = dataclasses.replace(
                 cfg, **{key: value.replace("{mode_dir}", settings.mode_dir)}
             )
-    return dataclasses.replace(settings, **updates) if updates else settings
+    result = dataclasses.replace(settings, **updates) if updates else settings
+    # Placeholder di field lain tidak boleh diam-diam tinggal literal: {mode_dir}STOP sebagai
+    # risk.stop_file akan membuat file STOP tidak pernah menghentikan bot.
+    allowed = set(MODE_PATH_FIELDS)
+    for section in ("exchange", "data", "strategy", "risk", "costs", "backtest", "live", "logging"):
+        _refuse_placeholders(getattr(result, section), section, allowed)
+    return result
+
+
+def _refuse_placeholders(cfg: Any, path: str, allowed: set[tuple[str, str]]) -> None:
+    section = path.split(".", 1)[0]
+    for f in fields(cfg):
+        value = getattr(cfg, f.name)
+        child = f"{path}.{f.name}"
+        if is_dataclass(value):
+            _refuse_placeholders(value, child, allowed)
+        elif isinstance(value, str) and (section, f.name) not in allowed and "{" in value:
+            for name in _PLACEHOLDER.findall(value):
+                raise ConfigError(
+                    f"{child}: placeholder {{{name}}} tidak berlaku di field ini; hanya "
+                    + ", ".join(f"{s}.{k}" for s, k in MODE_PATH_FIELDS)
+                )
 
 
 def _check(condition: bool, message: str) -> None:
@@ -620,6 +641,7 @@ def validate(settings: Settings) -> None:
         level in {"DEBUG", "INFO", "WARNING", "ERROR"},
         f"logging.level harus DEBUG, INFO, WARNING, atau ERROR, dapat {settings.logging.level!r}",
     )
+    _check(bool(settings.logging.dir.strip()), "logging.dir tidak boleh kosong")
 
 
 def load_settings(
@@ -628,8 +650,12 @@ def load_settings(
     i_know_what_im_doing: bool = False,
     environ: Mapping[str, str] | None = None,
     root: str | Path | None = None,
+    ignore_local: bool = False,
 ) -> Settings:
     """Muat dan validasi semua konfigurasi.
+
+    ignore_local=True melewati config/local.yaml; dipakai perintah local-set dan local-unset
+    supaya overlay yang rusak masih bisa diperbaiki lewat perintah, bukan diedit tangan.
 
     root adalah folder project: tempat .env, file STOP, dan folder data/logs/state.
     Kalau tidak diberikan, diambil dari lokasi file config: <root>/config/default.yaml.
@@ -671,7 +697,7 @@ def load_settings(
     # Overlay pemilik di folder yang sama dengan config utama; tidak di-commit. Hanya boleh
     # menimpa key yang sudah ada, tidak bisa menambah section atau key baru.
     local_path: Path | None = config_path.parent / LOCAL_CONFIG_NAME
-    if local_path is not None and local_path.is_file():
+    if local_path is not None and local_path.is_file() and not ignore_local:
         raw = _merge(raw, _read_local_overlay(local_path, sections))
     else:
         local_path = None

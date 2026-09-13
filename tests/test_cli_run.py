@@ -188,6 +188,57 @@ def test_backtest_ignores_trading_mode_like_fetch_data(
     assert "fetch-data" in err
 
 
+def test_status_warns_when_the_other_modes_supervisor_is_alive_and_names_its_log(
+    project_dir: Path, config_path: Path, fake_public, capsys, monkeypatch
+):
+    import json
+    import os
+
+    monkeypatch.setenv("TRADING_MODE", "live")
+    monkeypatch.setenv("TOKOCRYPTO_API_KEY", "k" * 20)
+    monkeypatch.setenv("TOKOCRYPTO_API_SECRET", "s" * 20)
+    (project_dir / "state").mkdir(exist_ok=True)
+    # pid proses ini sendiri: pasti hidup
+    (project_dir / "state" / "paper_supervisor.pid").write_text(f"{os.getpid()}\n")
+    (project_dir / "state" / "live_supervisor.json").write_text(
+        json.dumps(
+            {
+                "mode": "live",
+                "started_at": "2026-09-13T10:00:00Z",
+                "restarts": 1,
+                "max_restarts": 10,
+                "last_restart": "2026-09-13T11:00:00Z",
+                "last_exit_code": 3,
+                "updated_at": "2026-09-13T11:00:00Z",
+                "running": True,
+            }
+        )
+    )
+    code = cli.main(["--config", str(config_path), "status", "--i-know-what-im-doing"])
+    out = capsys.readouterr().out
+    assert code == cli.EXIT_OK, out
+    assert "PERHATIAN: supervisor paper sedang HIDUP" in out
+    assert "catatan live" in out
+    assert "lihat logs/live.out" in out and "logs/paper.out" not in out
+
+
+def test_read_only_commands_do_not_append_their_banner_to_the_bot_log(
+    project_dir: Path, config_path: Path, fake_public, capsys
+):
+    assert cli.main(["--config", str(config_path), "run", "--iterations", "1"]) == cli.EXIT_OK
+    log_file = project_dir / "logs" / "tradebot.log"
+    last_line = log_file.read_text().splitlines()[-1]
+    capsys.readouterr()
+    for command in (["status"], ["ledger-status"], ["paper-checklist"], ["check-config"]):
+        cli.main(["--config", str(config_path), *command])
+        capsys.readouterr()
+        assert log_file.read_text().splitlines()[-1] == last_line, command
+    code = cli.main(["--config", str(config_path), "status"])
+    out = capsys.readouterr().out
+    assert code == cli.EXIT_OK
+    assert f"log terakhir: {last_line}" in out
+
+
 def test_run_rejects_zero_iterations(project_dir: Path, config_path: Path, fake_public, capsys):
     assert (
         cli.main(["--config", str(config_path), "run", "--iterations", "0"])
