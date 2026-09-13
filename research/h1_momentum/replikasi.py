@@ -163,13 +163,14 @@ def main():
     for step in (14, 28):
         r = run(close, qvol, step)
         out[f"rebalance_{step}d"] = r
+        t5, b20 = r["top5"], r["basket20"]
         print(
-            f"{step:2d}d: mulai {r['start']}, {r['rebalances']} rebalance, rotasi {r['avg_rotation']:.2f}; "
-            f"top5 CAGR {r['top5']['cagr']:.1%} (kum {r['top5']['cum']:.1%}, MDD {r['top5']['mdd']:.1%}); "
-            f"basket CAGR {r['basket20']['cagr']:.1%} (kum {r['basket20']['cum']:.1%}, MDD {r['basket20']['mdd']:.1%}); "
-            f"BTC CAGR {r['btc']['cagr']:.1%}; selisih/thn {r['top5']['cagr'] - r['basket20']['cagr']:+.1%}; "
-            f"LUNA di top-5 pada {r['luna_top5_dates']}"
+            f"{step:2d}d: mulai {r['start']}, {r['rebalances']} rebalance, rotasi {r['avg_rotation']:.2f}"
         )
+        print(f"  top5 CAGR {t5['cagr']:.1%} (kum {t5['cum']:.1%}, MDD {t5['mdd']:.1%})")
+        print(f"  basket CAGR {b20['cagr']:.1%} (kum {b20['cum']:.1%}, MDD {b20['mdd']:.1%})")
+        print(f"  BTC CAGR {r['btc']['cagr']:.1%}; selisih/thn {t5['cagr'] - b20['cagr']:+.1%}")
+        print(f"  LUNA di top-5 pada {r['luna_top5_dates']}")
     Path(sys.argv[1] if len(sys.argv) > 1 else "replikasi_hasil.json").write_text(
         json.dumps(out, indent=1)
     )
