@@ -1,0 +1,212 @@
+[
+ {
+  "symbol": "BTCUSDT",
+  "quote_volume_30d": 37953659085.52247,
+  "days": 30,
+  "missing": [],
+  "first_bar": "2017-08-17"
+ },
+ {
+  "symbol": "ETHUSDT",
+  "quote_volume_30d": 22891805905.035465,
+  "days": 30,
+  "missing": [],
+  "first_bar": "2017-08-17"
+ },
+ {
+  "symbol": "SOLUSDT",
+  "quote_volume_30d": 8081637146.278891,
+  "days": 30,
+  "missing": [],
+  "first_bar": "2020-08-11"
+ },
+ {
+  "symbol": "XRPUSDT",
+  "quote_volume_30d": 6568021283.85275,
+  "days": 30,
+  "missing": [],
+  "first_bar": "2018-05-04"
+ },
+ {
+  "symbol": "ZECUSDT",
+  "quote_volume_30d": 5835079259.77426,
+  "days": 30,
+  "missing": [],
+  "first_bar": "2019-03-21"
+ },
+ {
+  "symbol": "BNBUSDT",
+  "quote_volume_30d": 3272293170.4059396,
+  "days": 30,
+  "missing": [],
+  "first_bar": "2017-11-06"
+ },
+ {
+  "symbol": "DOGEUSDT",
+  "quote_volume_30d": 2104743492.0399296,
+  "days": 30,
+  "missing": [],
+  "first_bar": "2019-07-05"
+ },
+ {
+  "symbol": "SUIUSDT",
+  "quote_volume_30d": 1561310830.2597902,
+  "days": 30,
+  "missing": [],
+  "first_bar": "2023-05-03"
+ },
+ {
+  "symbol": "ENAUSDT",
+  "quote_volume_30d": 1402578909.1325328,
+  "days": 30,
+  "missing": [],
+  "first_bar": "2024-04-02"
+ },
+ {
+  "symbol": "TRUMPUSDT",
+  "quote_volume_30d": 1303017594.757887,
+  "days": 30,
+  "missing": [],
+  "first_bar": "2025-01-19"
+ },
+ {
+  "symbol": "UNIUSDT",
+  "quote_volume_30d": 1296347071.3701801,
+  "days": 30,
+  "missing": [],
+  "first_bar": "2020-09-17"
+ },
+ {
+  "symbol": "NEARUSDT",
+  "quote_volume_30d": 1274992391.6365004,
+  "days": 30,
+  "missing": [],
+  "first_bar": "2020-10-14"
+ },
+ {
+  "symbol": "XPLUSDT",
+  "quote_volume_30d": 1203016604.7074041,
+  "days": 30,
+  "missing": [],
+  "first_bar": "2025-09-25"
+ },
+ {
+  "symbol": "PUMPUSDT",
+  "quote_volume_30d": 1121489486.0007463,
+  "days": 30,
+  "missing": [],
+  "first_bar": "2025-09-11"
+ },
+ {
+  "symbol": "REUSDT",
+  "quote_volume_30d": 1068973110.5074302,
+  "days": 30,
+  "missing": [],
+  "first_bar": "2026-06-18"
+ },
+ {
+  "symbol": "PEPEUSDT",
+  "quote_volume_30d": 1044195047.2552874,
+  "days": 30,
+  "missing": [],
+  "first_bar": "2023-05-05"
+ },
+ {
+  "symbol": "LINKUSDT",
+  "quote_volume_30d": 1043869933.6304903,
+  "days": 30,
+  "missing": [],
+  "first_bar": "2019-01-16"
+ },
+ {
+  "symbol": "ADAUSDT",
+  "quote_volume_30d": 946676503.1386,
+  "days": 30,
+  "missing": [],
+  "first_bar": "2018-04-17"
+ },
+ {
+  "symbol": "TRXUSDT",
+  "quote_volume_30d": 944520074.1329901,
+  "days": 30,
+  "missing": [],
+  "first_bar": "2018-06-11"
+ },
+ {
+  "symbol": "SNDKBUSDT",
+  "quote_volume_30d": 826795108.5149809,
+  "days": 30,
+  "missing": [],
+  "first_bar": "2026-06-11"
+ },
+ {
+  "symbol": "UUSDT",
+  "quote_volume_30d": 766676434.9352,
+  "days": 30,
+  "missing": [],
+  "first_bar": "2026-01-13"
+ },
+ {
+  "symbol": "TUTUSDT",
+  "quote_volume_30d": 764074774.83203,
+  "days": 30,
+  "missing": [],
+  "first_bar": "2025-03-27"
+ },
+ {
+  "symbol": "PROMUSDT",
+  "quote_volume_30d": 741879679.88403,
+  "days": 30,
+  "missing": [],
+  "first_bar": "2023-03-17"
+ },
+ {
+  "symbol": "WLDUSDT",
+  "quote_volume_30d": 718505611.2772601,
+  "days": 30,
+  "missing": [],
+  "first_bar": "2023-07-24"
+ },
+ {
+  "symbol": "TAOUSDT",
+  "quote_volume_30d": 711279677.8341101,
+  "days": 30,
+  "missing": [],
+  "first_bar": "2024-04-11"
+ },
+ {
+  "symbol": "PYTHUSDT",
+  "quote_volume_30d": 699448717.1266102,
+  "days": 30,
+  "missing": [],
+  "first_bar": "2024-02-02"
+ },
+ {
+  "symbol": "ARBUSDT",
+  "quote_volume_30d": 657337681.17048,
+  "days": 30,
+  "missing": [],
+  "first_bar": "2023-03-23"
+ },
+ {
+  "symbol": "DASHUSDT",
+  "quote_volume_30d": 584702213.78732,
+  "days": 30,
+  "missing": [],
+  "first_bar": "2019-03-28"
+ },
+ {
+  "symbol": "LTCUSDT",
+  "quote_volume_30d": 574202232.4464699,
+  "days": 30,
+  "missing": [],
+  "first_bar": "2017-12-13"
+ },
+ {
+  "symbol": "AVAXUSDT",
+  "quote_volume_30d": 572362349.25076,
+  "days": 30,
+  "missing": [],
+  "first_bar": "2020-09-22"
+ }
+]

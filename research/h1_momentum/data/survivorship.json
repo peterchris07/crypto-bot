@@ -1,0 +1,224 @@
+[
+ {
+  "month": "2021-12",
+  "usdt_pairs_then": 301,
+  "delisted_since_all": 132,
+  "top20": [
+   "BTCUSDT",
+   "ETHUSDT",
+   "BNBUSDT",
+   "LUNAUSDT",
+   "MATICUSDT",
+   "SANDUSDT",
+   "SHIBUSDT",
+   "SOLUSDT",
+   "GALAUSDT",
+   "AVAXUSDT",
+   "XRPUSDT",
+   "DOTUSDT",
+   "ADAUSDT",
+   "DOGEUSDT",
+   "MANAUSDT",
+   "FTMUSDT",
+   "NEARUSDT",
+   "TRXUSDT",
+   "FILUSDT",
+   "GXSUSDT"
+  ],
+  "top20_delisted_since": [
+   "MATICUSDT",
+   "FTMUSDT",
+   "GXSUSDT"
+  ],
+  "top50_delisted_since": [
+   "MATICUSDT",
+   "FTMUSDT",
+   "GXSUSDT",
+   "MBOXUSDT",
+   "CTXCUSDT",
+   "EOSUSDT",
+   "BTTUSDT",
+   "VOXELUSDT",
+   "LRCUSDT",
+   "OMGUSDT",
+   "COSUSDT",
+   "NULSUSDT"
+  ]
+ },
+ {
+  "month": "2022-12",
+  "usdt_pairs_then": 322,
+  "delisted_since_all": 128,
+  "top20": [
+   "BTCUSDT",
+   "ETHUSDT",
+   "DOGEUSDT",
+   "XRPUSDT",
+   "BNBUSDT",
+   "LTCUSDT",
+   "MATICUSDT",
+   "SOLUSDT",
+   "HOOKUSDT",
+   "LINKUSDT",
+   "ADAUSDT",
+   "TWTUSDT",
+   "SHIBUSDT",
+   "APEUSDT",
+   "TRXUSDT",
+   "MASKUSDT",
+   "CHZUSDT",
+   "DOTUSDT",
+   "FTMUSDT",
+   "APTUSDT"
+  ],
+  "top20_delisted_since": [
+   "MATICUSDT",
+   "HOOKUSDT",
+   "FTMUSDT"
+  ],
+  "top50_delisted_since": [
+   "MATICUSDT",
+   "HOOKUSDT",
+   "FTMUSDT",
+   "YFIIUSDT",
+   "LEVERUSDT",
+   "XMRUSDT",
+   "WAVESUSDT",
+   "EOSUSDT",
+   "AUDUSDT",
+   "CTXCUSDT",
+   "BNXUSDT"
+  ]
+ },
+ {
+  "month": "2023-12",
+  "usdt_pairs_then": 357,
+  "delisted_since_all": 128,
+  "top20": [
+   "BTCUSDT",
+   "ETHUSDT",
+   "SOLUSDT",
+   "ORDIUSDT",
+   "BNBUSDT",
+   "AVAXUSDT",
+   "XRPUSDT",
+   "DOGEUSDT",
+   "1000SATSUSDT",
+   "ADAUSDT",
+   "OPUSDT",
+   "MATICUSDT",
+   "ARBUSDT",
+   "JTOUSDT",
+   "TIAUSDT",
+   "LINKUSDT",
+   "LUNCUSDT",
+   "INJUSDT",
+   "NEARUSDT",
+   "SEIUSDT"
+  ],
+  "top20_delisted_since": [
+   "MATICUSDT"
+  ],
+  "top50_delisted_since": [
+   "MATICUSDT",
+   "BAKEUSDT",
+   "FTMUSDT",
+   "RNDRUSDT"
+  ]
+ },
+ {
+  "month": "2024-12",
+  "usdt_pairs_then": 384,
+  "delisted_since_all": 97,
+  "top20": [
+   "BTCUSDT",
+   "ETHUSDT",
+   "XRPUSDT",
+   "DOGEUSDT",
+   "SOLUSDT",
+   "PEPEUSDT",
+   "BNBUSDT",
+   "SUIUSDT",
+   "TRXUSDT",
+   "ADAUSDT",
+   "HBARUSDT",
+   "LINKUSDT",
+   "SHIBUSDT",
+   "PNUTUSDT",
+   "USUALUSDT",
+   "AVAXUSDT",
+   "ENAUSDT",
+   "WLDUSDT",
+   "NEIROUSDT",
+   "LTCUSDT"
+  ],
+  "top20_delisted_since": [],
+  "top50_delisted_since": [
+   "FTMUSDT"
+  ]
+ },
+ {
+  "month": "2025-12",
+  "usdt_pairs_then": 425,
+  "delisted_since_all": 43,
+  "top20": [
+   "BTCUSDT",
+   "ETHUSDT",
+   "SOLUSDT",
+   "ZECUSDT",
+   "XRPUSDT",
+   "BNBUSDT",
+   "DOGEUSDT",
+   "SUIUSDT",
+   "ASTERUSDT",
+   "TRXUSDT",
+   "ADAUSDT",
+   "ATUSDT",
+   "LINKUSDT",
+   "AVAXUSDT",
+   "BCHUSDT",
+   "PEPEUSDT",
+   "LUNCUSDT",
+   "UNIUSDT",
+   "ENAUSDT",
+   "LUNAUSDT"
+  ],
+  "top20_delisted_since": [],
+  "top50_delisted_since": [
+   "TONUSDT"
+  ]
+ },
+ {
+  "month": "2026-06",
+  "usdt_pairs_then": 427,
+  "delisted_since_all": 9,
+  "top20": [
+   "BTCUSDT",
+   "ETHUSDT",
+   "SOLUSDT",
+   "ZECUSDT",
+   "WLDUSDT",
+   "XRPUSDT",
+   "BNBUSDT",
+   "NEARUSDT",
+   "DOGEUSDT",
+   "XLMUSDT",
+   "TAOUSDT",
+   "TRXUSDT",
+   "SUIUSDT",
+   "XPLUSDT",
+   "ADAUSDT",
+   "ENAUSDT",
+   "MEGAUSDT",
+   "UUSDT",
+   "REUSDT",
+   "TONUSDT"
+  ],
+  "top20_delisted_since": [
+   "TONUSDT"
+  ],
+  "top50_delisted_since": [
+   "TONUSDT"
+  ]
+ }
+]

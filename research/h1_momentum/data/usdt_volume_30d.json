@@ -1,0 +1,688 @@
+[
+ {
+  "symbol": "USDCUSDT",
+  "quote_volume_30d": 75808771692.67445,
+  "days": 30,
+  "missing": []
+ },
+ {
+  "symbol": "BTCUSDT",
+  "quote_volume_30d": 37953659085.52247,
+  "days": 30,
+  "missing": []
+ },
+ {
+  "symbol": "ETHUSDT",
+  "quote_volume_30d": 22891805905.035465,
+  "days": 30,
+  "missing": []
+ },
+ {
+  "symbol": "SOLUSDT",
+  "quote_volume_30d": 8081637146.278891,
+  "days": 30,
+  "missing": []
+ },
+ {
+  "symbol": "XRPUSDT",
+  "quote_volume_30d": 6568021283.85275,
+  "days": 30,
+  "missing": []
+ },
+ {
+  "symbol": "USD1USDT",
+  "quote_volume_30d": 5876225037.73942,
+  "days": 30,
+  "missing": []
+ },
+ {
+  "symbol": "ZECUSDT",
+  "quote_volume_30d": 5835079259.77426,
+  "days": 30,
+  "missing": []
+ },
+ {
+  "symbol": "BNBUSDT",
+  "quote_volume_30d": 3272293170.4059396,
+  "days": 30,
+  "missing": []
+ },
+ {
+  "symbol": "RLUSDUSDT",
+  "quote_volume_30d": 2142423430.5814998,
+  "days": 30,
+  "missing": []
+ },
+ {
+  "symbol": "DOGEUSDT",
+  "quote_volume_30d": 2104743492.0399296,
+  "days": 30,
+  "missing": []
+ },
+ {
+  "symbol": "TUTUSDT",
+  "quote_volume_30d": 764074774.83203,
+  "days": 30,
+  "missing": []
+ },
+ {
+  "symbol": "SNDKBUSDT",
+  "quote_volume_30d": 826795108.5149809,
+  "days": 30,
+  "missing": []
+ },
+ {
+  "symbol": "XPLUSDT",
+  "quote_volume_30d": 1203016604.7074041,
+  "days": 30,
+  "missing": []
+ },
+ {
+  "symbol": "REUSDT",
+  "quote_volume_30d": 1068973110.5074302,
+  "days": 30,
+  "missing": []
+ },
+ {
+  "symbol": "ENAUSDT",
+  "quote_volume_30d": 1402578909.1325328,
+  "days": 30,
+  "missing": []
+ },
+ {
+  "symbol": "TRUMPUSDT",
+  "quote_volume_30d": 1303017594.757887,
+  "days": 30,
+  "missing": []
+ },
+ {
+  "symbol": "SUIUSDT",
+  "quote_volume_30d": 1561310830.2597902,
+  "days": 30,
+  "missing": []
+ },
+ {
+  "symbol": "TRXUSDT",
+  "quote_volume_30d": 944520074.1329901,
+  "days": 30,
+  "missing": []
+ },
+ {
+  "symbol": "PUMPUSDT",
+  "quote_volume_30d": 1121489486.0007463,
+  "days": 30,
+  "missing": []
+ },
+ {
+  "symbol": "PEPEUSDT",
+  "quote_volume_30d": 1044195047.2552874,
+  "days": 30,
+  "missing": []
+ },
+ {
+  "symbol": "ADAUSDT",
+  "quote_volume_30d": 946676503.1386,
+  "days": 30,
+  "missing": []
+ },
+ {
+  "symbol": "LINKUSDT",
+  "quote_volume_30d": 1043869933.6304903,
+  "days": 30,
+  "missing": []
+ },
+ {
+  "symbol": "SPCXBUSDT",
+  "quote_volume_30d": 403080343.7225101,
+  "days": 30,
+  "missing": []
+ },
+ {
+  "symbol": "NEARUSDT",
+  "quote_volume_30d": 1274992391.6365004,
+  "days": 30,
+  "missing": []
+ },
+ {
+  "symbol": "XAUTUSDT",
+  "quote_volume_30d": 690758655.928001,
+  "days": 30,
+  "missing": []
+ },
+ {
+  "symbol": "UUSDT",
+  "quote_volume_30d": 766676434.9352,
+  "days": 30,
+  "missing": []
+ },
+ {
+  "symbol": "PYTHUSDT",
+  "quote_volume_30d": 699448717.1266102,
+  "days": 30,
+  "missing": []
+ },
+ {
+  "symbol": "UNIUSDT",
+  "quote_volume_30d": 1296347071.3701801,
+  "days": 30,
+  "missing": []
+ },
+ {
+  "symbol": "ALLOUSDT",
+  "quote_volume_30d": 525820761.59915006,
+  "days": 30,
+  "missing": []
+ },
+ {
+  "symbol": "ACEUSDT",
+  "quote_volume_30d": 546525589.10136,
+  "days": 30,
+  "missing": []
+ },
+ {
+  "symbol": "FDUSDUSDT",
+  "quote_volume_30d": 666688638.5839,
+  "days": 30,
+  "missing": []
+ },
+ {
+  "symbol": "WLDUSDT",
+  "quote_volume_30d": 718505611.2772601,
+  "days": 30,
+  "missing": []
+ },
+ {
+  "symbol": "MMTUSDT",
+  "quote_volume_30d": 163738026.1479801,
+  "days": 30,
+  "missing": []
+ },
+ {
+  "symbol": "TAOUSDT",
+  "quote_volume_30d": 711279677.8341101,
+  "days": 30,
+  "missing": []
+ },
+ {
+  "symbol": "BMTUSDT",
+  "quote_volume_30d": 558906625.8215209,
+  "days": 30,
+  "missing": []
+ },
+ {
+  "symbol": "AAVEUSDT",
+  "quote_volume_30d": 541387326.2676898,
+  "days": 30,
+  "missing": []
+ },
+ {
+  "symbol": "AVAXUSDT",
+  "quote_volume_30d": 572362349.25076,
+  "days": 30,
+  "missing": []
+ },
+ {
+  "symbol": "PAXGUSDT",
+  "quote_volume_30d": 464137915.6532839,
+  "days": 30,
+  "missing": []
+ },
+ {
+  "symbol": "PLUMEUSDT",
+  "quote_volume_30d": 435623078.34720004,
+  "days": 30,
+  "missing": []
+ },
+ {
+  "symbol": "LTCUSDT",
+  "quote_volume_30d": 574202232.4464699,
+  "days": 30,
+  "missing": []
+ },
+ {
+  "symbol": "BABYUSDT",
+  "quote_volume_30d": 23445339.78623,
+  "days": 30,
+  "missing": []
+ },
+ {
+  "symbol": "XLMUSDT",
+  "quote_volume_30d": 480989689.64790004,
+  "days": 30,
+  "missing": []
+ },
+ {
+  "symbol": "BICOUSDT",
+  "quote_volume_30d": 157485748.04156825,
+  "days": 30,
+  "missing": []
+ },
+ {
+  "symbol": "ERAUSDT",
+  "quote_volume_30d": 29863892.99933,
+  "days": 30,
+  "missing": []
+ },
+ {
+  "symbol": "EURUSDT",
+  "quote_volume_30d": 370664821.5216,
+  "days": 30,
+  "missing": []
+ },
+ {
+  "symbol": "MIRAUSDT",
+  "quote_volume_30d": 38614598.369266,
+  "days": 30,
+  "missing": []
+ },
+ {
+  "symbol": "HEIUSDT",
+  "quote_volume_30d": 115545197.00398998,
+  "days": 30,
+  "missing": []
+ },
+ {
+  "symbol": "ONDOUSDT",
+  "quote_volume_30d": 387458618.25337994,
+  "days": 30,
+  "missing": []
+ },
+ {
+  "symbol": "CRCLBUSDT",
+  "quote_volume_30d": 365688873.0266,
+  "days": 30,
+  "missing": []
+ },
+ {
+  "symbol": "EURIUSDT",
+  "quote_volume_30d": 250754487.14743,
+  "days": 30,
+  "missing": []
+ },
+ {
+  "symbol": "PENGUUSDT",
+  "quote_volume_30d": 359885914.338751,
+  "days": 30,
+  "missing": []
+ },
+ {
+  "symbol": "SKHYBUSDT",
+  "quote_volume_30d": 188912412.72182,
+  "days": 30,
+  "missing": []
+ },
+ {
+  "symbol": "HEMIUSDT",
+  "quote_volume_30d": 481756077.60753596,
+  "days": 30,
+  "missing": []
+ },
+ {
+  "symbol": "BCHUSDT",
+  "quote_volume_30d": 402216916.3448,
+  "days": 30,
+  "missing": []
+ },
+ {
+  "symbol": "FETUSDT",
+  "quote_volume_30d": 340646867.57401,
+  "days": 30,
+  "missing": []
+ },
+ {
+  "symbol": "ONGUSDT",
+  "quote_volume_30d": 325682339.36583,
+  "days": 30,
+  "missing": []
+ },
+ {
+  "symbol": "MUBUSDT",
+  "quote_volume_30d": 195176370.0556,
+  "days": 30,
+  "missing": []
+ },
+ {
+  "symbol": "BANKUSDT",
+  "quote_volume_30d": 101647569.29683998,
+  "days": 30,
+  "missing": []
+ },
+ {
+  "symbol": "EULUSDT",
+  "quote_volume_30d": 43721232.31783,
+  "days": 30,
+  "missing": []
+ },
+ {
+  "symbol": "GIGGLEUSDT",
+  "quote_volume_30d": 164936740.44448,
+  "days": 30,
+  "missing": []
+ },
+ {
+  "symbol": "PROMUSDT",
+  "quote_volume_30d": 741879679.88403,
+  "days": 30,
+  "missing": []
+ },
+ {
+  "symbol": "HOMEUSDT",
+  "quote_volume_30d": 90263627.63693002,
+  "days": 30,
+  "missing": []
+ },
+ {
+  "symbol": "SNXXBUSDT",
+  "quote_volume_30d": 193380265.39350003,
+  "days": 30,
+  "missing": []
+ },
+ {
+  "symbol": "ASTERUSDT",
+  "quote_volume_30d": 404272508.77255005,
+  "days": 30,
+  "missing": []
+ },
+ {
+  "symbol": "DASHUSDT",
+  "quote_volume_30d": 584702213.78732,
+  "days": 30,
+  "missing": []
+ },
+ {
+  "symbol": "GRAMUSDT",
+  "quote_volume_30d": 253203069.95271006,
+  "days": 30,
+  "missing": []
+ },
+ {
+  "symbol": "WLFIUSDT",
+  "quote_volume_30d": 252805513.43132,
+  "days": 30,
+  "missing": []
+ },
+ {
+  "symbol": "SOXLBUSDT",
+  "quote_volume_30d": 153592522.30792996,
+  "days": 30,
+  "missing": []
+ },
+ {
+  "symbol": "HBARUSDT",
+  "quote_volume_30d": 254978404.82748005,
+  "days": 30,
+  "missing": []
+ },
+ {
+  "symbol": "POLUSDT",
+  "quote_volume_30d": 254025972.35179096,
+  "days": 30,
+  "missing": []
+ },
+ {
+  "symbol": "DEXEUSDT",
+  "quote_volume_30d": 153047742.61639005,
+  "days": 30,
+  "missing": []
+ },
+ {
+  "symbol": "KAITOUSDT",
+  "quote_volume_30d": 106133422.43594001,
+  "days": 30,
+  "missing": []
+ },
+ {
+  "symbol": "FILUSDT",
+  "quote_volume_30d": 244460852.43393102,
+  "days": 30,
+  "missing": []
+ },
+ {
+  "symbol": "INJUSDT",
+  "quote_volume_30d": 252452205.40515,
+  "days": 30,
+  "missing": []
+ },
+ {
+  "symbol": "ENSOUSDT",
+  "quote_volume_30d": 369488714.9745,
+  "days": 30,
+  "missing": []
+ },
+ {
+  "symbol": "ZAMAUSDT",
+  "quote_volume_30d": 156928500.15657002,
+  "days": 30,
+  "missing": []
+ },
+ {
+  "symbol": "ARBUSDT",
+  "quote_volume_30d": 657337681.17048,
+  "days": 30,
+  "missing": []
+ },
+ {
+  "symbol": "ZROUSDT",
+  "quote_volume_30d": 198542160.38693,
+  "days": 30,
+  "missing": []
+ },
+ {
+  "symbol": "TSTUSDT",
+  "quote_volume_30d": 79358734.824381,
+  "days": 30,
+  "missing": []
+ },
+ {
+  "symbol": "EPICUSDT",
+  "quote_volume_30d": 55081042.06130001,
+  "days": 30,
+  "missing": []
+ },
+ {
+  "symbol": "SHIBUSDT",
+  "quote_volume_30d": 151076507.57269093,
+  "days": 30,
+  "missing": []
+ },
+ {
+  "symbol": "MSTRBUSDT",
+  "quote_volume_30d": 225692200.79322,
+  "days": 30,
+  "missing": []
+ },
+ {
+  "symbol": "VIRTUALUSDT",
+  "quote_volume_30d": 174561939.8112801,
+  "days": 30,
+  "missing": []
+ },
+ {
+  "symbol": "ICPUSDT",
+  "quote_volume_30d": 203559051.42397004,
+  "days": 30,
+  "missing": []
+ },
+ {
+  "symbol": "DOTUSDT",
+  "quote_volume_30d": 258060256.32102007,
+  "days": 30,
+  "missing": []
+ },
+ {
+  "symbol": "MUBARAKUSDT",
+  "quote_volume_30d": 118788179.24611104,
+  "days": 30,
+  "missing": []
+ },
+ {
+  "symbol": "CRVUSDT",
+  "quote_volume_30d": 167030267.03594005,
+  "days": 30,
+  "missing": []
+ },
+ {
+  "symbol": "COTIUSDT",
+  "quote_volume_30d": 133792123.46848,
+  "days": 30,
+  "missing": []
+ },
+ {
+  "symbol": "KORUBUSDT",
+  "quote_volume_30d": 79911694.64039998,
+  "days": 30,
+  "missing": []
+ },
+ {
+  "symbol": "EDENUSDT",
+  "quote_volume_30d": 132923262.85711801,
+  "days": 30,
+  "missing": []
+ },
+ {
+  "symbol": "PORTALUSDT",
+  "quote_volume_30d": 146156086.25910804,
+  "days": 30,
+  "missing": []
+ },
+ {
+  "symbol": "ETHFIUSDT",
+  "quote_volume_30d": 182184124.74376002,
+  "days": 30,
+  "missing": []
+ },
+ {
+  "symbol": "BOMEUSDT",
+  "quote_volume_30d": 133503516.98072419,
+  "days": 30,
+  "missing": []
+ },
+ {
+  "symbol": "APTUSDT",
+  "quote_volume_30d": 189430405.99744004,
+  "days": 30,
+  "missing": []
+ },
+ {
+  "symbol": "GPSUSDT",
+  "quote_volume_30d": 134928558.83366498,
+  "days": 30,
+  "missing": []
+ },
+ {
+  "symbol": "CHIPUSDT",
+  "quote_volume_30d": 201481914.31756,
+  "days": 30,
+  "missing": []
+ },
+ {
+  "symbol": "HFTUSDT",
+  "quote_volume_30d": 3148634.7887244998,
+  "days": 5,
+  "missing": [
+   "2026-08-18",
+   "2026-08-19",
+   "2026-08-20",
+   "2026-08-21",
+   "2026-08-22",
+   "2026-08-23",
+   "2026-08-24",
+   "2026-08-25",
+   "2026-08-26",
+   "2026-08-27",
+   "2026-08-28",
+   "2026-08-29",
+   "2026-08-30",
+   "2026-08-31",
+   "2026-09-01",
+   "2026-09-02",
+   "2026-09-03",
+   "2026-09-04",
+   "2026-09-05",
+   "2026-09-06",
+   "2026-09-07",
+   "2026-09-08",
+   "2026-09-09",
+   "2026-09-10",
+   "2026-09-11"
+  ]
+ },
+ {
+  "symbol": "NILUSDT",
+  "quote_volume_30d": 74025472.15709598,
+  "days": 30,
+  "missing": []
+ },
+ {
+  "symbol": "XUSDUSDT",
+  "quote_volume_30d": 111653220.53680001,
+  "days": 30,
+  "missing": []
+ },
+ {
+  "symbol": "QQQBUSDT",
+  "quote_volume_30d": 111091849.38685001,
+  "days": 30,
+  "missing": []
+ },
+ {
+  "symbol": "LDOUSDT",
+  "quote_volume_30d": 106391122.683407,
+  "days": 30,
+  "missing": []
+ },
+ {
+  "symbol": "ROBOUSDT",
+  "quote_volume_30d": 102315263.52506998,
+  "days": 30,
+  "missing": []
+ },
+ {
+  "symbol": "ZBTUSDT",
+  "quote_volume_30d": 29630199.925399996,
+  "days": 30,
+  "missing": []
+ },
+ {
+  "symbol": "RENDERUSDT",
+  "quote_volume_30d": 114807235.80051003,
+  "days": 30,
+  "missing": []
+ },
+ {
+  "symbol": "BONKUSDT",
+  "quote_volume_30d": 118310689.07420526,
+  "days": 30,
+  "missing": []
+ },
+ {
+  "symbol": "SYNUSDT",
+  "quote_volume_30d": 26901044.46113,
+  "days": 30,
+  "missing": []
+ },
+ {
+  "symbol": "\u5e01\u5b89\u4eba\u751fUSDT",
+  "quote_volume_30d": 92092104.36545001,
+  "days": 30,
+  "missing": []
+ },
+ {
+  "symbol": "WBTCUSDT",
+  "quote_volume_30d": 95303363.69251879,
+  "days": 30,
+  "missing": []
+ },
+ {
+  "symbol": "DODOUSDT",
+  "quote_volume_30d": 42858843.462496996,
+  "days": 30,
+  "missing": []
+ },
+ {
+  "symbol": "MORPHOUSDT",
+  "quote_volume_30d": 124607426.38189998,
+  "days": 30,
+  "missing": []
+ }
+]

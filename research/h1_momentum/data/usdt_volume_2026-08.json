@@ -1,0 +1,3930 @@
+[
+ {
+  "symbol": "0GUSDT",
+  "month": "2026-08",
+  "days": 31,
+  "quote_volume": 50440506.355646,
+  "first_open_raw": 1785542400000000,
+  "missing": false
+ },
+ {
+  "symbol": "1000CATUSDT",
+  "month": "2026-08",
+  "days": 31,
+  "quote_volume": 22858441.2281383,
+  "first_open_raw": 1785542400000000,
+  "missing": false
+ },
+ {
+  "symbol": "1000CHEEMSUSDT",
+  "month": "2026-08",
+  "days": 31,
+  "quote_volume": 11827548.357874,
+  "first_open_raw": 1785542400000000,
+  "missing": false
+ },
+ {
+  "symbol": "1000SATSUSDT",
+  "month": "2026-08",
+  "days": 31,
+  "quote_volume": 35371568.94067386,
+  "first_open_raw": 1785542400000000,
+  "missing": false
+ },
+ {
+  "symbol": "1INCHUSDT",
+  "month": "2026-08",
+  "days": 31,
+  "quote_volume": 17823526.96681,
+  "first_open_raw": 1785542400000000,
+  "missing": false
+ },
+ {
+  "symbol": "1MBABYDOGEUSDT",
+  "month": "2026-08",
+  "days": 31,
+  "quote_volume": 15328880.368040297,
+  "first_open_raw": 1785542400000000,
+  "missing": false
+ },
+ {
+  "symbol": "2ZUSDT",
+  "month": "2026-08",
+  "days": 31,
+  "quote_volume": 27775313.06708,
+  "first_open_raw": 1785542400000000,
+  "missing": false
+ },
+ {
+  "symbol": "AAOIBUSDT",
+  "month": "2026-08",
+  "days": 31,
+  "quote_volume": 35301355.75298,
+  "first_open_raw": 1785542400000000,
+  "missing": false
+ },
+ {
+  "symbol": "AAPLBUSDT",
+  "month": "2026-08",
+  "days": 31,
+  "quote_volume": 22083792.375690002,
+  "first_open_raw": 1785542400000000,
+  "missing": false
+ },
+ {
+  "symbol": "AAVEUSDT",
+  "month": "2026-08",
+  "days": 31,
+  "quote_volume": 471078293.96102005,
+  "first_open_raw": 1785542400000000,
+  "missing": false
+ },
+ {
+  "symbol": "ACEUSDT",
+  "month": "2026-08",
+  "days": 31,
+  "quote_volume": 579578481.3118398,
+  "first_open_raw": 1785542400000000,
+  "missing": false
+ },
+ {
+  "symbol": "ACHUSDT",
+  "month": "2026-08",
+  "days": 31,
+  "quote_volume": 13365352.14868,
+  "first_open_raw": 1785542400000000,
+  "missing": false
+ },
+ {
+  "symbol": "ACMUSDT",
+  "month": "2026-08",
+  "days": 31,
+  "quote_volume": 15986251.213,
+  "first_open_raw": 1785542400000000,
+  "missing": false
+ },
+ {
+  "symbol": "ACTUSDT",
+  "month": "2026-08",
+  "days": 31,
+  "quote_volume": 34789437.494896,
+  "first_open_raw": 1785542400000000,
+  "missing": false
+ },
+ {
+  "symbol": "ACXUSDT",
+  "month": "2026-08",
+  "days": 17,
+  "quote_volume": 17359000.115263004,
+  "first_open_raw": 1785542400000000,
+  "missing": false
+ },
+ {
+  "symbol": "ADAUSDT",
+  "month": "2026-08",
+  "days": 31,
+  "quote_volume": 848839620.7842001,
+  "first_open_raw": 1785542400000000,
+  "missing": false
+ },
+ {
+  "symbol": "ADXUSDT",
+  "month": "2026-08",
+  "days": 31,
+  "quote_volume": 15173364.815899998,
+  "first_open_raw": 1785542400000000,
+  "missing": false
+ },
+ {
+  "symbol": "AEROUSDT",
+  "month": "2026-08",
+  "days": 31,
+  "quote_volume": 54469831.69155002,
+  "first_open_raw": 1785542400000000,
+  "missing": false
+ },
+ {
+  "symbol": "AEVOUSDT",
+  "month": "2026-08",
+  "days": 31,
+  "quote_volume": 20962761.8151461,
+  "first_open_raw": 1785542400000000,
+  "missing": false
+ },
+ {
+  "symbol": "AGLDUSDT",
+  "month": "2026-08",
+  "days": 31,
+  "quote_volume": 7059268.633700001,
+  "first_open_raw": 1785542400000000,
+  "missing": false
+ },
+ {
+  "symbol": "AIGENSYNUSDT",
+  "month": "2026-08",
+  "days": 31,
+  "quote_volume": 22885519.408180006,
+  "first_open_raw": 1785542400000000,
+  "missing": false
+ },
+ {
+  "symbol": "AIUSDT",
+  "month": "2026-08",
+  "days": 31,
+  "quote_volume": 12173457.91402,
+  "first_open_raw": 1785542400000000,
+  "missing": false
+ },
+ {
+  "symbol": "AIXBTUSDT",
+  "month": "2026-08",
+  "days": 31,
+  "quote_volume": 19294680.613443002,
+  "first_open_raw": 1785542400000000,
+  "missing": false
+ },
+ {
+  "symbol": "ALABBUSDT",
+  "month": "2026-08",
+  "days": 27,
+  "quote_volume": 3703336.448909999,
+  "first_open_raw": 1785888000000000,
+  "missing": false
+ },
+ {
+  "symbol": "ALGOUSDT",
+  "month": "2026-08",
+  "days": 31,
+  "quote_volume": 57774105.44989999,
+  "first_open_raw": 1785542400000000,
+  "missing": false
+ },
+ {
+  "symbol": "ALICEUSDT",
+  "month": "2026-08",
+  "days": 31,
+  "quote_volume": 57986590.489349015,
+  "first_open_raw": 1785542400000000,
+  "missing": false
+ },
+ {
+  "symbol": "ALLOUSDT",
+  "month": "2026-08",
+  "days": 31,
+  "quote_volume": 609909151.7347801,
+  "first_open_raw": 1785542400000000,
+  "missing": false
+ },
+ {
+  "symbol": "ALPINEUSDT",
+  "month": "2026-08",
+  "days": 31,
+  "quote_volume": 19340090.016240004,
+  "first_open_raw": 1785542400000000,
+  "missing": false
+ },
+ {
+  "symbol": "ALTUSDT",
+  "month": "2026-08",
+  "days": 31,
+  "quote_volume": 18663235.24572,
+  "first_open_raw": 1785542400000000,
+  "missing": false
+ },
+ {
+  "symbol": "AMATBUSDT",
+  "month": "2026-08",
+  "days": 31,
+  "quote_volume": 5350825.6431800015,
+  "first_open_raw": 1785542400000000,
+  "missing": false
+ },
+ {
+  "symbol": "AMDBUSDT",
+  "month": "2026-08",
+  "days": 31,
+  "quote_volume": 22386766.361870002,
+  "first_open_raw": 1785542400000000,
+  "missing": false
+ },
+ {
+  "symbol": "AMPUSDT",
+  "month": "2026-08",
+  "days": 31,
+  "quote_volume": 31558181.637670003,
+  "first_open_raw": 1785542400000000,
+  "missing": false
+ },
+ {
+  "symbol": "AMZNBUSDT",
+  "month": "2026-08",
+  "days": 31,
+  "quote_volume": 3981946.266339999,
+  "first_open_raw": 1785542400000000,
+  "missing": false
+ },
+ {
+  "symbol": "ANIMEUSDT",
+  "month": "2026-08",
+  "days": 31,
+  "quote_volume": 9916441.422783999,
+  "first_open_raw": 1785542400000000,
+  "missing": false
+ },
+ {
+  "symbol": "ANKRUSDT",
+  "month": "2026-08",
+  "days": 31,
+  "quote_volume": 5918561.948367001,
+  "first_open_raw": 1785542400000000,
+  "missing": false
+ },
+ {
+  "symbol": "APEUSDT",
+  "month": "2026-08",
+  "days": 31,
+  "quote_volume": 21633339.165577,
+  "first_open_raw": 1785542400000000,
+  "missing": false
+ },
+ {
+  "symbol": "API3USDT",
+  "month": "2026-08",
+  "days": 31,
+  "quote_volume": 12162698.82278,
+  "first_open_raw": 1785542400000000,
+  "missing": false
+ },
+ {
+  "symbol": "APTUSDT",
+  "month": "2026-08",
+  "days": 31,
+  "quote_volume": 129816041.46222,
+  "first_open_raw": 1785542400000000,
+  "missing": false
+ },
+ {
+  "symbol": "ARBUSDT",
+  "month": "2026-08",
+  "days": 31,
+  "quote_volume": 161765435.56157,
+  "first_open_raw": 1785542400000000,
+  "missing": false
+ },
+ {
+  "symbol": "ARKMUSDT",
+  "month": "2026-08",
+  "days": 31,
+  "quote_volume": 17044749.5908,
+  "first_open_raw": 1785542400000000,
+  "missing": false
+ },
+ {
+  "symbol": "ARKUSDT",
+  "month": "2026-08",
+  "days": 31,
+  "quote_volume": 4519508.596100001,
+  "first_open_raw": 1785542400000000,
+  "missing": false
+ },
+ {
+  "symbol": "ARMBUSDT",
+  "month": "2026-08",
+  "days": 31,
+  "quote_volume": 6540212.43828,
+  "first_open_raw": 1785542400000000,
+  "missing": false
+ },
+ {
+  "symbol": "ARPAUSDT",
+  "month": "2026-08",
+  "days": 31,
+  "quote_volume": 7367555.836893998,
+  "first_open_raw": 1785542400000000,
+  "missing": false
+ },
+ {
+  "symbol": "ARUSDT",
+  "month": "2026-08",
+  "days": 31,
+  "quote_volume": 35138203.00140001,
+  "first_open_raw": 1785542400000000,
+  "missing": false
+ },
+ {
+  "symbol": "ASMLBUSDT",
+  "month": "2026-08",
+  "days": 27,
+  "quote_volume": 3990602.1003810004,
+  "first_open_raw": 1785888000000000,
+  "missing": false
+ },
+ {
+  "symbol": "ASRUSDT",
+  "month": "2026-08",
+  "days": 31,
+  "quote_volume": 6661514.047,
+  "first_open_raw": 1785542400000000,
+  "missing": false
+ },
+ {
+  "symbol": "ASTERUSDT",
+  "month": "2026-08",
+  "days": 31,
+  "quote_volume": 223430007.66523,
+  "first_open_raw": 1785542400000000,
+  "missing": false
+ },
+ {
+  "symbol": "ASTRUSDT",
+  "month": "2026-08",
+  "days": 31,
+  "quote_volume": 5111142.658640901,
+  "first_open_raw": 1785542400000000,
+  "missing": false
+ },
+ {
+  "symbol": "ASTSBUSDT",
+  "month": "2026-08",
+  "days": 27,
+  "quote_volume": 4099594.2688999996,
+  "first_open_raw": 1785888000000000,
+  "missing": false
+ },
+ {
+  "symbol": "ATMUSDT",
+  "month": "2026-08",
+  "days": 31,
+  "quote_volume": 27637347.00724,
+  "first_open_raw": 1785542400000000,
+  "missing": false
+ },
+ {
+  "symbol": "ATOMUSDT",
+  "month": "2026-08",
+  "days": 31,
+  "quote_volume": 62094971.96069,
+  "first_open_raw": 1785542400000000,
+  "missing": false
+ },
+ {
+  "symbol": "ATUSDT",
+  "month": "2026-08",
+  "days": 31,
+  "quote_volume": 28910589.875389997,
+  "first_open_raw": 1785542400000000,
+  "missing": false
+ },
+ {
+  "symbol": "AUCTIONUSDT",
+  "month": "2026-08",
+  "days": 31,
+  "quote_volume": 23531945.46915,
+  "first_open_raw": 1785542400000000,
+  "missing": false
+ },
+ {
+  "symbol": "AUDIOUSDT",
+  "month": "2026-08",
+  "days": 31,
+  "quote_volume": 15228334.144330002,
+  "first_open_raw": 1785542400000000,
+  "missing": false
+ },
+ {
+  "symbol": "AUSDT",
+  "month": "2026-08",
+  "days": 31,
+  "quote_volume": 9401261.47744,
+  "first_open_raw": 1785542400000000,
+  "missing": false
+ },
+ {
+  "symbol": "AVAUSDT",
+  "month": "2026-08",
+  "days": 31,
+  "quote_volume": 7138737.936329999,
+  "first_open_raw": 1785542400000000,
+  "missing": false
+ },
+ {
+  "symbol": "AVAXUSDT",
+  "month": "2026-08",
+  "days": 31,
+  "quote_volume": 455674085.57487,
+  "first_open_raw": 1785542400000000,
+  "missing": false
+ },
+ {
+  "symbol": "AVGOBUSDT",
+  "month": "2026-08",
+  "days": 31,
+  "quote_volume": 8831183.00039,
+  "first_open_raw": 1785542400000000,
+  "missing": false
+ },
+ {
+  "symbol": "AVNTUSDT",
+  "month": "2026-08",
+  "days": 31,
+  "quote_volume": 32607979.71334,
+  "first_open_raw": 1785542400000000,
+  "missing": false
+ },
+ {
+  "symbol": "AWEUSDT",
+  "month": "2026-08",
+  "days": 31,
+  "quote_volume": 7016919.55631,
+  "first_open_raw": 1785542400000000,
+  "missing": false
+ },
+ {
+  "symbol": "AXLUSDT",
+  "month": "2026-08",
+  "days": 31,
+  "quote_volume": 14324730.618703,
+  "first_open_raw": 1785542400000000,
+  "missing": false
+ },
+ {
+  "symbol": "AXSUSDT",
+  "month": "2026-08",
+  "days": 31,
+  "quote_volume": 35163269.81973999,
+  "first_open_raw": 1785542400000000,
+  "missing": false
+ },
+ {
+  "symbol": "AXTIBUSDT",
+  "month": "2026-08",
+  "days": 31,
+  "quote_volume": 43065879.40389999,
+  "first_open_raw": 1785542400000000,
+  "missing": false
+ },
+ {
+  "symbol": "BABABUSDT",
+  "month": "2026-08",
+  "days": 31,
+  "quote_volume": 10246563.06611,
+  "first_open_raw": 1785542400000000,
+  "missing": false
+ },
+ {
+  "symbol": "BABYUSDT",
+  "month": "2026-08",
+  "days": 31,
+  "quote_volume": 410691722.37631005,
+  "first_open_raw": 1785542400000000,
+  "missing": false
+ },
+ {
+  "symbol": "BANANAS31USDT",
+  "month": "2026-08",
+  "days": 31,
+  "quote_volume": 39586782.52472898,
+  "first_open_raw": 1785542400000000,
+  "missing": false
+ },
+ {
+  "symbol": "BANANAUSDT",
+  "month": "2026-08",
+  "days": 31,
+  "quote_volume": 11607266.595613,
+  "first_open_raw": 1785542400000000,
+  "missing": false
+ },
+ {
+  "symbol": "BANDUSDT",
+  "month": "2026-08",
+  "days": 31,
+  "quote_volume": 7340172.9995599985,
+  "first_open_raw": 1785542400000000,
+  "missing": false
+ },
+ {
+  "symbol": "BANKUSDT",
+  "month": "2026-08",
+  "days": 31,
+  "quote_volume": 267241240.05810001,
+  "first_open_raw": 1785542400000000,
+  "missing": false
+ },
+ {
+  "symbol": "BARDUSDT",
+  "month": "2026-08",
+  "days": 31,
+  "quote_volume": 14325270.78984,
+  "first_open_raw": 1785542400000000,
+  "missing": false
+ },
+ {
+  "symbol": "BARUSDT",
+  "month": "2026-08",
+  "days": 31,
+  "quote_volume": 8845715.54501,
+  "first_open_raw": 1785542400000000,
+  "missing": false
+ },
+ {
+  "symbol": "BATUSDT",
+  "month": "2026-08",
+  "days": 31,
+  "quote_volume": 9579615.199399998,
+  "first_open_raw": 1785542400000000,
+  "missing": false
+ },
+ {
+  "symbol": "BBUSDT",
+  "month": "2026-08",
+  "days": 31,
+  "quote_volume": 57486873.25777001,
+  "first_open_raw": 1785542400000000,
+  "missing": false
+ },
+ {
+  "symbol": "BCHUSDT",
+  "month": "2026-08",
+  "days": 31,
+  "quote_volume": 292963518.47120005,
+  "first_open_raw": 1785542400000000,
+  "missing": false
+ },
+ {
+  "symbol": "BEAMXUSDT",
+  "month": "2026-08",
+  "days": 31,
+  "quote_volume": 26317105.659163,
+  "first_open_raw": 1785542400000000,
+  "missing": false
+ },
+ {
+  "symbol": "BEBUSDT",
+  "month": "2026-08",
+  "days": 31,
+  "quote_volume": 7863539.37125,
+  "first_open_raw": 1785542400000000,
+  "missing": false
+ },
+ {
+  "symbol": "BELUSDT",
+  "month": "2026-08",
+  "days": 31,
+  "quote_volume": 21482244.497130003,
+  "first_open_raw": 1785542400000000,
+  "missing": false
+ },
+ {
+  "symbol": "BERAUSDT",
+  "month": "2026-08",
+  "days": 31,
+  "quote_volume": 30788305.767562803,
+  "first_open_raw": 1785542400000000,
+  "missing": false
+ },
+ {
+  "symbol": "BFUSDUSDT",
+  "month": "2026-08",
+  "days": 31,
+  "quote_volume": 80620003.53440002,
+  "first_open_raw": 1785542400000000,
+  "missing": false
+ },
+ {
+  "symbol": "BICOUSDT",
+  "month": "2026-08",
+  "days": 31,
+  "quote_volume": 389876399.93869305,
+  "first_open_raw": 1785542400000000,
+  "missing": false
+ },
+ {
+  "symbol": "BIGTIMEUSDT",
+  "month": "2026-08",
+  "days": 31,
+  "quote_volume": 12599972.661260001,
+  "first_open_raw": 1785542400000000,
+  "missing": false
+ },
+ {
+  "symbol": "BIOUSDT",
+  "month": "2026-08",
+  "days": 31,
+  "quote_volume": 60232485.176205,
+  "first_open_raw": 1785542400000000,
+  "missing": false
+ },
+ {
+  "symbol": "BLURUSDT",
+  "month": "2026-08",
+  "days": 31,
+  "quote_volume": 8287581.077563,
+  "first_open_raw": 1785542400000000,
+  "missing": false
+ },
+ {
+  "symbol": "BMNRBUSDT",
+  "month": "2026-08",
+  "days": 27,
+  "quote_volume": 17797051.5423,
+  "first_open_raw": 1785888000000000,
+  "missing": false
+ },
+ {
+  "symbol": "BMTUSDT",
+  "month": "2026-08",
+  "days": 31,
+  "quote_volume": 490048620.91745603,
+  "first_open_raw": 1785542400000000,
+  "missing": false
+ },
+ {
+  "symbol": "BNBUSDT",
+  "month": "2026-08",
+  "days": 31,
+  "quote_volume": 2618129302.8114805,
+  "first_open_raw": 1785542400000000,
+  "missing": false
+ },
+ {
+  "symbol": "BNSOLUSDT",
+  "month": "2026-08",
+  "days": 31,
+  "quote_volume": 26220535.490099996,
+  "first_open_raw": 1785542400000000,
+  "missing": false
+ },
+ {
+  "symbol": "BNTUSDT",
+  "month": "2026-08",
+  "days": 31,
+  "quote_volume": 3925725.0631399998,
+  "first_open_raw": 1785542400000000,
+  "missing": false
+ },
+ {
+  "symbol": "BOMEUSDT",
+  "month": "2026-08",
+  "days": 31,
+  "quote_volume": 131073137.22554511,
+  "first_open_raw": 1785542400000000,
+  "missing": false
+ },
+ {
+  "symbol": "BONKUSDT",
+  "month": "2026-08",
+  "days": 31,
+  "quote_volume": 92230000.32770456,
+  "first_open_raw": 1785542400000000,
+  "missing": false
+ },
+ {
+  "symbol": "BREVUSDT",
+  "month": "2026-08",
+  "days": 31,
+  "quote_volume": 7968035.395620001,
+  "first_open_raw": 1785542400000000,
+  "missing": false
+ },
+ {
+  "symbol": "BROCCOLI714USDT",
+  "month": "2026-08",
+  "days": 31,
+  "quote_volume": 59359052.30804999,
+  "first_open_raw": 1785542400000000,
+  "missing": false
+ },
+ {
+  "symbol": "BTCUSDT",
+  "month": "2026-08",
+  "days": 31,
+  "quote_volume": 33604686822.74485,
+  "first_open_raw": 1785542400000000,
+  "missing": false
+ },
+ {
+  "symbol": "BTTCUSDT",
+  "month": "2026-08",
+  "days": 31,
+  "quote_volume": 7170610.088562789,
+  "first_open_raw": 1785542400000000,
+  "missing": false
+ },
+ {
+  "symbol": "C98USDT",
+  "month": "2026-08",
+  "days": 31,
+  "quote_volume": 19567719.406574998,
+  "first_open_raw": 1785542400000000,
+  "missing": false
+ },
+ {
+  "symbol": "CAKEUSDT",
+  "month": "2026-08",
+  "days": 31,
+  "quote_volume": 67969360.48112,
+  "first_open_raw": 1785542400000000,
+  "missing": false
+ },
+ {
+  "symbol": "CATIUSDT",
+  "month": "2026-08",
+  "days": 31,
+  "quote_volume": 21626225.207811,
+  "first_open_raw": 1785542400000000,
+  "missing": false
+ },
+ {
+  "symbol": "CBRSBUSDT",
+  "month": "2026-08",
+  "days": 31,
+  "quote_volume": 15385545.34483,
+  "first_open_raw": 1785542400000000,
+  "missing": false
+ },
+ {
+  "symbol": "CELOUSDT",
+  "month": "2026-08",
+  "days": 31,
+  "quote_volume": 7773609.085858,
+  "first_open_raw": 1785542400000000,
+  "missing": false
+ },
+ {
+  "symbol": "CELRUSDT",
+  "month": "2026-08",
+  "days": 31,
+  "quote_volume": 11202240.846880998,
+  "first_open_raw": 1785542400000000,
+  "missing": false
+ },
+ {
+  "symbol": "CETUSUSDT",
+  "month": "2026-08",
+  "days": 31,
+  "quote_volume": 14519882.271945002,
+  "first_open_raw": 1785542400000000,
+  "missing": false
+ },
+ {
+  "symbol": "CFGUSDT",
+  "month": "2026-08",
+  "days": 31,
+  "quote_volume": 41814857.5426,
+  "first_open_raw": 1785542400000000,
+  "missing": false
+ },
+ {
+  "symbol": "CFXUSDT",
+  "month": "2026-08",
+  "days": 31,
+  "quote_volume": 37053595.02027001,
+  "first_open_raw": 1785542400000000,
+  "missing": false
+ },
+ {
+  "symbol": "CGPTUSDT",
+  "month": "2026-08",
+  "days": 31,
+  "quote_volume": 8961088.163631,
+  "first_open_raw": 1785542400000000,
+  "missing": false
+ },
+ {
+  "symbol": "CHIPUSDT",
+  "month": "2026-08",
+  "days": 31,
+  "quote_volume": 121682577.63001998,
+  "first_open_raw": 1785542400000000,
+  "missing": false
+ },
+ {
+  "symbol": "CHRUSDT",
+  "month": "2026-08",
+  "days": 31,
+  "quote_volume": 6543755.236790001,
+  "first_open_raw": 1785542400000000,
+  "missing": false
+ },
+ {
+  "symbol": "CHZUSDT",
+  "month": "2026-08",
+  "days": 31,
+  "quote_volume": 37852773.7045,
+  "first_open_raw": 1785542400000000,
+  "missing": false
+ },
+ {
+  "symbol": "CITYUSDT",
+  "month": "2026-08",
+  "days": 31,
+  "quote_volume": 9189753.938149998,
+  "first_open_raw": 1785542400000000,
+  "missing": false
+ },
+ {
+  "symbol": "CKBUSDT",
+  "month": "2026-08",
+  "days": 31,
+  "quote_volume": 7437207.097223,
+  "first_open_raw": 1785542400000000,
+  "missing": false
+ },
+ {
+  "symbol": "COHRBUSDT",
+  "month": "2026-08",
+  "days": 27,
+  "quote_volume": 16124140.785630003,
+  "first_open_raw": 1785888000000000,
+  "missing": false
+ },
+ {
+  "symbol": "COINBUSDT",
+  "month": "2026-08",
+  "days": 31,
+  "quote_volume": 21093390.155489996,
+  "first_open_raw": 1785542400000000,
+  "missing": false
+ },
+ {
+  "symbol": "COMPUSDT",
+  "month": "2026-08",
+  "days": 31,
+  "quote_volume": 20854896.254609995,
+  "first_open_raw": 1785542400000000,
+  "missing": false
+ },
+ {
+  "symbol": "COOKIEUSDT",
+  "month": "2026-08",
+  "days": 31,
+  "quote_volume": 32496360.41020001,
+  "first_open_raw": 1785542400000000,
+  "missing": false
+ },
+ {
+  "symbol": "COTIUSDT",
+  "month": "2026-08",
+  "days": 31,
+  "quote_volume": 138856731.50649002,
+  "first_open_raw": 1785542400000000,
+  "missing": false
+ },
+ {
+  "symbol": "COWUSDT",
+  "month": "2026-08",
+  "days": 31,
+  "quote_volume": 54916329.392189994,
+  "first_open_raw": 1785542400000000,
+  "missing": false
+ },
+ {
+  "symbol": "CRCLBUSDT",
+  "month": "2026-08",
+  "days": 31,
+  "quote_volume": 320393072.2054,
+  "first_open_raw": 1785542400000000,
+  "missing": false
+ },
+ {
+  "symbol": "CRDOBUSDT",
+  "month": "2026-08",
+  "days": 27,
+  "quote_volume": 2415238.04305,
+  "first_open_raw": 1785888000000000,
+  "missing": false
+ },
+ {
+  "symbol": "CRVUSDT",
+  "month": "2026-08",
+  "days": 31,
+  "quote_volume": 139435735.35072002,
+  "first_open_raw": 1785542400000000,
+  "missing": false
+ },
+ {
+  "symbol": "CRWVBUSDT",
+  "month": "2026-08",
+  "days": 31,
+  "quote_volume": 9062822.645200003,
+  "first_open_raw": 1785542400000000,
+  "missing": false
+ },
+ {
+  "symbol": "CTKUSDT",
+  "month": "2026-08",
+  "days": 31,
+  "quote_volume": 3020005.7045700005,
+  "first_open_raw": 1785542400000000,
+  "missing": false
+ },
+ {
+  "symbol": "CTSIUSDT",
+  "month": "2026-08",
+  "days": 31,
+  "quote_volume": 25586510.867179994,
+  "first_open_raw": 1785542400000000,
+  "missing": false
+ },
+ {
+  "symbol": "CUSDT",
+  "month": "2026-08",
+  "days": 31,
+  "quote_volume": 11534497.841139998,
+  "first_open_raw": 1785542400000000,
+  "missing": false
+ },
+ {
+  "symbol": "CVCUSDT",
+  "month": "2026-08",
+  "days": 31,
+  "quote_volume": 4405359.85354,
+  "first_open_raw": 1785542400000000,
+  "missing": false
+ },
+ {
+  "symbol": "CVXUSDT",
+  "month": "2026-08",
+  "days": 31,
+  "quote_volume": 33427450.649988998,
+  "first_open_raw": 1785542400000000,
+  "missing": false
+ },
+ {
+  "symbol": "CYBERUSDT",
+  "month": "2026-08",
+  "days": 31,
+  "quote_volume": 8356344.76398,
+  "first_open_raw": 1785542400000000,
+  "missing": false
+ },
+ {
+  "symbol": "DASHUSDT",
+  "month": "2026-08",
+  "days": 31,
+  "quote_volume": 223271296.78938997,
+  "first_open_raw": 1785542400000000,
+  "missing": false
+ },
+ {
+  "symbol": "DCRUSDT",
+  "month": "2026-08",
+  "days": 31,
+  "quote_volume": 9158965.28871,
+  "first_open_raw": 1785542400000000,
+  "missing": false
+ },
+ {
+  "symbol": "DELLBUSDT",
+  "month": "2026-08",
+  "days": 31,
+  "quote_volume": 3918823.9950500005,
+  "first_open_raw": 1785542400000000,
+  "missing": false
+ },
+ {
+  "symbol": "DEXEUSDT",
+  "month": "2026-08",
+  "days": 31,
+  "quote_volume": 205056315.19092,
+  "first_open_raw": 1785542400000000,
+  "missing": false
+ },
+ {
+  "symbol": "DGBUSDT",
+  "month": "2026-08",
+  "days": 31,
+  "quote_volume": 9886905.24126,
+  "first_open_raw": 1785542400000000,
+  "missing": false
+ },
+ {
+  "symbol": "DIAUSDT",
+  "month": "2026-08",
+  "days": 31,
+  "quote_volume": 24307769.53201,
+  "first_open_raw": 1785542400000000,
+  "missing": false
+ },
+ {
+  "symbol": "DJTBUSDT",
+  "month": "2026-08",
+  "days": 6,
+  "quote_volume": 5069948.766,
+  "first_open_raw": 1787702400000000,
+  "missing": false
+ },
+ {
+  "symbol": "DODOUSDT",
+  "month": "2026-08",
+  "days": 31,
+  "quote_volume": 89779668.02739696,
+  "first_open_raw": 1785542400000000,
+  "missing": false
+ },
+ {
+  "symbol": "DOGEUSDT",
+  "month": "2026-08",
+  "days": 31,
+  "quote_volume": 1522726270.0987604,
+  "first_open_raw": 1785542400000000,
+  "missing": false
+ },
+ {
+  "symbol": "DOGSUSDT",
+  "month": "2026-08",
+  "days": 31,
+  "quote_volume": 20411248.256202977,
+  "first_open_raw": 1785542400000000,
+  "missing": false
+ },
+ {
+  "symbol": "DOLOUSDT",
+  "month": "2026-08",
+  "days": 31,
+  "quote_volume": 33963977.15248399,
+  "first_open_raw": 1785542400000000,
+  "missing": false
+ },
+ {
+  "symbol": "DOTUSDT",
+  "month": "2026-08",
+  "days": 31,
+  "quote_volume": 142827768.28986,
+  "first_open_raw": 1785542400000000,
+  "missing": false
+ },
+ {
+  "symbol": "DRAMBUSDT",
+  "month": "2026-08",
+  "days": 31,
+  "quote_volume": 38114060.08609999,
+  "first_open_raw": 1785542400000000,
+  "missing": false
+ },
+ {
+  "symbol": "DUSKUSDT",
+  "month": "2026-08",
+  "days": 31,
+  "quote_volume": 16705337.498799998,
+  "first_open_raw": 1785542400000000,
+  "missing": false
+ },
+ {
+  "symbol": "DYDXUSDT",
+  "month": "2026-08",
+  "days": 31,
+  "quote_volume": 21741400.6860641,
+  "first_open_raw": 1785542400000000,
+  "missing": false
+ },
+ {
+  "symbol": "DYMUSDT",
+  "month": "2026-08",
+  "days": 31,
+  "quote_volume": 15050220.279968997,
+  "first_open_raw": 1785542400000000,
+  "missing": false
+ },
+ {
+  "symbol": "EDENUSDT",
+  "month": "2026-08",
+  "days": 31,
+  "quote_volume": 135153438.04269502,
+  "first_open_raw": 1785542400000000,
+  "missing": false
+ },
+ {
+  "symbol": "EDUUSDT",
+  "month": "2026-08",
+  "days": 31,
+  "quote_volume": 13928791.927900001,
+  "first_open_raw": 1785542400000000,
+  "missing": false
+ },
+ {
+  "symbol": "EGLDUSDT",
+  "month": "2026-08",
+  "days": 31,
+  "quote_volume": 15702192.466649996,
+  "first_open_raw": 1785542400000000,
+  "missing": false
+ },
+ {
+  "symbol": "EIGENUSDT",
+  "month": "2026-08",
+  "days": 31,
+  "quote_volume": 52992648.845071,
+  "first_open_raw": 1785542400000000,
+  "missing": false
+ },
+ {
+  "symbol": "ENAUSDT",
+  "month": "2026-08",
+  "days": 31,
+  "quote_volume": 1065710168.7403511,
+  "first_open_raw": 1785542400000000,
+  "missing": false
+ },
+ {
+  "symbol": "ENJUSDT",
+  "month": "2026-08",
+  "days": 31,
+  "quote_volume": 13501665.591830999,
+  "first_open_raw": 1785542400000000,
+  "missing": false
+ },
+ {
+  "symbol": "ENSOUSDT",
+  "month": "2026-08",
+  "days": 31,
+  "quote_volume": 170281024.08314002,
+  "first_open_raw": 1785542400000000,
+  "missing": false
+ },
+ {
+  "symbol": "ENSUSDT",
+  "month": "2026-08",
+  "days": 31,
+  "quote_volume": 35181762.42919999,
+  "first_open_raw": 1785542400000000,
+  "missing": false
+ },
+ {
+  "symbol": "EPICUSDT",
+  "month": "2026-08",
+  "days": 31,
+  "quote_volume": 154194125.52390996,
+  "first_open_raw": 1785542400000000,
+  "missing": false
+ },
+ {
+  "symbol": "ERAUSDT",
+  "month": "2026-08",
+  "days": 31,
+  "quote_volume": 379132458.10160995,
+  "first_open_raw": 1785542400000000,
+  "missing": false
+ },
+ {
+  "symbol": "ESPUSDT",
+  "month": "2026-08",
+  "days": 31,
+  "quote_volume": 63673801.94221999,
+  "first_open_raw": 1785542400000000,
+  "missing": false
+ },
+ {
+  "symbol": "ETCUSDT",
+  "month": "2026-08",
+  "days": 31,
+  "quote_volume": 66499659.8502,
+  "first_open_raw": 1785542400000000,
+  "missing": false
+ },
+ {
+  "symbol": "ETHFIUSDT",
+  "month": "2026-08",
+  "days": 31,
+  "quote_volume": 132382882.17744002,
+  "first_open_raw": 1785542400000000,
+  "missing": false
+ },
+ {
+  "symbol": "ETHUSDT",
+  "month": "2026-08",
+  "days": 31,
+  "quote_volume": 17970303678.17444,
+  "first_open_raw": 1785542400000000,
+  "missing": false
+ },
+ {
+  "symbol": "EULUSDT",
+  "month": "2026-08",
+  "days": 31,
+  "quote_volume": 262900892.68778998,
+  "first_open_raw": 1785542400000000,
+  "missing": false
+ },
+ {
+  "symbol": "EURIUSDT",
+  "month": "2026-08",
+  "days": 31,
+  "quote_volume": 307209224.16424,
+  "first_open_raw": 1785542400000000,
+  "missing": false
+ },
+ {
+  "symbol": "EURUSDT",
+  "month": "2026-08",
+  "days": 31,
+  "quote_volume": 355859072.0598499,
+  "first_open_raw": 1785542400000000,
+  "missing": false
+ },
+ {
+  "symbol": "EWYBUSDT",
+  "month": "2026-08",
+  "days": 31,
+  "quote_volume": 31241367.111830004,
+  "first_open_raw": 1785542400000000,
+  "missing": false
+ },
+ {
+  "symbol": "FDUSDUSDT",
+  "month": "2026-08",
+  "days": 31,
+  "quote_volume": 569563467.0862999,
+  "first_open_raw": 1785542400000000,
+  "missing": false
+ },
+ {
+  "symbol": "FETUSDT",
+  "month": "2026-08",
+  "days": 31,
+  "quote_volume": 286290407.9301201,
+  "first_open_raw": 1785542400000000,
+  "missing": false
+ },
+ {
+  "symbol": "FFUSDT",
+  "month": "2026-08",
+  "days": 31,
+  "quote_volume": 73636165.73943798,
+  "first_open_raw": 1785542400000000,
+  "missing": false
+ },
+ {
+  "symbol": "FIDAUSDT",
+  "month": "2026-08",
+  "days": 31,
+  "quote_volume": 32202121.549966004,
+  "first_open_raw": 1785542400000000,
+  "missing": false
+ },
+ {
+  "symbol": "FILUSDT",
+  "month": "2026-08",
+  "days": 31,
+  "quote_volume": 179038270.402115,
+  "first_open_raw": 1785542400000000,
+  "missing": false
+ },
+ {
+  "symbol": "FLNCBUSDT",
+  "month": "2026-08",
+  "days": 31,
+  "quote_volume": 5864087.5826,
+  "first_open_raw": 1785542400000000,
+  "missing": false
+ },
+ {
+  "symbol": "FLOKIUSDT",
+  "month": "2026-08",
+  "days": 31,
+  "quote_volume": 53401475.863504305,
+  "first_open_raw": 1785542400000000,
+  "missing": false
+ },
+ {
+  "symbol": "FLOWUSDT",
+  "month": "2026-08",
+  "days": 31,
+  "quote_volume": 15773097.780437902,
+  "first_open_raw": 1785542400000000,
+  "missing": false
+ },
+ {
+  "symbol": "FLUXUSDT",
+  "month": "2026-08",
+  "days": 31,
+  "quote_volume": 7462666.050548,
+  "first_open_raw": 1785542400000000,
+  "missing": false
+ },
+ {
+  "symbol": "FOGOUSDT",
+  "month": "2026-08",
+  "days": 31,
+  "quote_volume": 13073662.47557,
+  "first_open_raw": 1785542400000000,
+  "missing": false
+ },
+ {
+  "symbol": "FORMUSDT",
+  "month": "2026-08",
+  "days": 31,
+  "quote_volume": 32115985.141870003,
+  "first_open_raw": 1785542400000000,
+  "missing": false
+ },
+ {
+  "symbol": "FRAXUSDT",
+  "month": "2026-08",
+  "days": 31,
+  "quote_volume": 6124791.385209999,
+  "first_open_raw": 1785542400000000,
+  "missing": false
+ },
+ {
+  "symbol": "FTTUSDT",
+  "month": "2026-08",
+  "days": 31,
+  "quote_volume": 6043611.525522001,
+  "first_open_raw": 1785542400000000,
+  "missing": false
+ },
+ {
+  "symbol": "FUSDT",
+  "month": "2026-08",
+  "days": 31,
+  "quote_volume": 8753728.287715001,
+  "first_open_raw": 1785542400000000,
+  "missing": false
+ },
+ {
+  "symbol": "GALAUSDT",
+  "month": "2026-08",
+  "days": 31,
+  "quote_volume": 75226137.203167,
+  "first_open_raw": 1785542400000000,
+  "missing": false
+ },
+ {
+  "symbol": "GASUSDT",
+  "month": "2026-08",
+  "days": 31,
+  "quote_volume": 23582115.0534,
+  "first_open_raw": 1785542400000000,
+  "missing": false
+ },
+ {
+  "symbol": "GENIUSUSDT",
+  "month": "2026-08",
+  "days": 31,
+  "quote_volume": 22755654.74133001,
+  "first_open_raw": 1785542400000000,
+  "missing": false
+ },
+ {
+  "symbol": "GIGGLEUSDT",
+  "month": "2026-08",
+  "days": 31,
+  "quote_volume": 258215252.20385,
+  "first_open_raw": 1785542400000000,
+  "missing": false
+ },
+ {
+  "symbol": "GLMRUSDT",
+  "month": "2026-08",
+  "days": 31,
+  "quote_volume": 23256050.872163497,
+  "first_open_raw": 1785542400000000,
+  "missing": false
+ },
+ {
+  "symbol": "GLMUSDT",
+  "month": "2026-08",
+  "days": 31,
+  "quote_volume": 3677873.4836700005,
+  "first_open_raw": 1785542400000000,
+  "missing": false
+ },
+ {
+  "symbol": "GLWBUSDT",
+  "month": "2026-08",
+  "days": 31,
+  "quote_volume": 5412863.340409999,
+  "first_open_raw": 1785542400000000,
+  "missing": false
+ },
+ {
+  "symbol": "GMEBUSDT",
+  "month": "2026-08",
+  "days": 20,
+  "quote_volume": 8126317.3991,
+  "first_open_raw": 1786492800000000,
+  "missing": false
+ },
+ {
+  "symbol": "GMTUSDT",
+  "month": "2026-08",
+  "days": 31,
+  "quote_volume": 15733524.541007,
+  "first_open_raw": 1785542400000000,
+  "missing": false
+ },
+ {
+  "symbol": "GMXUSDT",
+  "month": "2026-08",
+  "days": 31,
+  "quote_volume": 7864215.6793599995,
+  "first_open_raw": 1785542400000000,
+  "missing": false
+ },
+ {
+  "symbol": "GNOUSDT",
+  "month": "2026-08",
+  "days": 31,
+  "quote_volume": 8756807.97603,
+  "first_open_raw": 1785542400000000,
+  "missing": false
+ },
+ {
+  "symbol": "GNSUSDT",
+  "month": "2026-08",
+  "days": 31,
+  "quote_volume": 2839376.4206599994,
+  "first_open_raw": 1785542400000000,
+  "missing": false
+ },
+ {
+  "symbol": "GOOGLBUSDT",
+  "month": "2026-08",
+  "days": 31,
+  "quote_volume": 55418118.58055,
+  "first_open_raw": 1785542400000000,
+  "missing": false
+ },
+ {
+  "symbol": "GPSUSDT",
+  "month": "2026-08",
+  "days": 31,
+  "quote_volume": 125329539.052427,
+  "first_open_raw": 1785542400000000,
+  "missing": false
+ },
+ {
+  "symbol": "GRAMUSDT",
+  "month": "2026-08",
+  "days": 31,
+  "quote_volume": 220982068.68965998,
+  "first_open_raw": 1785542400000000,
+  "missing": false
+ },
+ {
+  "symbol": "GRTUSDT",
+  "month": "2026-08",
+  "days": 31,
+  "quote_volume": 21162858.76837,
+  "first_open_raw": 1785542400000000,
+  "missing": false
+ },
+ {
+  "symbol": "GSBUSDT",
+  "month": "2026-08",
+  "days": 31,
+  "quote_volume": 367085.442061,
+  "first_open_raw": 1785542400000000,
+  "missing": false
+ },
+ {
+  "symbol": "GTCUSDT",
+  "month": "2026-08",
+  "days": 31,
+  "quote_volume": 5456833.933480001,
+  "first_open_raw": 1785542400000000,
+  "missing": false
+ },
+ {
+  "symbol": "GUNUSDT",
+  "month": "2026-08",
+  "days": 31,
+  "quote_volume": 31146653.73681,
+  "first_open_raw": 1785542400000000,
+  "missing": false
+ },
+ {
+  "symbol": "GUSDT",
+  "month": "2026-08",
+  "days": 31,
+  "quote_volume": 11896862.424789997,
+  "first_open_raw": 1785542400000000,
+  "missing": false
+ },
+ {
+  "symbol": "HAEDALUSDT",
+  "month": "2026-08",
+  "days": 31,
+  "quote_volume": 10736214.406176,
+  "first_open_raw": 1785542400000000,
+  "missing": false
+ },
+ {
+  "symbol": "HBARUSDT",
+  "month": "2026-08",
+  "days": 31,
+  "quote_volume": 210732772.25366002,
+  "first_open_raw": 1785542400000000,
+  "missing": false
+ },
+ {
+  "symbol": "HEIUSDT",
+  "month": "2026-08",
+  "days": 31,
+  "quote_volume": 352139595.87316,
+  "first_open_raw": 1785542400000000,
+  "missing": false
+ },
+ {
+  "symbol": "HEMIUSDT",
+  "month": "2026-08",
+  "days": 31,
+  "quote_volume": 297472818.342368,
+  "first_open_raw": 1785542400000000,
+  "missing": false
+ },
+ {
+  "symbol": "HFTUSDT",
+  "month": "2026-08",
+  "days": 17,
+  "quote_volume": 117026894.888492,
+  "first_open_raw": 1785542400000000,
+  "missing": false
+ },
+ {
+  "symbol": "HIVEUSDT",
+  "month": "2026-08",
+  "days": 31,
+  "quote_volume": 5633765.9261,
+  "first_open_raw": 1785542400000000,
+  "missing": false
+ },
+ {
+  "symbol": "HMSTRUSDT",
+  "month": "2026-08",
+  "days": 31,
+  "quote_volume": 40831799.53738952,
+  "first_open_raw": 1785542400000000,
+  "missing": false
+ },
+ {
+  "symbol": "HOLOUSDT",
+  "month": "2026-08",
+  "days": 31,
+  "quote_volume": 68427436.87612,
+  "first_open_raw": 1785542400000000,
+  "missing": false
+ },
+ {
+  "symbol": "HOMEUSDT",
+  "month": "2026-08",
+  "days": 31,
+  "quote_volume": 235065663.85602003,
+  "first_open_raw": 1785542400000000,
+  "missing": false
+ },
+ {
+  "symbol": "HOODBUSDT",
+  "month": "2026-08",
+  "days": 31,
+  "quote_volume": 11194960.06173,
+  "first_open_raw": 1785542400000000,
+  "missing": false
+ },
+ {
+  "symbol": "HOTUSDT",
+  "month": "2026-08",
+  "days": 31,
+  "quote_volume": 5626526.635159001,
+  "first_open_raw": 1785542400000000,
+  "missing": false
+ },
+ {
+  "symbol": "HUMAUSDT",
+  "month": "2026-08",
+  "days": 31,
+  "quote_volume": 25719058.876210004,
+  "first_open_raw": 1785542400000000,
+  "missing": false
+ },
+ {
+  "symbol": "HYPERUSDT",
+  "month": "2026-08",
+  "days": 31,
+  "quote_volume": 34803607.22285999,
+  "first_open_raw": 1785542400000000,
+  "missing": false
+ },
+ {
+  "symbol": "IBMBUSDT",
+  "month": "2026-08",
+  "days": 31,
+  "quote_volume": 2968201.927849999,
+  "first_open_raw": 1785542400000000,
+  "missing": false
+ },
+ {
+  "symbol": "ICPUSDT",
+  "month": "2026-08",
+  "days": 31,
+  "quote_volume": 143007595.83808,
+  "first_open_raw": 1785542400000000,
+  "missing": false
+ },
+ {
+  "symbol": "ICXUSDT",
+  "month": "2026-08",
+  "days": 31,
+  "quote_volume": 8383398.660239002,
+  "first_open_raw": 1785542400000000,
+  "missing": false
+ },
+ {
+  "symbol": "IDUSDT",
+  "month": "2026-08",
+  "days": 31,
+  "quote_volume": 17186441.615500003,
+  "first_open_raw": 1785542400000000,
+  "missing": false
+ },
+ {
+  "symbol": "ILVUSDT",
+  "month": "2026-08",
+  "days": 31,
+  "quote_volume": 6857200.8296599975,
+  "first_open_raw": 1785542400000000,
+  "missing": false
+ },
+ {
+  "symbol": "IMXUSDT",
+  "month": "2026-08",
+  "days": 31,
+  "quote_volume": 15565630.082271999,
+  "first_open_raw": 1785542400000000,
+  "missing": false
+ },
+ {
+  "symbol": "INITUSDT",
+  "month": "2026-08",
+  "days": 31,
+  "quote_volume": 11327766.594444005,
+  "first_open_raw": 1785542400000000,
+  "missing": false
+ },
+ {
+  "symbol": "INJUSDT",
+  "month": "2026-08",
+  "days": 31,
+  "quote_volume": 173722596.87693,
+  "first_open_raw": 1785542400000000,
+  "missing": false
+ },
+ {
+  "symbol": "INTCBUSDT",
+  "month": "2026-08",
+  "days": 31,
+  "quote_volume": 49061667.69714,
+  "first_open_raw": 1785542400000000,
+  "missing": false
+ },
+ {
+  "symbol": "INTWBUSDT",
+  "month": "2026-08",
+  "days": 31,
+  "quote_volume": 5675828.606099999,
+  "first_open_raw": 1785542400000000,
+  "missing": false
+ },
+ {
+  "symbol": "IOSTUSDT",
+  "month": "2026-08",
+  "days": 31,
+  "quote_volume": 6450405.230415,
+  "first_open_raw": 1785542400000000,
+  "missing": false
+ },
+ {
+  "symbol": "IOTAUSDT",
+  "month": "2026-08",
+  "days": 31,
+  "quote_volume": 16972470.9071,
+  "first_open_raw": 1785542400000000,
+  "missing": false
+ },
+ {
+  "symbol": "IOTXUSDT",
+  "month": "2026-08",
+  "days": 31,
+  "quote_volume": 20094278.824019,
+  "first_open_raw": 1785542400000000,
+  "missing": false
+ },
+ {
+  "symbol": "IOUSDT",
+  "month": "2026-08",
+  "days": 31,
+  "quote_volume": 22955076.282011,
+  "first_open_raw": 1785542400000000,
+  "missing": false
+ },
+ {
+  "symbol": "IQUSDT",
+  "month": "2026-08",
+  "days": 31,
+  "quote_volume": 2604322.3365759994,
+  "first_open_raw": 1785542400000000,
+  "missing": false
+ },
+ {
+  "symbol": "IRENBUSDT",
+  "month": "2026-08",
+  "days": 27,
+  "quote_volume": 8708740.514700001,
+  "first_open_raw": 1785888000000000,
+  "missing": false
+ },
+ {
+  "symbol": "JASMYUSDT",
+  "month": "2026-08",
+  "days": 31,
+  "quote_volume": 29079324.493220005,
+  "first_open_raw": 1785542400000000,
+  "missing": false
+ },
+ {
+  "symbol": "JOEUSDT",
+  "month": "2026-08",
+  "days": 31,
+  "quote_volume": 8316047.569936,
+  "first_open_raw": 1785542400000000,
+  "missing": false
+ },
+ {
+  "symbol": "JSTUSDT",
+  "month": "2026-08",
+  "days": 31,
+  "quote_volume": 81375547.30758,
+  "first_open_raw": 1785542400000000,
+  "missing": false
+ },
+ {
+  "symbol": "JTOUSDT",
+  "month": "2026-08",
+  "days": 31,
+  "quote_volume": 76044651.69686,
+  "first_open_raw": 1785542400000000,
+  "missing": false
+ },
+ {
+  "symbol": "JUPUSDT",
+  "month": "2026-08",
+  "days": 31,
+  "quote_volume": 62173363.19555,
+  "first_open_raw": 1785542400000000,
+  "missing": false
+ },
+ {
+  "symbol": "JUVUSDT",
+  "month": "2026-08",
+  "days": 31,
+  "quote_volume": 9134582.881480003,
+  "first_open_raw": 1785542400000000,
+  "missing": false
+ },
+ {
+  "symbol": "KAIAUSDT",
+  "month": "2026-08",
+  "days": 31,
+  "quote_volume": 18330474.84695,
+  "first_open_raw": 1785542400000000,
+  "missing": false
+ },
+ {
+  "symbol": "KAITOUSDT",
+  "month": "2026-08",
+  "days": 31,
+  "quote_volume": 181260003.47605997,
+  "first_open_raw": 1785542400000000,
+  "missing": false
+ },
+ {
+  "symbol": "KATUSDT",
+  "month": "2026-08",
+  "days": 31,
+  "quote_volume": 17150579.57355,
+  "first_open_raw": 1785542400000000,
+  "missing": false
+ },
+ {
+  "symbol": "KAVAUSDT",
+  "month": "2026-08",
+  "days": 31,
+  "quote_volume": 18440678.929292995,
+  "first_open_raw": 1785542400000000,
+  "missing": false
+ },
+ {
+  "symbol": "KERNELUSDT",
+  "month": "2026-08",
+  "days": 31,
+  "quote_volume": 12946319.059169998,
+  "first_open_raw": 1785542400000000,
+  "missing": false
+ },
+ {
+  "symbol": "KGSTUSDT",
+  "month": "2026-08",
+  "days": 31,
+  "quote_volume": 4589361.509500999,
+  "first_open_raw": 1785542400000000,
+  "missing": false
+ },
+ {
+  "symbol": "KITEUSDT",
+  "month": "2026-08",
+  "days": 31,
+  "quote_volume": 76698669.87133999,
+  "first_open_raw": 1785542400000000,
+  "missing": false
+ },
+ {
+  "symbol": "KMNOUSDT",
+  "month": "2026-08",
+  "days": 31,
+  "quote_volume": 21094943.468769997,
+  "first_open_raw": 1785542400000000,
+  "missing": false
+ },
+ {
+  "symbol": "KNCUSDT",
+  "month": "2026-08",
+  "days": 31,
+  "quote_volume": 4434431.643699999,
+  "first_open_raw": 1785542400000000,
+  "missing": false
+ },
+ {
+  "symbol": "KORUBUSDT",
+  "month": "2026-08",
+  "days": 31,
+  "quote_volume": 136705390.26450002,
+  "first_open_raw": 1785542400000000,
+  "missing": false
+ },
+ {
+  "symbol": "KSMUSDT",
+  "month": "2026-08",
+  "days": 31,
+  "quote_volume": 10233222.12037,
+  "first_open_raw": 1785542400000000,
+  "missing": false
+ },
+ {
+  "symbol": "LAUSDT",
+  "month": "2026-08",
+  "days": 31,
+  "quote_volume": 44763123.49821999,
+  "first_open_raw": 1785542400000000,
+  "missing": false
+ },
+ {
+  "symbol": "LAYERUSDT",
+  "month": "2026-08",
+  "days": 31,
+  "quote_volume": 8153296.167761,
+  "first_open_raw": 1785542400000000,
+  "missing": false
+ },
+ {
+  "symbol": "LAZIOUSDT",
+  "month": "2026-08",
+  "days": 31,
+  "quote_volume": 10343190.453350002,
+  "first_open_raw": 1785542400000000,
+  "missing": false
+ },
+ {
+  "symbol": "LDOUSDT",
+  "month": "2026-08",
+  "days": 31,
+  "quote_volume": 100085798.49499999,
+  "first_open_raw": 1785542400000000,
+  "missing": false
+ },
+ {
+  "symbol": "LINEAUSDT",
+  "month": "2026-08",
+  "days": 31,
+  "quote_volume": 13679736.092238002,
+  "first_open_raw": 1785542400000000,
+  "missing": false
+ },
+ {
+  "symbol": "LINKUSDT",
+  "month": "2026-08",
+  "days": 31,
+  "quote_volume": 795836569.1695199,
+  "first_open_raw": 1785542400000000,
+  "missing": false
+ },
+ {
+  "symbol": "LISTAUSDT",
+  "month": "2026-08",
+  "days": 31,
+  "quote_volume": 16826720.45559,
+  "first_open_raw": 1785542400000000,
+  "missing": false
+ },
+ {
+  "symbol": "LITEBUSDT",
+  "month": "2026-08",
+  "days": 31,
+  "quote_volume": 27821530.426700003,
+  "first_open_raw": 1785542400000000,
+  "missing": false
+ },
+ {
+  "symbol": "LPTUSDT",
+  "month": "2026-08",
+  "days": 31,
+  "quote_volume": 11587117.79279,
+  "first_open_raw": 1785542400000000,
+  "missing": false
+ },
+ {
+  "symbol": "LQTYUSDT",
+  "month": "2026-08",
+  "days": 31,
+  "quote_volume": 6122688.910370002,
+  "first_open_raw": 1785542400000000,
+  "missing": false
+ },
+ {
+  "symbol": "LSKUSDT",
+  "month": "2026-08",
+  "days": 31,
+  "quote_volume": 12410404.345339997,
+  "first_open_raw": 1785542400000000,
+  "missing": false
+ },
+ {
+  "symbol": "LTCUSDT",
+  "month": "2026-08",
+  "days": 31,
+  "quote_volume": 427545997.7641599,
+  "first_open_raw": 1785542400000000,
+  "missing": false
+ },
+ {
+  "symbol": "LUMIAUSDT",
+  "month": "2026-08",
+  "days": 31,
+  "quote_volume": 14797567.715362001,
+  "first_open_raw": 1785542400000000,
+  "missing": false
+ },
+ {
+  "symbol": "LUNAUSDT",
+  "month": "2026-08",
+  "days": 31,
+  "quote_volume": 27734458.82617,
+  "first_open_raw": 1785542400000000,
+  "missing": false
+ },
+ {
+  "symbol": "LUNCUSDT",
+  "month": "2026-08",
+  "days": 31,
+  "quote_volume": 50482865.69003818,
+  "first_open_raw": 1785542400000000,
+  "missing": false
+ },
+ {
+  "symbol": "MAGICUSDT",
+  "month": "2026-08",
+  "days": 31,
+  "quote_volume": 13486670.623829998,
+  "first_open_raw": 1785542400000000,
+  "missing": false
+ },
+ {
+  "symbol": "MANAUSDT",
+  "month": "2026-08",
+  "days": 31,
+  "quote_volume": 8831171.990000002,
+  "first_open_raw": 1785542400000000,
+  "missing": false
+ },
+ {
+  "symbol": "MANTAUSDT",
+  "month": "2026-08",
+  "days": 31,
+  "quote_volume": 8687081.573397,
+  "first_open_raw": 1785542400000000,
+  "missing": false
+ },
+ {
+  "symbol": "MANTRAUSDT",
+  "month": "2026-08",
+  "days": 31,
+  "quote_volume": 50644389.04063001,
+  "first_open_raw": 1785542400000000,
+  "missing": false
+ },
+ {
+  "symbol": "MASKUSDT",
+  "month": "2026-08",
+  "days": 31,
+  "quote_volume": 10475230.8206,
+  "first_open_raw": 1785542400000000,
+  "missing": false
+ },
+ {
+  "symbol": "MAVUSDT",
+  "month": "2026-08",
+  "days": 31,
+  "quote_volume": 19685040.032100003,
+  "first_open_raw": 1785542400000000,
+  "missing": false
+ },
+ {
+  "symbol": "MBLUSDT",
+  "month": "2026-08",
+  "days": 31,
+  "quote_volume": 12157353.232275002,
+  "first_open_raw": 1785542400000000,
+  "missing": false
+ },
+ {
+  "symbol": "MEGAUSDT",
+  "month": "2026-08",
+  "days": 31,
+  "quote_volume": 48288263.373007,
+  "first_open_raw": 1785542400000000,
+  "missing": false
+ },
+ {
+  "symbol": "MEMEUSDT",
+  "month": "2026-08",
+  "days": 31,
+  "quote_volume": 19685628.06895,
+  "first_open_raw": 1785542400000000,
+  "missing": false
+ },
+ {
+  "symbol": "METABUSDT",
+  "month": "2026-08",
+  "days": 31,
+  "quote_volume": 16376963.70602,
+  "first_open_raw": 1785542400000000,
+  "missing": false
+ },
+ {
+  "symbol": "METISUSDT",
+  "month": "2026-08",
+  "days": 31,
+  "quote_volume": 6375161.95273,
+  "first_open_raw": 1785542400000000,
+  "missing": false
+ },
+ {
+  "symbol": "METUSDT",
+  "month": "2026-08",
+  "days": 31,
+  "quote_volume": 29035501.36106001,
+  "first_open_raw": 1785542400000000,
+  "missing": false
+ },
+ {
+  "symbol": "MEUSDT",
+  "month": "2026-08",
+  "days": 31,
+  "quote_volume": 22216508.6379099,
+  "first_open_raw": 1785542400000000,
+  "missing": false
+ },
+ {
+  "symbol": "MINAUSDT",
+  "month": "2026-08",
+  "days": 31,
+  "quote_volume": 23046998.50867,
+  "first_open_raw": 1785542400000000,
+  "missing": false
+ },
+ {
+  "symbol": "MIRAUSDT",
+  "month": "2026-08",
+  "days": 31,
+  "quote_volume": 353127904.8327208,
+  "first_open_raw": 1785542400000000,
+  "missing": false
+ },
+ {
+  "symbol": "MITOUSDT",
+  "month": "2026-08",
+  "days": 31,
+  "quote_volume": 28408939.096573997,
+  "first_open_raw": 1785542400000000,
+  "missing": false
+ },
+ {
+  "symbol": "MMTUSDT",
+  "month": "2026-08",
+  "days": 31,
+  "quote_volume": 516549392.90157,
+  "first_open_raw": 1785542400000000,
+  "missing": false
+ },
+ {
+  "symbol": "MORPHOUSDT",
+  "month": "2026-08",
+  "days": 31,
+  "quote_volume": 87825551.35905999,
+  "first_open_raw": 1785542400000000,
+  "missing": false
+ },
+ {
+  "symbol": "MOVEUSDT",
+  "month": "2026-08",
+  "days": 31,
+  "quote_volume": 24865651.79151,
+  "first_open_raw": 1785542400000000,
+  "missing": false
+ },
+ {
+  "symbol": "MOVRUSDT",
+  "month": "2026-08",
+  "days": 31,
+  "quote_volume": 81172732.82068698,
+  "first_open_raw": 1785542400000000,
+  "missing": false
+ },
+ {
+  "symbol": "MRVLBUSDT",
+  "month": "2026-08",
+  "days": 31,
+  "quote_volume": 34121704.491459996,
+  "first_open_raw": 1785542400000000,
+  "missing": false
+ },
+ {
+  "symbol": "MSFTBUSDT",
+  "month": "2026-08",
+  "days": 31,
+  "quote_volume": 7211296.10156,
+  "first_open_raw": 1785542400000000,
+  "missing": false
+ },
+ {
+  "symbol": "MSTRBUSDT",
+  "month": "2026-08",
+  "days": 31,
+  "quote_volume": 150413069.43951002,
+  "first_open_raw": 1785542400000000,
+  "missing": false
+ },
+ {
+  "symbol": "MTLUSDT",
+  "month": "2026-08",
+  "days": 31,
+  "quote_volume": 3669671.0969999996,
+  "first_open_raw": 1785542400000000,
+  "missing": false
+ },
+ {
+  "symbol": "MUBARAKUSDT",
+  "month": "2026-08",
+  "days": 31,
+  "quote_volume": 140049432.44686002,
+  "first_open_raw": 1785542400000000,
+  "missing": false
+ },
+ {
+  "symbol": "MUBUSDT",
+  "month": "2026-08",
+  "days": 31,
+  "quote_volume": 267904721.51478004,
+  "first_open_raw": 1785542400000000,
+  "missing": false
+ },
+ {
+  "symbol": "MUUBUSDT",
+  "month": "2026-08",
+  "days": 31,
+  "quote_volume": 31822657.9483,
+  "first_open_raw": 1785542400000000,
+  "missing": false
+ },
+ {
+  "symbol": "MVLLBUSDT",
+  "month": "2026-08",
+  "days": 31,
+  "quote_volume": 11483901.092400001,
+  "first_open_raw": 1785542400000000,
+  "missing": false
+ },
+ {
+  "symbol": "NBISBUSDT",
+  "month": "2026-08",
+  "days": 31,
+  "quote_volume": 59308706.10875,
+  "first_open_raw": 1785542400000000,
+  "missing": false
+ },
+ {
+  "symbol": "NEARUSDT",
+  "month": "2026-08",
+  "days": 31,
+  "quote_volume": 735183858.8922999,
+  "first_open_raw": 1785542400000000,
+  "missing": false
+ },
+ {
+  "symbol": "NEIROUSDT",
+  "month": "2026-08",
+  "days": 31,
+  "quote_volume": 81944958.9625607,
+  "first_open_raw": 1785542400000000,
+  "missing": false
+ },
+ {
+  "symbol": "NEOUSDT",
+  "month": "2026-08",
+  "days": 31,
+  "quote_volume": 15697743.351340001,
+  "first_open_raw": 1785542400000000,
+  "missing": false
+ },
+ {
+  "symbol": "NEWTUSDT",
+  "month": "2026-08",
+  "days": 31,
+  "quote_volume": 10618837.632485,
+  "first_open_raw": 1785542400000000,
+  "missing": false
+ },
+ {
+  "symbol": "NEXOUSDT",
+  "month": "2026-08",
+  "days": 31,
+  "quote_volume": 23583622.372229997,
+  "first_open_raw": 1785542400000000,
+  "missing": false
+ },
+ {
+  "symbol": "NFLXBUSDT",
+  "month": "2026-08",
+  "days": 27,
+  "quote_volume": 2359850.0308999997,
+  "first_open_raw": 1785888000000000,
+  "missing": false
+ },
+ {
+  "symbol": "NIGHTUSDT",
+  "month": "2026-08",
+  "days": 31,
+  "quote_volume": 34732277.612569995,
+  "first_open_raw": 1785542400000000,
+  "missing": false
+ },
+ {
+  "symbol": "NILUSDT",
+  "month": "2026-08",
+  "days": 31,
+  "quote_volume": 111809382.07177803,
+  "first_open_raw": 1785542400000000,
+  "missing": false
+ },
+ {
+  "symbol": "NMRUSDT",
+  "month": "2026-08",
+  "days": 31,
+  "quote_volume": 4647881.758900001,
+  "first_open_raw": 1785542400000000,
+  "missing": false
+ },
+ {
+  "symbol": "NOKBUSDT",
+  "month": "2026-08",
+  "days": 31,
+  "quote_volume": 5047116.663500001,
+  "first_open_raw": 1785542400000000,
+  "missing": false
+ },
+ {
+  "symbol": "NOMUSDT",
+  "month": "2026-08",
+  "days": 31,
+  "quote_volume": 34687588.14269,
+  "first_open_raw": 1785542400000000,
+  "missing": false
+ },
+ {
+  "symbol": "NOTUSDT",
+  "month": "2026-08",
+  "days": 31,
+  "quote_volume": 19017088.661046002,
+  "first_open_raw": 1785542400000000,
+  "missing": false
+ },
+ {
+  "symbol": "NVDABUSDT",
+  "month": "2026-08",
+  "days": 31,
+  "quote_volume": 57359269.30121999,
+  "first_open_raw": 1785542400000000,
+  "missing": false
+ },
+ {
+  "symbol": "NXPCUSDT",
+  "month": "2026-08",
+  "days": 31,
+  "quote_volume": 18315582.239050005,
+  "first_open_raw": 1785542400000000,
+  "missing": false
+ },
+ {
+  "symbol": "OGNUSDT",
+  "month": "2026-08",
+  "days": 31,
+  "quote_volume": 20107153.65708,
+  "first_open_raw": 1785542400000000,
+  "missing": false
+ },
+ {
+  "symbol": "OGUSDT",
+  "month": "2026-08",
+  "days": 31,
+  "quote_volume": 20136534.550899997,
+  "first_open_raw": 1785542400000000,
+  "missing": false
+ },
+ {
+  "symbol": "ONDOUSDT",
+  "month": "2026-08",
+  "days": 31,
+  "quote_volume": 346394136.83825,
+  "first_open_raw": 1785542400000000,
+  "missing": false
+ },
+ {
+  "symbol": "ONEUSDT",
+  "month": "2026-08",
+  "days": 31,
+  "quote_volume": 33468558.161016304,
+  "first_open_raw": 1785542400000000,
+  "missing": false
+ },
+ {
+  "symbol": "ONGUSDT",
+  "month": "2026-08",
+  "days": 31,
+  "quote_volume": 283066637.25812006,
+  "first_open_raw": 1785542400000000,
+  "missing": false
+ },
+ {
+  "symbol": "ONTUSDT",
+  "month": "2026-08",
+  "days": 31,
+  "quote_volume": 77063535.32085,
+  "first_open_raw": 1785542400000000,
+  "missing": false
+ },
+ {
+  "symbol": "OPENUSDT",
+  "month": "2026-08",
+  "days": 31,
+  "quote_volume": 32783912.459209997,
+  "first_open_raw": 1785542400000000,
+  "missing": false
+ },
+ {
+  "symbol": "OPGUSDT",
+  "month": "2026-08",
+  "days": 31,
+  "quote_volume": 34224525.26647,
+  "first_open_raw": 1785542400000000,
+  "missing": false
+ },
+ {
+  "symbol": "OPNUSDT",
+  "month": "2026-08",
+  "days": 31,
+  "quote_volume": 24302917.76783001,
+  "first_open_raw": 1785542400000000,
+  "missing": false
+ },
+ {
+  "symbol": "OPUSDT",
+  "month": "2026-08",
+  "days": 31,
+  "quote_volume": 79010751.841501,
+  "first_open_raw": 1785542400000000,
+  "missing": false
+ },
+ {
+  "symbol": "ORCAUSDT",
+  "month": "2026-08",
+  "days": 31,
+  "quote_volume": 14585872.019189997,
+  "first_open_raw": 1785542400000000,
+  "missing": false
+ },
+ {
+  "symbol": "ORCLBUSDT",
+  "month": "2026-08",
+  "days": 31,
+  "quote_volume": 9994217.32377,
+  "first_open_raw": 1785542400000000,
+  "missing": false
+ },
+ {
+  "symbol": "ORDIUSDT",
+  "month": "2026-08",
+  "days": 31,
+  "quote_volume": 86274711.52671002,
+  "first_open_raw": 1785542400000000,
+  "missing": false
+ },
+ {
+  "symbol": "OSMOUSDT",
+  "month": "2026-08",
+  "days": 31,
+  "quote_volume": 12662918.765702002,
+  "first_open_raw": 1785542400000000,
+  "missing": false
+ },
+ {
+  "symbol": "PARTIUSDT",
+  "month": "2026-08",
+  "days": 31,
+  "quote_volume": 30193685.868899997,
+  "first_open_raw": 1785542400000000,
+  "missing": false
+ },
+ {
+  "symbol": "PAXGUSDT",
+  "month": "2026-08",
+  "days": 31,
+  "quote_volume": 437235894.79416895,
+  "first_open_raw": 1785542400000000,
+  "missing": false
+ },
+ {
+  "symbol": "PENDLEUSDT",
+  "month": "2026-08",
+  "days": 31,
+  "quote_volume": 73397683.74270001,
+  "first_open_raw": 1785542400000000,
+  "missing": false
+ },
+ {
+  "symbol": "PENGUUSDT",
+  "month": "2026-08",
+  "days": 31,
+  "quote_volume": 303777376.69793797,
+  "first_open_raw": 1785542400000000,
+  "missing": false
+ },
+ {
+  "symbol": "PEOPLEUSDT",
+  "month": "2026-08",
+  "days": 31,
+  "quote_volume": 69406000.206572,
+  "first_open_raw": 1785542400000000,
+  "missing": false
+ },
+ {
+  "symbol": "PEPEUSDT",
+  "month": "2026-08",
+  "days": 31,
+  "quote_volume": 855702780.9691161,
+  "first_open_raw": 1785542400000000,
+  "missing": false
+ },
+ {
+  "symbol": "PHAUSDT",
+  "month": "2026-08",
+  "days": 31,
+  "quote_volume": 21080699.9476,
+  "first_open_raw": 1785542400000000,
+  "missing": false
+ },
+ {
+  "symbol": "PIVXUSDT",
+  "month": "2026-08",
+  "days": 17,
+  "quote_volume": 6825119.4759,
+  "first_open_raw": 1785542400000000,
+  "missing": false
+ },
+ {
+  "symbol": "PIXELUSDT",
+  "month": "2026-08",
+  "days": 31,
+  "quote_volume": 33917599.592159,
+  "first_open_raw": 1785542400000000,
+  "missing": false
+ },
+ {
+  "symbol": "PLTRBUSDT",
+  "month": "2026-08",
+  "days": 31,
+  "quote_volume": 6189575.010429999,
+  "first_open_raw": 1785542400000000,
+  "missing": false
+ },
+ {
+  "symbol": "PLUMEUSDT",
+  "month": "2026-08",
+  "days": 31,
+  "quote_volume": 431077502.5556701,
+  "first_open_raw": 1785542400000000,
+  "missing": false
+ },
+ {
+  "symbol": "PNUTUSDT",
+  "month": "2026-08",
+  "days": 31,
+  "quote_volume": 42009566.1853,
+  "first_open_raw": 1785542400000000,
+  "missing": false
+ },
+ {
+  "symbol": "POLUSDT",
+  "month": "2026-08",
+  "days": 31,
+  "quote_volume": 208947164.91531903,
+  "first_open_raw": 1785542400000000,
+  "missing": false
+ },
+ {
+  "symbol": "POLYXUSDT",
+  "month": "2026-08",
+  "days": 31,
+  "quote_volume": 4827052.114739999,
+  "first_open_raw": 1785542400000000,
+  "missing": false
+ },
+ {
+  "symbol": "PORTALUSDT",
+  "month": "2026-08",
+  "days": 31,
+  "quote_volume": 133688311.21901199,
+  "first_open_raw": 1785542400000000,
+  "missing": false
+ },
+ {
+  "symbol": "PORTOUSDT",
+  "month": "2026-08",
+  "days": 31,
+  "quote_volume": 7351512.525869999,
+  "first_open_raw": 1785542400000000,
+  "missing": false
+ },
+ {
+  "symbol": "POWRUSDT",
+  "month": "2026-08",
+  "days": 31,
+  "quote_volume": 6606015.866699998,
+  "first_open_raw": 1785542400000000,
+  "missing": false
+ },
+ {
+  "symbol": "PROMUSDT",
+  "month": "2026-08",
+  "days": 31,
+  "quote_volume": 238924365.12726998,
+  "first_open_raw": 1785542400000000,
+  "missing": false
+ },
+ {
+  "symbol": "PROVEUSDT",
+  "month": "2026-08",
+  "days": 31,
+  "quote_volume": 15906722.75101,
+  "first_open_raw": 1785542400000000,
+  "missing": false
+ },
+ {
+  "symbol": "PSGUSDT",
+  "month": "2026-08",
+  "days": 31,
+  "quote_volume": 9831844.787999999,
+  "first_open_raw": 1785542400000000,
+  "missing": false
+ },
+ {
+  "symbol": "PUMPUSDT",
+  "month": "2026-08",
+  "days": 31,
+  "quote_volume": 862695636.4651681,
+  "first_open_raw": 1785542400000000,
+  "missing": false
+ },
+ {
+  "symbol": "PUNDIXUSDT",
+  "month": "2026-08",
+  "days": 31,
+  "quote_volume": 7643311.374530001,
+  "first_open_raw": 1785542400000000,
+  "missing": false
+ },
+ {
+  "symbol": "PYPLBUSDT",
+  "month": "2026-08",
+  "days": 31,
+  "quote_volume": 1770829.5446999997,
+  "first_open_raw": 1785542400000000,
+  "missing": false
+ },
+ {
+  "symbol": "PYRUSDT",
+  "month": "2026-08",
+  "days": 17,
+  "quote_volume": 13044438.737652,
+  "first_open_raw": 1785542400000000,
+  "missing": false
+ },
+ {
+  "symbol": "PYTHUSDT",
+  "month": "2026-08",
+  "days": 31,
+  "quote_volume": 675739678.212836,
+  "first_open_raw": 1785542400000000,
+  "missing": false
+ },
+ {
+  "symbol": "QCOMBUSDT",
+  "month": "2026-08",
+  "days": 31,
+  "quote_volume": 4649168.19661,
+  "first_open_raw": 1785542400000000,
+  "missing": false
+ },
+ {
+  "symbol": "QIUSDT",
+  "month": "2026-08",
+  "days": 31,
+  "quote_volume": 8221145.17756,
+  "first_open_raw": 1785542400000000,
+  "missing": false
+ },
+ {
+  "symbol": "QKCUSDT",
+  "month": "2026-08",
+  "days": 31,
+  "quote_volume": 2035297.4340339997,
+  "first_open_raw": 1785542400000000,
+  "missing": false
+ },
+ {
+  "symbol": "QNTBUSDT",
+  "month": "2026-08",
+  "days": 31,
+  "quote_volume": 6331206.712,
+  "first_open_raw": 1785542400000000,
+  "missing": false
+ },
+ {
+  "symbol": "QNTUSDT",
+  "month": "2026-08",
+  "days": 31,
+  "quote_volume": 17335090.534310002,
+  "first_open_raw": 1785542400000000,
+  "missing": false
+ },
+ {
+  "symbol": "QQQBUSDT",
+  "month": "2026-08",
+  "days": 31,
+  "quote_volume": 104547778.06612003,
+  "first_open_raw": 1785542400000000,
+  "missing": false
+ },
+ {
+  "symbol": "QTUMUSDT",
+  "month": "2026-08",
+  "days": 31,
+  "quote_volume": 8560714.721100003,
+  "first_open_raw": 1785542400000000,
+  "missing": false
+ },
+ {
+  "symbol": "QUICKUSDT",
+  "month": "2026-08",
+  "days": 31,
+  "quote_volume": 1637946.71397,
+  "first_open_raw": 1785542400000000,
+  "missing": false
+ },
+ {
+  "symbol": "RADUSDT",
+  "month": "2026-08",
+  "days": 31,
+  "quote_volume": 32976116.387199998,
+  "first_open_raw": 1785542400000000,
+  "missing": false
+ },
+ {
+  "symbol": "RAREUSDT",
+  "month": "2026-08",
+  "days": 31,
+  "quote_volume": 34965903.587789,
+  "first_open_raw": 1785542400000000,
+  "missing": false
+ },
+ {
+  "symbol": "RAYUSDT",
+  "month": "2026-08",
+  "days": 31,
+  "quote_volume": 23184171.039199997,
+  "first_open_raw": 1785542400000000,
+  "missing": false
+ },
+ {
+  "symbol": "REDUSDT",
+  "month": "2026-08",
+  "days": 31,
+  "quote_volume": 45358475.135000005,
+  "first_open_raw": 1785542400000000,
+  "missing": false
+ },
+ {
+  "symbol": "RENDERUSDT",
+  "month": "2026-08",
+  "days": 31,
+  "quote_volume": 93563616.50335,
+  "first_open_raw": 1785542400000000,
+  "missing": false
+ },
+ {
+  "symbol": "REQUSDT",
+  "month": "2026-08",
+  "days": 31,
+  "quote_volume": 4393870.217,
+  "first_open_raw": 1785542400000000,
+  "missing": false
+ },
+ {
+  "symbol": "RESOLVUSDT",
+  "month": "2026-08",
+  "days": 31,
+  "quote_volume": 16091318.067731,
+  "first_open_raw": 1785542400000000,
+  "missing": false
+ },
+ {
+  "symbol": "REUSDT",
+  "month": "2026-08",
+  "days": 31,
+  "quote_volume": 1091188388.8451996,
+  "first_open_raw": 1785542400000000,
+  "missing": false
+ },
+ {
+  "symbol": "REZUSDT",
+  "month": "2026-08",
+  "days": 31,
+  "quote_volume": 12643512.6926171,
+  "first_open_raw": 1785542400000000,
+  "missing": false
+ },
+ {
+  "symbol": "RIFUSDT",
+  "month": "2026-08",
+  "days": 31,
+  "quote_volume": 36056673.729200006,
+  "first_open_raw": 1785542400000000,
+  "missing": false
+ },
+ {
+  "symbol": "RKLBBUSDT",
+  "month": "2026-08",
+  "days": 31,
+  "quote_volume": 6660778.3504,
+  "first_open_raw": 1785542400000000,
+  "missing": false
+ },
+ {
+  "symbol": "RLCUSDT",
+  "month": "2026-08",
+  "days": 31,
+  "quote_volume": 6372506.6050499985,
+  "first_open_raw": 1785542400000000,
+  "missing": false
+ },
+ {
+  "symbol": "RLUSDUSDT",
+  "month": "2026-08",
+  "days": 31,
+  "quote_volume": 1799156656.0682,
+  "first_open_raw": 1785542400000000,
+  "missing": false
+ },
+ {
+  "symbol": "ROBOUSDT",
+  "month": "2026-08",
+  "days": 31,
+  "quote_volume": 98584962.38865,
+  "first_open_raw": 1785542400000000,
+  "missing": false
+ },
+ {
+  "symbol": "RONINUSDT",
+  "month": "2026-08",
+  "days": 31,
+  "quote_volume": 14035682.169839,
+  "first_open_raw": 1785542400000000,
+  "missing": false
+ },
+ {
+  "symbol": "ROSEUSDT",
+  "month": "2026-08",
+  "days": 31,
+  "quote_volume": 20125266.950614,
+  "first_open_raw": 1785542400000000,
+  "missing": false
+ },
+ {
+  "symbol": "RPLUSDT",
+  "month": "2026-08",
+  "days": 31,
+  "quote_volume": 5159703.04232,
+  "first_open_raw": 1785542400000000,
+  "missing": false
+ },
+ {
+  "symbol": "RSRUSDT",
+  "month": "2026-08",
+  "days": 31,
+  "quote_volume": 15368824.910967898,
+  "first_open_raw": 1785542400000000,
+  "missing": false
+ },
+ {
+  "symbol": "RUNEUSDT",
+  "month": "2026-08",
+  "days": 31,
+  "quote_volume": 43392829.403,
+  "first_open_raw": 1785542400000000,
+  "missing": false
+ },
+ {
+  "symbol": "RVNUSDT",
+  "month": "2026-08",
+  "days": 31,
+  "quote_volume": 16695372.065216001,
+  "first_open_raw": 1785542400000000,
+  "missing": false
+ },
+ {
+  "symbol": "SAGAUSDT",
+  "month": "2026-08",
+  "days": 31,
+  "quote_volume": 54339032.12262701,
+  "first_open_raw": 1785542400000000,
+  "missing": false
+ },
+ {
+  "symbol": "SAHARAUSDT",
+  "month": "2026-08",
+  "days": 31,
+  "quote_volume": 26473846.308519997,
+  "first_open_raw": 1785542400000000,
+  "missing": false
+ },
+ {
+  "symbol": "SANDUSDT",
+  "month": "2026-08",
+  "days": 31,
+  "quote_volume": 31453172.248959996,
+  "first_open_raw": 1785542400000000,
+  "missing": false
+ },
+ {
+  "symbol": "SANTOSUSDT",
+  "month": "2026-08",
+  "days": 31,
+  "quote_volume": 17281374.222489998,
+  "first_open_raw": 1785542400000000,
+  "missing": false
+ },
+ {
+  "symbol": "SAPIENUSDT",
+  "month": "2026-08",
+  "days": 31,
+  "quote_volume": 13087508.378059998,
+  "first_open_raw": 1785542400000000,
+  "missing": false
+ },
+ {
+  "symbol": "SCRTUSDT",
+  "month": "2026-08",
+  "days": 31,
+  "quote_volume": 28623017.22613,
+  "first_open_raw": 1785542400000000,
+  "missing": false
+ },
+ {
+  "symbol": "SCRUSDT",
+  "month": "2026-08",
+  "days": 31,
+  "quote_volume": 19777387.353076,
+  "first_open_raw": 1785542400000000,
+  "missing": false
+ },
+ {
+  "symbol": "SCUSDT",
+  "month": "2026-08",
+  "days": 31,
+  "quote_volume": 14435216.291846002,
+  "first_open_raw": 1785542400000000,
+  "missing": false
+ },
+ {
+  "symbol": "SEIUSDT",
+  "month": "2026-08",
+  "days": 31,
+  "quote_volume": 63069812.212835,
+  "first_open_raw": 1785542400000000,
+  "missing": false
+ },
+ {
+  "symbol": "SENTUSDT",
+  "month": "2026-08",
+  "days": 31,
+  "quote_volume": 21650052.781280003,
+  "first_open_raw": 1785542400000000,
+  "missing": false
+ },
+ {
+  "symbol": "SFPUSDT",
+  "month": "2026-08",
+  "days": 31,
+  "quote_volume": 5002032.254400001,
+  "first_open_raw": 1785542400000000,
+  "missing": false
+ },
+ {
+  "symbol": "SHELLUSDT",
+  "month": "2026-08",
+  "days": 31,
+  "quote_volume": 18791849.261880007,
+  "first_open_raw": 1785542400000000,
+  "missing": false
+ },
+ {
+  "symbol": "SHIBUSDT",
+  "month": "2026-08",
+  "days": 31,
+  "quote_volume": 153186903.60626903,
+  "first_open_raw": 1785542400000000,
+  "missing": false
+ },
+ {
+  "symbol": "SIGNUSDT",
+  "month": "2026-08",
+  "days": 31,
+  "quote_volume": 16706168.335629998,
+  "first_open_raw": 1785542400000000,
+  "missing": false
+ },
+ {
+  "symbol": "SKHYBUSDT",
+  "month": "2026-08",
+  "days": 31,
+  "quote_volume": 300696126.10423,
+  "first_open_raw": 1785542400000000,
+  "missing": false
+ },
+ {
+  "symbol": "SKLUSDT",
+  "month": "2026-08",
+  "days": 31,
+  "quote_volume": 9519193.144529996,
+  "first_open_raw": 1785542400000000,
+  "missing": false
+ },
+ {
+  "symbol": "SKYUSDT",
+  "month": "2026-08",
+  "days": 31,
+  "quote_volume": 36067369.668759994,
+  "first_open_raw": 1785542400000000,
+  "missing": false
+ },
+ {
+  "symbol": "SLPUSDT",
+  "month": "2026-08",
+  "days": 31,
+  "quote_volume": 9634007.941004999,
+  "first_open_raw": 1785542400000000,
+  "missing": false
+ },
+ {
+  "symbol": "SMCIBUSDT",
+  "month": "2026-08",
+  "days": 27,
+  "quote_volume": 9109144.857700003,
+  "first_open_raw": 1785888000000000,
+  "missing": false
+ },
+ {
+  "symbol": "SMHBUSDT",
+  "month": "2026-08",
+  "days": 31,
+  "quote_volume": 1751620.8293999997,
+  "first_open_raw": 1785542400000000,
+  "missing": false
+ },
+ {
+  "symbol": "SNDKBUSDT",
+  "month": "2026-08",
+  "days": 31,
+  "quote_volume": 1098873841.301102,
+  "first_open_raw": 1785542400000000,
+  "missing": false
+ },
+ {
+  "symbol": "SNXUSDT",
+  "month": "2026-08",
+  "days": 31,
+  "quote_volume": 18386115.60328,
+  "first_open_raw": 1785542400000000,
+  "missing": false
+ },
+ {
+  "symbol": "SNXXBUSDT",
+  "month": "2026-08",
+  "days": 31,
+  "quote_volume": 224041513.36639997,
+  "first_open_raw": 1785542400000000,
+  "missing": false
+ },
+ {
+  "symbol": "SOLUSDT",
+  "month": "2026-08",
+  "days": 31,
+  "quote_volume": 6586885114.52225,
+  "first_open_raw": 1785542400000000,
+  "missing": false
+ },
+ {
+  "symbol": "SOLVUSDT",
+  "month": "2026-08",
+  "days": 31,
+  "quote_volume": 23282977.042909995,
+  "first_open_raw": 1785542400000000,
+  "missing": false
+ },
+ {
+  "symbol": "SOMIUSDT",
+  "month": "2026-08",
+  "days": 31,
+  "quote_volume": 18398063.300470002,
+  "first_open_raw": 1785542400000000,
+  "missing": false
+ },
+ {
+  "symbol": "SOPHUSDT",
+  "month": "2026-08",
+  "days": 31,
+  "quote_volume": 13371272.914489998,
+  "first_open_raw": 1785542400000000,
+  "missing": false
+ },
+ {
+  "symbol": "SOXLBUSDT",
+  "month": "2026-08",
+  "days": 31,
+  "quote_volume": 217748844.66017005,
+  "first_open_raw": 1785542400000000,
+  "missing": false
+ },
+ {
+  "symbol": "SOXSBUSDT",
+  "month": "2026-08",
+  "days": 31,
+  "quote_volume": 24685385.052400004,
+  "first_open_raw": 1785542400000000,
+  "missing": false
+ },
+ {
+  "symbol": "SPCXBUSDT",
+  "month": "2026-08",
+  "days": 31,
+  "quote_volume": 793750336.66381,
+  "first_open_raw": 1785542400000000,
+  "missing": false
+ },
+ {
+  "symbol": "SPELLUSDT",
+  "month": "2026-08",
+  "days": 31,
+  "quote_volume": 10245394.863854399,
+  "first_open_raw": 1785542400000000,
+  "missing": false
+ },
+ {
+  "symbol": "SPKUSDT",
+  "month": "2026-08",
+  "days": 31,
+  "quote_volume": 77146355.19099,
+  "first_open_raw": 1785542400000000,
+  "missing": false
+ },
+ {
+  "symbol": "SPYBUSDT",
+  "month": "2026-08",
+  "days": 31,
+  "quote_volume": 64848744.32706,
+  "first_open_raw": 1785542400000000,
+  "missing": false
+ },
+ {
+  "symbol": "SSVUSDT",
+  "month": "2026-08",
+  "days": 31,
+  "quote_volume": 12005659.070094999,
+  "first_open_raw": 1785542400000000,
+  "missing": false
+ },
+ {
+  "symbol": "STEEMUSDT",
+  "month": "2026-08",
+  "days": 31,
+  "quote_volume": 9349998.485685,
+  "first_open_raw": 1785542400000000,
+  "missing": false
+ },
+ {
+  "symbol": "STGUSDT",
+  "month": "2026-08",
+  "days": 31,
+  "quote_volume": 16932025.07452,
+  "first_open_raw": 1785542400000000,
+  "missing": false
+ },
+ {
+  "symbol": "STORJUSDT",
+  "month": "2026-08",
+  "days": 31,
+  "quote_volume": 40100927.5833,
+  "first_open_raw": 1785542400000000,
+  "missing": false
+ },
+ {
+  "symbol": "STOUSDT",
+  "month": "2026-08",
+  "days": 31,
+  "quote_volume": 27527748.43275,
+  "first_open_raw": 1785542400000000,
+  "missing": false
+ },
+ {
+  "symbol": "STRAXUSDT",
+  "month": "2026-08",
+  "days": 31,
+  "quote_volume": 7517654.20282,
+  "first_open_raw": 1785542400000000,
+  "missing": false
+ },
+ {
+  "symbol": "STRKUSDT",
+  "month": "2026-08",
+  "days": 31,
+  "quote_volume": 49857916.8577248,
+  "first_open_raw": 1785542400000000,
+  "missing": false
+ },
+ {
+  "symbol": "STXUSDT",
+  "month": "2026-08",
+  "days": 31,
+  "quote_volume": 63204135.13638001,
+  "first_open_raw": 1785542400000000,
+  "missing": false
+ },
+ {
+  "symbol": "SUIUSDT",
+  "month": "2026-08",
+  "days": 31,
+  "quote_volume": 1028196653.5146799,
+  "first_open_raw": 1785542400000000,
+  "missing": false
+ },
+ {
+  "symbol": "SUNUSDT",
+  "month": "2026-08",
+  "days": 31,
+  "quote_volume": 24688491.105369996,
+  "first_open_raw": 1785542400000000,
+  "missing": false
+ },
+ {
+  "symbol": "SUPERUSDT",
+  "month": "2026-08",
+  "days": 31,
+  "quote_volume": 27792243.0055,
+  "first_open_raw": 1785542400000000,
+  "missing": false
+ },
+ {
+  "symbol": "SUSDT",
+  "month": "2026-08",
+  "days": 31,
+  "quote_volume": 36724723.201995,
+  "first_open_raw": 1785542400000000,
+  "missing": false
+ },
+ {
+  "symbol": "SUSHIUSDT",
+  "month": "2026-08",
+  "days": 31,
+  "quote_volume": 13764061.39108,
+  "first_open_raw": 1785542400000000,
+  "missing": false
+ },
+ {
+  "symbol": "SXTUSDT",
+  "month": "2026-08",
+  "days": 31,
+  "quote_volume": 16539618.723279003,
+  "first_open_raw": 1785542400000000,
+  "missing": false
+ },
+ {
+  "symbol": "SYNUSDT",
+  "month": "2026-08",
+  "days": 31,
+  "quote_volume": 90848305.63982598,
+  "first_open_raw": 1785542400000000,
+  "missing": false
+ },
+ {
+  "symbol": "SYRUPUSDT",
+  "month": "2026-08",
+  "days": 31,
+  "quote_volume": 30435334.64559,
+  "first_open_raw": 1785542400000000,
+  "missing": false
+ },
+ {
+  "symbol": "TAOUSDT",
+  "month": "2026-08",
+  "days": 31,
+  "quote_volume": 503011765.56676006,
+  "first_open_raw": 1785542400000000,
+  "missing": false
+ },
+ {
+  "symbol": "TFUELUSDT",
+  "month": "2026-08",
+  "days": 31,
+  "quote_volume": 3748189.0110500003,
+  "first_open_raw": 1785542400000000,
+  "missing": false
+ },
+ {
+  "symbol": "THETAUSDT",
+  "month": "2026-08",
+  "days": 31,
+  "quote_volume": 16525073.94046,
+  "first_open_raw": 1785542400000000,
+  "missing": false
+ },
+ {
+  "symbol": "THEUSDT",
+  "month": "2026-08",
+  "days": 31,
+  "quote_volume": 23594830.021080002,
+  "first_open_raw": 1785542400000000,
+  "missing": false
+ },
+ {
+  "symbol": "TIAUSDT",
+  "month": "2026-08",
+  "days": 31,
+  "quote_volume": 60222110.63660999,
+  "first_open_raw": 1785542400000000,
+  "missing": false
+ },
+ {
+  "symbol": "TKOUSDT",
+  "month": "2026-08",
+  "days": 31,
+  "quote_volume": 5564844.634140001,
+  "first_open_raw": 1785542400000000,
+  "missing": false
+ },
+ {
+  "symbol": "TLMUSDT",
+  "month": "2026-08",
+  "days": 31,
+  "quote_volume": 42416789.839747004,
+  "first_open_raw": 1785542400000000,
+  "missing": false
+ },
+ {
+  "symbol": "TNSRUSDT",
+  "month": "2026-08",
+  "days": 31,
+  "quote_volume": 22625890.61541,
+  "first_open_raw": 1785542400000000,
+  "missing": false
+ },
+ {
+  "symbol": "TOWNSUSDT",
+  "month": "2026-08",
+  "days": 31,
+  "quote_volume": 28925346.36411,
+  "first_open_raw": 1785542400000000,
+  "missing": false
+ },
+ {
+  "symbol": "TQQQBUSDT",
+  "month": "2026-08",
+  "days": 31,
+  "quote_volume": 6212948.838000001,
+  "first_open_raw": 1785542400000000,
+  "missing": false
+ },
+ {
+  "symbol": "TRBUSDT",
+  "month": "2026-08",
+  "days": 31,
+  "quote_volume": 38936977.73115,
+  "first_open_raw": 1785542400000000,
+  "missing": false
+ },
+ {
+  "symbol": "TREEUSDT",
+  "month": "2026-08",
+  "days": 31,
+  "quote_volume": 31973207.169310004,
+  "first_open_raw": 1785542400000000,
+  "missing": false
+ },
+ {
+  "symbol": "TRUMPUSDT",
+  "month": "2026-08",
+  "days": 31,
+  "quote_volume": 1039956266.8513478,
+  "first_open_raw": 1785542400000000,
+  "missing": false
+ },
+ {
+  "symbol": "TRXUSDT",
+  "month": "2026-08",
+  "days": 31,
+  "quote_volume": 906699344.92773,
+  "first_open_raw": 1785542400000000,
+  "missing": false
+ },
+ {
+  "symbol": "TSLABUSDT",
+  "month": "2026-08",
+  "days": 31,
+  "quote_volume": 46455138.155540004,
+  "first_open_raw": 1785542400000000,
+  "missing": false
+ },
+ {
+  "symbol": "TSMBUSDT",
+  "month": "2026-08",
+  "days": 31,
+  "quote_volume": 7478709.3871100005,
+  "first_open_raw": 1785542400000000,
+  "missing": false
+ },
+ {
+  "symbol": "TSTUSDT",
+  "month": "2026-08",
+  "days": 31,
+  "quote_volume": 154421366.356956,
+  "first_open_raw": 1785542400000000,
+  "missing": false
+ },
+ {
+  "symbol": "TURBOUSDT",
+  "month": "2026-08",
+  "days": 31,
+  "quote_volume": 31553221.580947004,
+  "first_open_raw": 1785542400000000,
+  "missing": false
+ },
+ {
+  "symbol": "TURTLEUSDT",
+  "month": "2026-08",
+  "days": 31,
+  "quote_volume": 6320762.00862,
+  "first_open_raw": 1785542400000000,
+  "missing": false
+ },
+ {
+  "symbol": "TUSDT",
+  "month": "2026-08",
+  "days": 31,
+  "quote_volume": 7161577.903711,
+  "first_open_raw": 1785542400000000,
+  "missing": false
+ },
+ {
+  "symbol": "TUSDUSDT",
+  "month": "2026-08",
+  "days": 31,
+  "quote_volume": 3394568.0797999995,
+  "first_open_raw": 1785542400000000,
+  "missing": false
+ },
+ {
+  "symbol": "TUTUSDT",
+  "month": "2026-08",
+  "days": 31,
+  "quote_volume": 1221119103.87084,
+  "first_open_raw": 1785542400000000,
+  "missing": false
+ },
+ {
+  "symbol": "TWTUSDT",
+  "month": "2026-08",
+  "days": 31,
+  "quote_volume": 24934543.128,
+  "first_open_raw": 1785542400000000,
+  "missing": false
+ },
+ {
+  "symbol": "UMAUSDT",
+  "month": "2026-08",
+  "days": 31,
+  "quote_volume": 5538389.105899999,
+  "first_open_raw": 1785542400000000,
+  "missing": false
+ },
+ {
+  "symbol": "UNIUSDT",
+  "month": "2026-08",
+  "days": 31,
+  "quote_volume": 672448156.89327,
+  "first_open_raw": 1785542400000000,
+  "missing": false
+ },
+ {
+  "symbol": "USARBUSDT",
+  "month": "2026-08",
+  "days": 27,
+  "quote_volume": 5035129.879399999,
+  "first_open_raw": 1785888000000000,
+  "missing": false
+ },
+ {
+  "symbol": "USD1USDT",
+  "month": "2026-08",
+  "days": 31,
+  "quote_volume": 5065725746.84042,
+  "first_open_raw": 1785542400000000,
+  "missing": false
+ },
+ {
+  "symbol": "USDCUSDT",
+  "month": "2026-08",
+  "days": 31,
+  "quote_volume": 58799678165.17278,
+  "first_open_raw": 1785542400000000,
+  "missing": false
+ },
+ {
+  "symbol": "USDEUSDT",
+  "month": "2026-08",
+  "days": 31,
+  "quote_volume": 45913722.199300006,
+  "first_open_raw": 1785542400000000,
+  "missing": false
+ },
+ {
+  "symbol": "USDPUSDT",
+  "month": "2026-08",
+  "days": 31,
+  "quote_volume": 3253435.575,
+  "first_open_raw": 1785542400000000,
+  "missing": false
+ },
+ {
+  "symbol": "USDSUSDT",
+  "month": "2026-08",
+  "days": 31,
+  "quote_volume": 6778958.9338,
+  "first_open_raw": 1785542400000000,
+  "missing": false
+ },
+ {
+  "symbol": "USTCUSDT",
+  "month": "2026-08",
+  "days": 31,
+  "quote_volume": 11845789.41664,
+  "first_open_raw": 1785542400000000,
+  "missing": false
+ },
+ {
+  "symbol": "USUALUSDT",
+  "month": "2026-08",
+  "days": 31,
+  "quote_volume": 21306959.880969997,
+  "first_open_raw": 1785542400000000,
+  "missing": false
+ },
+ {
+  "symbol": "UUSDT",
+  "month": "2026-08",
+  "days": 31,
+  "quote_volume": 685957145.1808999,
+  "first_open_raw": 1785542400000000,
+  "missing": false
+ },
+ {
+  "symbol": "VANAUSDT",
+  "month": "2026-08",
+  "days": 31,
+  "quote_volume": 15336194.653090002,
+  "first_open_raw": 1785542400000000,
+  "missing": false
+ },
+ {
+  "symbol": "VANRYUSDT",
+  "month": "2026-08",
+  "days": 17,
+  "quote_volume": 37047663.047177,
+  "first_open_raw": 1785542400000000,
+  "missing": false
+ },
+ {
+  "symbol": "VELODROMEUSDT",
+  "month": "2026-08",
+  "days": 31,
+  "quote_volume": 15198321.222855002,
+  "first_open_raw": 1785542400000000,
+  "missing": false
+ },
+ {
+  "symbol": "VETUSDT",
+  "month": "2026-08",
+  "days": 31,
+  "quote_volume": 43052560.4156538,
+  "first_open_raw": 1785542400000000,
+  "missing": false
+ },
+ {
+  "symbol": "VICUSDT",
+  "month": "2026-08",
+  "days": 17,
+  "quote_volume": 64108720.59059801,
+  "first_open_raw": 1785542400000000,
+  "missing": false
+ },
+ {
+  "symbol": "VIRTUALUSDT",
+  "month": "2026-08",
+  "days": 31,
+  "quote_volume": 143060489.28515002,
+  "first_open_raw": 1785542400000000,
+  "missing": false
+ },
+ {
+  "symbol": "VTHOUSDT",
+  "month": "2026-08",
+  "days": 31,
+  "quote_volume": 5596797.649521999,
+  "first_open_raw": 1785542400000000,
+  "missing": false
+ },
+ {
+  "symbol": "WALUSDT",
+  "month": "2026-08",
+  "days": 31,
+  "quote_volume": 18922450.74464,
+  "first_open_raw": 1785542400000000,
+  "missing": false
+ },
+ {
+  "symbol": "WAXPUSDT",
+  "month": "2026-08",
+  "days": 31,
+  "quote_volume": 10312688.676650004,
+  "first_open_raw": 1785542400000000,
+  "missing": false
+ },
+ {
+  "symbol": "WBETHUSDT",
+  "month": "2026-08",
+  "days": 31,
+  "quote_volume": 33632728.725655,
+  "first_open_raw": 1785542400000000,
+  "missing": false
+ },
+ {
+  "symbol": "WBTCUSDT",
+  "month": "2026-08",
+  "days": 31,
+  "quote_volume": 89852474.5762624,
+  "first_open_raw": 1785542400000000,
+  "missing": false
+ },
+ {
+  "symbol": "WCTUSDT",
+  "month": "2026-08",
+  "days": 31,
+  "quote_volume": 16219518.457949998,
+  "first_open_raw": 1785542400000000,
+  "missing": false
+ },
+ {
+  "symbol": "WDCBUSDT",
+  "month": "2026-08",
+  "days": 31,
+  "quote_volume": 11145271.604649996,
+  "first_open_raw": 1785542400000000,
+  "missing": false
+ },
+ {
+  "symbol": "WIFUSDT",
+  "month": "2026-08",
+  "days": 31,
+  "quote_volume": 70809242.157149,
+  "first_open_raw": 1785542400000000,
+  "missing": false
+ },
+ {
+  "symbol": "WINUSDT",
+  "month": "2026-08",
+  "days": 31,
+  "quote_volume": 6007497.870511977,
+  "first_open_raw": 1785542400000000,
+  "missing": false
+ },
+ {
+  "symbol": "WLDUSDT",
+  "month": "2026-08",
+  "days": 31,
+  "quote_volume": 530085564.97352004,
+  "first_open_raw": 1785542400000000,
+  "missing": false
+ },
+ {
+  "symbol": "WLFIUSDT",
+  "month": "2026-08",
+  "days": 31,
+  "quote_volume": 220407470.41033998,
+  "first_open_raw": 1785542400000000,
+  "missing": false
+ },
+ {
+  "symbol": "WOOUSDT",
+  "month": "2026-08",
+  "days": 31,
+  "quote_volume": 4532564.145384001,
+  "first_open_raw": 1785542400000000,
+  "missing": false
+ },
+ {
+  "symbol": "WUSDT",
+  "month": "2026-08",
+  "days": 31,
+  "quote_volume": 18474789.843312997,
+  "first_open_raw": 1785542400000000,
+  "missing": false
+ },
+ {
+  "symbol": "XAIUSDT",
+  "month": "2026-08",
+  "days": 31,
+  "quote_volume": 37296131.82244,
+  "first_open_raw": 1785542400000000,
+  "missing": false
+ },
+ {
+  "symbol": "XAUTUSDT",
+  "month": "2026-08",
+  "days": 31,
+  "quote_volume": 702928162.050137,
+  "first_open_raw": 1785542400000000,
+  "missing": false
+ },
+ {
+  "symbol": "XECUSDT",
+  "month": "2026-08",
+  "days": 31,
+  "quote_volume": 18431875.698853638,
+  "first_open_raw": 1785542400000000,
+  "missing": false
+ },
+ {
+  "symbol": "XLMUSDT",
+  "month": "2026-08",
+  "days": 31,
+  "quote_volume": 390863854.74999994,
+  "first_open_raw": 1785542400000000,
+  "missing": false
+ },
+ {
+  "symbol": "XNOUSDT",
+  "month": "2026-08",
+  "days": 31,
+  "quote_volume": 2786660.1477200002,
+  "first_open_raw": 1785542400000000,
+  "missing": false
+ },
+ {
+  "symbol": "XPLUSDT",
+  "month": "2026-08",
+  "days": 31,
+  "quote_volume": 1095828289.51235,
+  "first_open_raw": 1785542400000000,
+  "missing": false
+ },
+ {
+  "symbol": "XRPUSDT",
+  "month": "2026-08",
+  "days": 31,
+  "quote_volume": 5189589029.84163,
+  "first_open_raw": 1785542400000000,
+  "missing": false
+ },
+ {
+  "symbol": "XTZUSDT",
+  "month": "2026-08",
+  "days": 31,
+  "quote_volume": 12872397.064159999,
+  "first_open_raw": 1785542400000000,
+  "missing": false
+ },
+ {
+  "symbol": "XUSDUSDT",
+  "month": "2026-08",
+  "days": 31,
+  "quote_volume": 104651247.1515,
+  "first_open_raw": 1785542400000000,
+  "missing": false
+ },
+ {
+  "symbol": "XVGUSDT",
+  "month": "2026-08",
+  "days": 31,
+  "quote_volume": 7407039.5520709995,
+  "first_open_raw": 1785542400000000,
+  "missing": false
+ },
+ {
+  "symbol": "XVSUSDT",
+  "month": "2026-08",
+  "days": 31,
+  "quote_volume": 3900844.5490000006,
+  "first_open_raw": 1785542400000000,
+  "missing": false
+ },
+ {
+  "symbol": "YBUSDT",
+  "month": "2026-08",
+  "days": 31,
+  "quote_volume": 19425919.342899993,
+  "first_open_raw": 1785542400000000,
+  "missing": false
+ },
+ {
+  "symbol": "YFIUSDT",
+  "month": "2026-08",
+  "days": 31,
+  "quote_volume": 8548363.952410001,
+  "first_open_raw": 1785542400000000,
+  "missing": false
+ },
+ {
+  "symbol": "YGGUSDT",
+  "month": "2026-08",
+  "days": 31,
+  "quote_volume": 13890149.026507001,
+  "first_open_raw": 1785542400000000,
+  "missing": false
+ },
+ {
+  "symbol": "ZAMAUSDT",
+  "month": "2026-08",
+  "days": 31,
+  "quote_volume": 167681497.00199997,
+  "first_open_raw": 1785542400000000,
+  "missing": false
+ },
+ {
+  "symbol": "ZBTUSDT",
+  "month": "2026-08",
+  "days": 31,
+  "quote_volume": 97938120.18422996,
+  "first_open_raw": 1785542400000000,
+  "missing": false
+ },
+ {
+  "symbol": "ZECUSDT",
+  "month": "2026-08",
+  "days": 31,
+  "quote_volume": 3395406238.625289,
+  "first_open_raw": 1785542400000000,
+  "missing": false
+ },
+ {
+  "symbol": "ZENUSDT",
+  "month": "2026-08",
+  "days": 31,
+  "quote_volume": 72259408.54328999,
+  "first_open_raw": 1785542400000000,
+  "missing": false
+ },
+ {
+  "symbol": "ZILUSDT",
+  "month": "2026-08",
+  "days": 31,
+  "quote_volume": 8806909.5626046,
+  "first_open_raw": 1785542400000000,
+  "missing": false
+ },
+ {
+  "symbol": "ZKCUSDT",
+  "month": "2026-08",
+  "days": 31,
+  "quote_volume": 41831641.797340006,
+  "first_open_raw": 1785542400000000,
+  "missing": false
+ },
+ {
+  "symbol": "ZKPUSDT",
+  "month": "2026-08",
+  "days": 31,
+  "quote_volume": 37760306.03578,
+  "first_open_raw": 1785542400000000,
+  "missing": false
+ },
+ {
+  "symbol": "ZKUSDT",
+  "month": "2026-08",
+  "days": 31,
+  "quote_volume": 49605874.847516,
+  "first_open_raw": 1785542400000000,
+  "missing": false
+ },
+ {
+  "symbol": "ZROUSDT",
+  "month": "2026-08",
+  "days": 31,
+  "quote_volume": 158216414.65288,
+  "first_open_raw": 1785542400000000,
+  "missing": false
+ },
+ {
+  "symbol": "ZRXUSDT",
+  "month": "2026-08",
+  "days": 31,
+  "quote_volume": 3813196.764,
+  "first_open_raw": 1785542400000000,
+  "missing": false
+ },
+ {
+  "symbol": "\u5e01\u5b89\u4eba\u751fUSDT",
+  "month": "2026-08",
+  "days": 31,
+  "quote_volume": 90228207.53616,
+  "first_open_raw": 1785542400000000,
+  "missing": false
+ }
+]
