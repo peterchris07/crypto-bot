@@ -107,10 +107,11 @@ Jendela Terminal terbuka dan meminta:
    Tanggal hari ini dicatat ke config/local.yaml sebagai
    live.api_key_verified_date; preflight menolak tanggal kosong atau lebih tua
    dari 90 hari.
-3. Pecahan equity per posisi untuk trial; Enter berarti 0,25, batas maksimum
-   config. Dengan modal sekitar seratus dua puluh USDT, 0,10 menghasilkan
-   sekitar dua belas USDT per posisi yang bisa jatuh di bawah minimum notional;
-   0,25 memberi ruang. Modal trial itulah batas kerugian, bukan pecahan ini.
+3. Pecahan equity per posisi untuk trial; Enter berarti 0.25 (titik desimal;
+   koma diubah otomatis), batas maksimum config. Dengan modal sekitar seratus
+   dua puluh USDT, 0.10 menghasilkan sekitar dua belas USDT per posisi yang
+   bisa jatuh di bawah minimum notional; 0.25 memberi ruang. Modal trial
+   itulah batas kerugian, bukan pecahan ini.
 4. Preflight tanpa order: tanggal verifikasi, kunci bisa membaca saldo (hanya
    itu; withdrawal tidak pernah dicoba), pasangan dan minimum notional, sizing
    dan ukuran minimum di atasnya, jam, dukungan stop order. Semua harus OK.
@@ -118,9 +119,11 @@ Jendela Terminal terbuka dan meminta:
 
 ### 2e. `live-start.command`
 
-Preflight sekali lagi, lalu diminta mengetik SAYA SIAP. Setelah itu
-live.enabled menjadi true di config/local.yaml, data diunduh, dan LaunchAgent
-`com.tradebot.live` mulai menjalankan supervisor. Order pertama berukuran
+Preflight sekali lagi, data diunduh (kalau jaringan mati, berhenti di sini
+sebelum apa pun diaktifkan), lalu diminta mengetik SAYA SIAP. Setelah itu
+live.enabled menjadi true di config/local.yaml dan LaunchAgent
+`com.tradebot.live` mulai menjalankan supervisor; kalau pemasangan agent
+gagal, live.enabled dikembalikan ke false. Order pertama berukuran
 minimum exchange, bukan hasil sizing. Stop lapis 1 di bot, lapis 2 di
 exchange dengan jarak dua kali lipat.
 

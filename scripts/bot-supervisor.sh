@@ -17,6 +17,9 @@ case "$MODE" in
   *) echo "mode harus paper atau live, dapat '$MODE'" >&2; exit 2 ;;
 esac
 cd "$(dirname "$0")/.." || exit 2
+# logs/<mode>.out memuat stdout bot (banner dengan kunci tersamar, harga, saldo): jangan
+# bisa dibaca akun lain di Mac yang sama.
+umask 077
 mkdir -p logs state
 PID_FILE="state/${MODE}_supervisor.pid"
 echo $$ > "$PID_FILE"

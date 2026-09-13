@@ -29,5 +29,7 @@ lalu menunggu tombol ditekan supaya jendelanya tidak langsung tertutup.
 
 Perintah yang membaca catatan per mode (status, preflight, paper-checklist,
 compare-paper, live-size) menambahkan flag `--i-know-what-im-doing` sendiri kalau
-.env berisi baris `TRADING_MODE=live`; yang dibaca hanya baris itu, bukan nilai
-kunci. Tanpa baris itu, semuanya berjalan sebagai paper.
+`scripts/env-mode.sh` membaca `TRADING_MODE=live` dari .env, dengan toleransi yang
+sama seperti bot (tanda kutip, spasi, huruf besar, awalan export); yang dibaca
+hanya baris itu, bukan nilai kunci. Tanpa baris itu, semuanya berjalan sebagai
+paper.

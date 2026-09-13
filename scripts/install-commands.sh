@@ -3,8 +3,8 @@
 # dari git lewat info/exclude (bukan .gitignore) dan tidak pernah di-commit.
 #
 # Perintah yang membaca catatan per mode (status, checklist, compare, preflight, live-size)
-# menambahkan flag --i-know-what-im-doing sendiri kalau .env berisi TRADING_MODE=live:
-# aturan dua kunci tetap berlaku, tanpa pernah membaca nilai kunci.
+# menambahkan flag --i-know-what-im-doing sendiri kalau scripts/env-mode.sh membaca
+# TRADING_MODE=live dari .env: aturan dua kunci tetap berlaku, tanpa pernah membaca nilai kunci.
 set -eu
 REPO="$(cd "$(dirname "$0")/.." && pwd)"
 FORCE=0
@@ -21,7 +21,7 @@ make_command() {
   fi
   if [ "$needs_flag" = "flag" ]; then
     flag_block='FLAG=""
-if grep -qsE "^TRADING_MODE=live$" .env; then FLAG="--i-know-what-im-doing"; fi'
+if [ "$(scripts/env-mode.sh)" = "live" ]; then FLAG="--i-know-what-im-doing"; fi'
   fi
   cat > "$target" <<CMD
 #!/bin/bash

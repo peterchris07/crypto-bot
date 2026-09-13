@@ -25,18 +25,20 @@ for other in paper live; do
   fi
 done
 if [ "$MODE" = live ]; then
-  grep -qsE '^TRADING_MODE=live$' .env || { echo "TRADING_MODE=live belum ada di .env; jalankan live-setup dulu" >&2; exit 2; }
+  [ "$(scripts/env-mode.sh)" = live ] || { echo "TRADING_MODE=live belum ada di .env; jalankan live-setup dulu" >&2; exit 2; }
   [ -f config/local.yaml ] || { echo "config/local.yaml belum ada; jalankan live-setup dulu" >&2; exit 2; }
 fi
 mkdir -p logs state "$HOME/Library/LaunchAgents"
 echo "== fetch-data"
 uv run tradebot fetch-data
 echo "== pasang $PLIST"
-sed -e "s#__REPO__#$REPO#g" -e "s#__PATH__#$PATH#g" -e "s#__LABEL__#$LABEL#g" -e "s#__MODE__#$MODE#g" \
-  scripts/com.tradebot.plist.template > "$PLIST"
+# Nilai di-escape untuk XML oleh render-plist.sh; path repo dengan '&' atau '#' aman.
+scripts/render-plist.sh "$MODE" "$REPO" "$PATH" > "$PLIST.tmp"
+mv -f "$PLIST.tmp" "$PLIST"
 launchctl bootout "gui/$(id -u)/$LABEL" 2>/dev/null || true
+# RunAtLoad=true: bootstrap sudah memulai job. Jangan tambahkan kickstart dengan flag -k:
+# itu membunuh instance pertama (beserta caffeinate/uv/python) lalu memulai yang kedua.
 launchctl bootstrap "gui/$(id -u)" "$PLIST"
-launchctl kickstart -k "gui/$(id -u)/$LABEL"
 sleep 3
 echo "== status"
 launchctl print "gui/$(id -u)/$LABEL" | grep -E "state|pid" | head -3 || true

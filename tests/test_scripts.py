@@ -116,7 +116,8 @@ def test_install_commands_adds_flag_detection_only_where_needed(tmp_path: Path):
         "tests.command",
     ]
     status = (tmp_path / "status.command").read_text()
-    assert "TRADING_MODE=live" in status and "--i-know-what-im-doing" in status
+    # deteksi mode lewat satu helper, bukan grep ketat yang tidak tahan tanda kutip/spasi
+    assert "scripts/env-mode.sh" in status and "--i-know-what-im-doing" in status
     assert "uv run tradebot status $FLAG" in status
     tests_cmd = (tmp_path / "tests.command").read_text()
     assert "--i-know-what-im-doing" not in tests_cmd
@@ -193,6 +194,111 @@ def test_supervisor_rejects_unknown_mode(tmp_path: Path):
     )
     assert result.returncode == 2
     assert "paper atau live" in result.stderr
+
+
+def test_write_env_keeps_a_secret_without_trailing_newline(tmp_path: Path):
+    scripts = _copy_scripts(tmp_path)
+    result = subprocess.run(
+        ["bash", str(scripts / "write-env.sh"), "live"],
+        input="KEYVALUE123\nSECRETVALUE456",
+        capture_output=True,
+        text=True,
+        cwd=tmp_path,
+    )
+    assert result.returncode == 0, result.stderr
+    assert "TOKOCRYPTO_API_SECRET=SECRETVALUE456" in (tmp_path / ".env").read_text().splitlines()
+
+
+@pytest.mark.parametrize(
+    ("line", "expected"),
+    [
+        ("TRADING_MODE=live", "live"),
+        ('TRADING_MODE="live"', "live"),
+        ("TRADING_MODE='live'", "live"),
+        ("TRADING_MODE=Live ", "live"),
+        ("export TRADING_MODE=live", "live"),
+        ("TRADING_MODE=live\r", "live"),
+        ("TRADING_MODE=paper", "paper"),
+        ("TRADING_MODE=", "paper"),
+        ("# TRADING_MODE=live", "paper"),
+        ("", "paper"),
+    ],
+)
+def test_env_mode_helper_reads_trading_mode_like_the_bot_does(tmp_path: Path, line, expected):
+    """python-dotenv + resolve_mode menerima kutip, spasi, dan huruf besar; helper shell juga."""
+    scripts = _copy_scripts(tmp_path)
+    (tmp_path / ".env").write_text(f"BINANCE_TESTNET_API_KEY=x\n{line}\n")
+    result = subprocess.run(
+        ["bash", str(scripts / "env-mode.sh")], capture_output=True, text=True, cwd=tmp_path
+    )
+    assert result.returncode == 0, result.stderr
+    assert result.stdout.strip() == expected
+    assert "x" not in result.stdout.replace("paper", "").replace("live", "")
+
+
+def test_env_mode_helper_without_env_file_is_paper(tmp_path: Path):
+    scripts = _copy_scripts(tmp_path)
+    result = subprocess.run(
+        ["bash", str(scripts / "env-mode.sh")], capture_output=True, text=True, cwd=tmp_path
+    )
+    assert result.returncode == 0 and result.stdout.strip() == "paper"
+
+
+def test_render_plist_escapes_repo_path_and_path_for_xml(tmp_path: Path):
+    from xml.etree import ElementTree as ET
+
+    scripts = _copy_scripts(tmp_path)
+    repo = "/Users/x/Crypto & Bot#1/<repo>"
+    path = "/opt/homebrew/bin:/usr/bin:/a&b"
+    result = subprocess.run(
+        ["bash", str(scripts / "render-plist.sh"), "live", repo, path],
+        capture_output=True,
+        text=True,
+        cwd=tmp_path,
+    )
+    assert result.returncode == 0, result.stderr
+    root = ET.fromstring(result.stdout)
+    keys = [el.text for el in root.find("dict").findall("key")]
+    values = list(root.find("dict"))
+    by_key = {values[i].text: values[i + 1] for i in range(0, len(values), 2)}
+    assert by_key["Label"].text == "com.tradebot.live"
+    args = [s.text for s in by_key["ProgramArguments"].findall("string")]
+    assert args == ["/bin/bash", f"{repo}/scripts/bot-supervisor.sh", "live"]
+    env = by_key["EnvironmentVariables"]
+    env_pairs = list(env)
+    env_map = {env_pairs[i].text: env_pairs[i + 1].text for i in range(0, len(env_pairs), 2)}
+    assert env_map == {"PATH": path, "TRADING_MODE": "live"}
+    assert by_key["WorkingDirectory"].text == repo
+    assert "Label" in keys and by_key["RunAtLoad"].tag == "true"
+
+
+def test_live_setup_refuses_while_paper_supervisor_is_alive(tmp_path: Path):
+    scripts = _copy_scripts(tmp_path)
+    (tmp_path / "state").mkdir()
+    (tmp_path / "state" / "paper_supervisor.pid").write_text(f"{os.getpid()}\n")
+    result = subprocess.run(
+        ["bash", str(scripts / "live-setup.sh")],
+        input="",
+        capture_output=True,
+        text=True,
+        cwd=tmp_path,
+        timeout=30,
+    )
+    assert result.returncode == 2
+    assert "paper-stop" in result.stderr
+    assert not (tmp_path / ".env").exists()
+
+
+def test_bot_start_does_not_restart_the_job_it_just_bootstrapped():
+    text = (SCRIPTS / "bot-start.sh").read_text()
+    assert "kickstart -k" not in text, "bootstrap dengan RunAtLoad sudah memulai job"
+    assert "render-plist.sh" in text and "sed -e" not in text
+
+
+def test_secret_handling_scripts_disable_xtrace():
+    for name in ("write-env.sh", "live-setup.sh"):
+        text = (SCRIPTS / name).read_text()
+        assert "set +o xtrace" in text, name
 
 
 def test_plist_template_has_placeholders_for_mode_and_label():
