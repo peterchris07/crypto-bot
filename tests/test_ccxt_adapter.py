@@ -42,6 +42,8 @@ def exchange_config() -> ExchangeConfig:
         recv_window_ms=5000,
         max_time_drift_ms=1000,
         time_sync_samples=3,
+        time_sync_max_rtt_ms=300,
+        time_sync_max_attempts=6,
         rate_limit=True,
         retry=RetryConfig(max_attempts=3, base_delay_seconds=1.0, max_delay_seconds=2.5),
         testnet=VenueConfig(id="binance", market_data_url=""),
@@ -691,6 +693,7 @@ def build_with_clock(exchange_config, clock_ms_values, server_ms=BASE_MS):
         sandbox=True,
         client_factory=factory,
         clock=lambda: next(values) / 1000,
+        sleep=lambda _: None,
     )
     return adapter, holder
 
@@ -728,25 +731,28 @@ def test_clock_good_network_bad_is_inconclusive_not_drift(exchange_config, caplo
     = 1600 ms > batas 1000 ms, jadi tidak bisa memutuskan; batas atas selisih 3212 ms
     masih di bawah recv_window 5000 ms, jadi lanjut dengan peringatan."""
     caplog.set_level(logging.INFO, logger="tradebot")
-    slow = [(BASE_MS - 3212, BASE_MS - 12)] * 3  # rtt 3200 ms, titik tengah -1612 ms
+    slow = [(BASE_MS - 3212, BASE_MS - 12)] * 6  # rtt 3200 ms, titik tengah -1612 ms
     adapter, holder = build_with_clock(exchange_config, samples(slow))
     adapter.connect()  # tidak melempar
     assert holder["client"].count("load_markets") == 1
+    assert holder["client"].count("fetch_time") == 1 + 6, "1 pemanasan + semua percobaan"
     assert "TIDAK KONKLUSIF" in caplog.text
     assert "bukan jam yang salah" in caplog.text
     assert "rtt terbaik 3200 ms" in caplog.text and "-1612 ms" in caplog.text
-    assert "melenceng" not in caplog.text
+    assert "tidak ada sampel dengan rtt <= 300 ms dari 6 percobaan" in caplog.text
+    assert "melenceng" not in caplog.text and "pengukuran valid" not in caplog.text
 
 
 def test_clock_good_network_terrible_stops_blaming_the_measurement(exchange_config):
-    terrible = [(BASE_MS - 5000, BASE_MS + 3000)] * 3  # rtt 8000, titik tengah -1000
+    terrible = [(BASE_MS - 5000, BASE_MS + 3000)] * 6  # rtt 8000, titik tengah -1000
     adapter, holder = build_with_clock(exchange_config, samples(terrible))
     with pytest.raises(ClockMeasurementError) as exc:
         adapter.connect()
     message = str(exc.value)
     assert "pengukuran jam" in message and "bukan jam Anda" in message
     assert "rtt terbaik 8000 ms" in message and "recv_window 5000 ms" in message
-    assert "melenceng" not in message
+    assert "melenceng" not in message and "pengukuran valid" not in message
+    assert "TIDAK KONKLUSIF" in message
     assert not isinstance(exc.value, TimeDriftError)
     assert holder["client"].count("load_markets") == 0
 
@@ -762,4 +768,105 @@ def test_clock_uses_sample_with_smallest_rtt_not_the_average(exchange_config, ca
     adapter.connect()
     assert adapter.server_offset_ms == 0, "sampel rtt terkecil, bukan rata-rata (-531 ms)"
     assert "rtt terbaik 100 ms" in caplog.text
+    assert "1 sampel terpakai dari 3 percobaan" in caplog.text, "rtt 3200 dan 500 dibuang"
     assert "TIDAK KONKLUSIF" not in caplog.text
+
+
+def test_clock_discards_high_rtt_samples_even_when_their_drift_looks_small(exchange_config, caplog):
+    """Sampel lambat tidak boleh ikut memilih: titik tengah pada rtt besar melacak rtt/2,
+    bukan jam. Di sini sampel lambat kebetulan bertitik tengah 0, sampel cepat -30 ms;
+    yang dipakai tetap yang cepat."""
+    caplog.set_level(logging.INFO, logger="tradebot")
+    pairs = [
+        (BASE_MS - 1000, BASE_MS + 1000),  # rtt 2000, titik tengah 0: dibuang
+        (BASE_MS - 130, BASE_MS + 70),  # rtt 200, titik tengah -30: dipakai
+        (BASE_MS - 900, BASE_MS + 1100),  # rtt 2000, titik tengah +100: dibuang
+    ]
+    adapter, _ = build_with_clock(exchange_config, samples(pairs))
+    adapter.connect()
+    assert adapter.server_offset_ms == pytest.approx(-30, abs=0.01)
+    assert "rtt terbaik 200 ms" in caplog.text
+    assert "1 sampel terpakai dari 3 percobaan" in caplog.text
+    assert "dibuang" in caplog.text
+
+
+def test_clock_keeps_sampling_until_one_fast_sample_then_decides(exchange_config, caplog):
+    """Data pemilik: rtt 1990/1948/1855 lalu 74 ms. Tiga sampel minimum semuanya lambat;
+    pengambilan diteruskan dan berhenti begitu ada satu yang cepat."""
+    caplog.set_level(logging.INFO, logger="tradebot")
+    pairs = [
+        (BASE_MS - 2013, BASE_MS - 23),  # rtt 1990, titik tengah -1018
+        (BASE_MS - 1970, BASE_MS - 22),  # rtt 1948, titik tengah -996
+        (BASE_MS - 1876, BASE_MS - 21),  # rtt 1855, titik tengah -949
+        (BASE_MS - 97, BASE_MS - 23),  # rtt 74, titik tengah -60
+    ]
+    adapter, holder = build_with_clock(exchange_config, samples(pairs))
+    adapter.connect()
+    assert holder["client"].count("fetch_time") == 1 + 4, "berhenti setelah sampel cepat ke-4"
+    assert adapter.server_offset_ms == -60
+    assert "rtt terbaik 74 ms" in caplog.text
+    assert "1 sampel terpakai dari 4 percobaan" in caplog.text
+    assert "TIDAK KONKLUSIF" not in caplog.text and "melenceng" not in caplog.text
+
+
+def test_clock_all_slow_samples_are_inconclusive_and_never_called_valid(exchange_config, caplog):
+    """Kasus fetch-data pemilik: semua rtt ~1990 ms, titik tengah ~-1018 ms. Dulu dinilai
+    'pengukuran valid' lalu memvonis jam melenceng (exit 3). Sekarang: tidak konklusif,
+    lanjut dengan peringatan karena batas atas 2013 ms < recv_window 5000 ms."""
+    caplog.set_level(logging.INFO, logger="tradebot")
+    slow = [(BASE_MS - 2013, BASE_MS - 23)] * 6  # rtt 1990, titik tengah -1018
+    adapter, holder = build_with_clock(exchange_config, samples(slow))
+    adapter.connect()
+    assert holder["client"].count("load_markets") == 1
+    assert "TIDAK KONKLUSIF" in caplog.text
+    assert "melenceng" not in caplog.text and "pengukuran valid" not in caplog.text
+    assert "rtt terbaik 1990 ms" in caplog.text
+
+
+def test_clock_real_drift_with_low_rtt_is_still_fatal(exchange_config):
+    ahead = [(BASE_MS + 1450, BASE_MS + 1550)] * 3  # rtt 100 ms, lokal 1500 ms di depan
+    adapter, holder = build_with_clock(exchange_config, samples(ahead))
+    with pytest.raises(TimeDriftError) as exc:
+        adapter.connect()
+    message = str(exc.value)
+    assert "jam lokal melenceng +1500 ms" in message
+    assert "pengukuran valid" in message and "rtt terbaik 100 ms" in message
+    assert holder["client"].count("load_markets") == 0
+
+
+def test_clock_logs_three_estimators_for_the_best_sample(exchange_config, caplog):
+    """Awal kirim (t0 - server), titik tengah, akhir terima (t1 - server) dilaporkan bersama
+    supaya pemilik bisa melihat estimator mana yang stabil pada jaringannya."""
+    caplog.set_level(logging.INFO, logger="tradebot")
+    pairs = [(BASE_MS - 97, BASE_MS - 23)] * 3  # rtt 74: awal -97, tengah -60, akhir -23
+    adapter, _ = build_with_clock(exchange_config, samples(pairs))
+    adapter.connect()
+    assert "awal kirim -97 ms" in caplog.text
+    assert "titik tengah -60 ms" in caplog.text
+    assert "akhir terima -23 ms" in caplog.text
+
+
+def test_clock_warm_up_uses_the_same_client_as_the_samples(exchange_config):
+    """Pemanasan harus menghangatkan koneksi yang sama dengan yang mengukur: satu klien,
+    satu urutan panggilan fetch_time, tanpa klien kedua."""
+    holder_clients = []
+
+    def factory(params):
+        client = FakeCcxtClient(params)
+        client.server_time_ms = BASE_MS
+        holder_clients.append(client)
+        return client
+
+    values = iter(samples([(BASE_MS - 50, BASE_MS + 50)] * 3))
+    adapter = CcxtAdapter(
+        exchange_config,
+        exchange_config.testnet,
+        None,
+        sandbox=True,
+        client_factory=factory,
+        clock=lambda: next(values) / 1000,
+        sleep=lambda _: None,
+    )
+    adapter.connect()
+    assert len(holder_clients) == 1
+    assert holder_clients[0].count("fetch_time") == 4

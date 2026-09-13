@@ -14,6 +14,12 @@ exchange:
   # (resolusi DNS dan jabat tangan TLS membuat panggilan pertama paling lambat). Sampel dengan
   # rtt terkecil yang dipakai: ketidakpastian estimasinya sekitar rtt/2.
   time_sync_samples: 5
+  # Sampel dengan rtt di atas ini dibuang, bukan dipakai: pada rtt 1990 ms ketidakpastian 995 ms
+  # praktis sama dengan batas 1000 ms, dan estimator titik tengah terbukti melacak setengah rtt,
+  # bukan jam. Kalau belum ada sampel yang cukup cepat, pengambilan diteruskan sampai
+  # time_sync_max_attempts; tanpa satu pun yang cepat, hasilnya "pengukuran tidak konklusif".
+  time_sync_max_rtt_ms: 300
+  time_sync_max_attempts: 12
   rate_limit: true
   retry:
     max_attempts: 5

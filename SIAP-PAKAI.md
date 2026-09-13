@@ -33,13 +33,13 @@ Tokocrypto):
 
 | Kategori | Jumlah | Alasan |
 | --- | --- | --- |
-| Lulus | 519 | test unit, integrasi dengan klien palsu, skrip shell dengan `uv`, `caffeinate`, dan `launchctl` palsu |
+| Lulus | 528 | test unit, integrasi dengan klien palsu, skrip shell dengan `uv`, `caffeinate`, dan `launchctl` palsu |
 | Dilewati karena kunci testnet Binance | 8 | BINANCE_TESTNET_API_KEY dan BINANCE_TESTNET_API_SECRET tidak ada di .env |
 | Dilewati karena kunci Tokocrypto | 1 | TOKOCRYPTO_API_KEY dan TOKOCRYPTO_API_SECRET tidak ada di .env; test ini mendokumentasikan celah startTime dan diharapkan GAGAL pada akun beriwayat panjang |
 | Gagal dijalankan karena jaringan | 8 | www.tokocrypto.com tidak terjangkau dari mesin build (kebijakan jaringan sesi); di Mac Anda test ini jalan |
 
-Test yang dilewati atau gagal dijalankan BUKAN test yang lulus; angka 519 tidak
-mencakupnya. Di Mac Anda dengan jaringan, yang diharapkan 527 lulus dan 9
+Test yang dilewati atau gagal dijalankan BUKAN test yang lulus; angka 528 tidak
+mencakupnya. Di Mac Anda dengan jaringan, yang diharapkan 536 lulus dan 9
 dilewati karena kunci. Setelah kunci Tokocrypto ada di .env, test berkunci itu
 ikut jalan.
 
@@ -199,11 +199,16 @@ Masing-masing menyebut apa yang membuatnya muncul.
   berkunci, dan 8 test network hanya jalan di mesin dengan kunci dan jaringan
   yang sesuai. Ringkasan pytest menyebutnya terpisah; jangan membaca baris
   "skipped" pytest sebagai lulus.
-- **Time drift diukur, bukan dijamin.** Satu panggilan pemanasan lalu 5 sampel
-  dengan rtt terkecil. Kalau rtt terbaik masih terlalu besar untuk memutuskan
-  terhadap batas 1000 ms, bot melaporkan pengukuran tidak konklusif, bukan jam
-  melenceng, dan hanya melanjutkan kalau selisih ditambah setengah rtt masih di
-  bawah recv_window 5000 ms.
+- **Time drift diukur, bukan dijamin.** Satu panggilan pemanasan lalu minimal 5
+  sampel; sampel dengan rtt di atas 300 ms dibuang, pengambilan diteruskan
+  sampai 12 percobaan kalau belum ada yang cepat, dan yang dipakai sampel cepat
+  dengan rtt terkecil. Tanpa satu pun sampel cepat, bot melaporkan pengukuran
+  tidak konklusif (bukan jam melenceng, tidak pernah disebut "pengukuran
+  valid") dan hanya melanjutkan kalau selisih ditambah setengah rtt masih di
+  bawah recv_window 5000 ms. Log menyebut tiga estimator (awal kirim, titik
+  tengah, akhir terima); pada hari pengukuran lambat Anda, estimator akhir
+  terima yang stabil di sekitar -22 ms, tanda jedanya sebelum request sampai
+  ke server.
 - **Skrip macOS diuji di Linux dengan tiruan.** bash -n, penulisan .env,
   pemasang .command, dan logika supervisor diuji dengan `uv` dan `caffeinate`
   palsu; launchd sendiri dan perilaku Terminal saat `read -s` baru terlihat di

@@ -529,6 +529,20 @@ def test_placeholder_outside_mode_path_fields_is_refused(project_dir: Path, sect
         load_settings(path, environ={})
 
 
+@pytest.mark.parametrize(
+    ("key", "value", "fragment"),
+    [
+        ("time_sync_max_rtt_ms", 0, "time_sync_max_rtt_ms harus > 0"),
+        ("time_sync_max_rtt_ms", 2000, "time_sync_max_rtt_ms/2 harus lebih kecil"),
+        ("time_sync_max_attempts", 2, "time_sync_max_attempts harus >= time_sync_samples"),
+    ],
+)
+def test_clock_sampling_limits_are_validated(project_dir: Path, key, value, fragment):
+    path = _write_config(project_dir, lambda raw: raw["exchange"].__setitem__(key, value))
+    with pytest.raises(ConfigError, match=fragment):
+        load_settings(path, environ={})
+
+
 def test_logging_dir_must_not_be_empty(project_dir: Path):
     path = _write_config(project_dir, lambda raw: raw["logging"].__setitem__("dir", ""))
     with pytest.raises(ConfigError, match="logging.dir"):

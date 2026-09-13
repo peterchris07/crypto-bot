@@ -153,13 +153,39 @@ def translate_error(exc: ccxt.BaseError, headers: dict[str, Any] | None = None) 
 
 
 @dataclass(frozen=True)
-class ClockMeasurement:
-    """Hasil measure_clock: sampel dengan rtt terkecil, plus semua sampel untuk log."""
+class ClockSample:
+    rtt_ms: float
+    drift_mid_ms: float  # (t0 + t1)/2 - server: benar kalau jeda simetris
+    drift_start_ms: float  # t0 - server: benar kalau server menstempel saat request tiba cepat
+    drift_end_ms: float  # t1 - server: benar kalau jeda terjadi SEBELUM request sampai
 
-    drift_ms: float  # lokal - server pada sampel terbaik
-    rtt_ms: float  # rtt sampel terbaik; ketidakpastian estimasi sekitar rtt/2
-    samples: int
-    all_samples: list[tuple[float, float]]
+
+@dataclass(frozen=True)
+class ClockMeasurement:
+    """Hasil measure_clock: sampel terbaik di antara yang rtt-nya <= batas, plus semuanya.
+
+    conclusive False berarti tidak ada satu pun sampel yang cukup cepat; best lalu berisi
+    sampel dengan rtt terkecil di antara yang lambat, hanya untuk pesan dan batas atas.
+    """
+
+    best: ClockSample
+    conclusive: bool
+    attempts: int
+    usable: int
+    max_rtt_ms: int
+    all_samples: list[ClockSample]
+
+    @property
+    def drift_ms(self) -> float:
+        return self.best.drift_mid_ms
+
+    @property
+    def rtt_ms(self) -> float:
+        return self.best.rtt_ms
+
+    @property
+    def samples(self) -> int:
+        return self.attempts
 
 
 class CcxtBase(ExchangeAdapter):
@@ -364,73 +390,122 @@ class CcxtBase(ExchangeAdapter):
     # ------------------------------------------------------------------ #
 
     def measure_clock(self) -> ClockMeasurement:
-        """Ukur selisih jam lokal terhadap server dengan beberapa sampel, ambil rtt terkecil.
+        """Ukur selisih jam lokal terhadap server; hanya sampel cepat yang boleh memutuskan.
 
-        Panggilan pertama ke host memuat resolusi DNS dan jabat tangan TLS, jadi selalu
-        paling lambat; satu panggilan pemanasan dibuang dulu. Estimasi titik tengah punya
-        ketidakpastian sekitar rtt/2, jadi sampel dengan rtt terkecil adalah yang paling
-        akurat, bukan rata-ratanya.
+        Satu panggilan pemanasan dibuang dulu, lewat klien dan sesi HTTP yang sama dengan
+        yang dipakai mengukur. Lalu diambil minimal time_sync_samples sampel; sampel dengan
+        rtt di atas time_sync_max_rtt_ms DIBUANG, karena ketidakpastian estimasi titik
+        tengah sekitar rtt/2 dan pada rtt besar estimasi itu melacak rtt, bukan jam. Kalau
+        belum ada sampel yang cukup cepat, pengambilan diteruskan sampai
+        time_sync_max_attempts. Yang dipakai: sampel cepat dengan rtt terkecil.
         """
+        cfg = self._exchange
         self.fetch_server_time_ms()  # pemanasan: hasilnya tidak dipakai
-        samples: list[tuple[float, float]] = []
-        for _ in range(self._exchange.time_sync_samples):
+        samples: list[ClockSample] = []
+        usable: list[ClockSample] = []
+        attempts = 0
+        while attempts < cfg.time_sync_max_attempts:
+            if attempts >= cfg.time_sync_samples:
+                self._sleep(0.25)  # jeda kecil: biarkan antrean atau koneksi yang tersendat lewat
+            attempts += 1
             t0 = self._clock()
             server_ms = self.fetch_server_time_ms()
             t1 = self._clock()
-            rtt_ms = (t1 - t0) * 1000
-            drift_ms = (t0 + t1) / 2 * 1000 - server_ms
-            samples.append((rtt_ms, drift_ms))
-        best_rtt, best_drift = min(samples, key=lambda s: s[0])
+            sample = ClockSample(
+                rtt_ms=(t1 - t0) * 1000,
+                drift_mid_ms=(t0 + t1) / 2 * 1000 - server_ms,
+                drift_start_ms=t0 * 1000 - server_ms,
+                drift_end_ms=t1 * 1000 - server_ms,
+            )
+            samples.append(sample)
+            if sample.rtt_ms <= cfg.time_sync_max_rtt_ms:
+                usable.append(sample)
+            elif attempts >= cfg.time_sync_samples:
+                log.info(
+                    "sampel jam ke-%d dibuang: rtt %.0f ms > batas %d ms",
+                    attempts,
+                    sample.rtt_ms,
+                    cfg.time_sync_max_rtt_ms,
+                )
+            if attempts >= cfg.time_sync_samples and usable:
+                break
+        discarded = len(samples) - len(usable)
+        if discarded and usable:
+            log.info(
+                "%d sampel jam dibuang karena rtt > %d ms: %s",
+                discarded,
+                cfg.time_sync_max_rtt_ms,
+                ", ".join(
+                    f"{x.rtt_ms:.0f}" for x in samples if x.rtt_ms > cfg.time_sync_max_rtt_ms
+                ),
+            )
+        pool = usable or samples
+        best = min(pool, key=lambda x: x.rtt_ms)
         return ClockMeasurement(
-            drift_ms=best_drift, rtt_ms=best_rtt, samples=len(samples), all_samples=samples
+            best=best,
+            conclusive=bool(usable),
+            attempts=attempts,
+            usable=len(usable),
+            max_rtt_ms=cfg.time_sync_max_rtt_ms,
+            all_samples=samples,
         )
 
     def _check_clock(self) -> None:
-        """Pisahkan dua hal: jam yang melenceng (pengukuran valid, selisih melebihi batas)
-        dan pengukuran yang tidak konklusif (rtt terbaik terlalu besar untuk memutuskan).
+        """Pisahkan dua hal: jam yang melenceng (ada sampel cepat, selisihnya melebihi batas)
+        dan pengukuran yang tidak konklusif (tidak ada satu pun sampel yang cukup cepat).
 
-        Kalau tidak konklusif terhadap max_time_drift_ms, yang dilihat adalah batas yang
-        benar-benar dipakai exchange, recv_window_ms: kalau batas atas selisih
-        (|selisih| + rtt/2) masih di bawah recv_window, jam tidak mungkin membuat exchange
-        menolak request, jadi bot lanjut dengan peringatan. Kalau batas atas itu pun sudah
-        menyentuh recv_window, pengukuran tidak bisa menjamin apa pun dan bot berhenti dengan
-        pesan bahwa yang gagal adalah pengukurannya, bukan jam pengguna.
+        Kasus kedua TIDAK PERNAH disebut "pengukuran valid" dan tidak pernah memvonis jam.
+        Yang dilihat adalah batas yang benar-benar dipakai exchange, recv_window_ms: kalau
+        batas atas selisih (|titik tengah| + rtt/2 dari sampel tercepat) masih di bawahnya,
+        jam tidak mungkin membuat exchange menolak request, jadi bot lanjut dengan
+        peringatan; kalau sudah menyentuhnya, bot berhenti dengan pesan bahwa yang gagal
+        adalah pengukurannya.
         """
         m = self.measure_clock()
-        self._server_offset_ms = m.drift_ms
+        best = m.best
+        self._server_offset_ms = best.drift_mid_ms
         limit = self._exchange.max_time_drift_ms
         recv_window = self._exchange.recv_window_ms
-        uncertainty = m.rtt_ms / 2
-        detail = (
-            f"rtt terbaik {m.rtt_ms:.0f} ms, selisih di sampel itu {m.drift_ms:+.0f} ms, "
-            f"{m.samples} sampel setelah pemanasan"
+        uncertainty = best.rtt_ms / 2
+        estimators = (
+            f"awal kirim {best.drift_start_ms:+.0f} ms, titik tengah {best.drift_mid_ms:+.0f} ms, "
+            f"akhir terima {best.drift_end_ms:+.0f} ms"
         )
-        log.info("jam: lokal - server = %+.0f ms (batas %d ms; %s)", m.drift_ms, limit, detail)
-        if uncertainty > limit:
-            worst_case = abs(m.drift_ms) + uncertainty
+        if not m.conclusive:
+            detail = (
+                f"tidak ada sampel dengan rtt <= {m.max_rtt_ms} ms dari {m.attempts} percobaan; "
+                f"rtt terbaik {best.rtt_ms:.0f} ms, selisih di sampel itu "
+                f"{best.drift_mid_ms:+.0f} ms ({estimators})"
+            )
+            worst_case = abs(best.drift_mid_ms) + uncertainty
             if worst_case < recv_window:
                 log.warning(
-                    "pengukuran jam TIDAK KONKLUSIF terhadap batas %d ms: ketidakpastian rtt/2 = "
-                    "%.0f ms (%s). Ini jaringan yang lambat, bukan jam yang salah. Batas atas "
-                    "selisih %.0f ms masih di bawah recv_window %d ms yang dipakai exchange, "
-                    "jadi lanjut.",
-                    limit,
-                    uncertainty,
+                    "pengukuran jam TIDAK KONKLUSIF: %s. Ini jaringan yang lambat, bukan jam yang "
+                    "salah. Batas atas selisih %.0f ms masih di bawah recv_window %d ms yang "
+                    "dipakai exchange, jadi lanjut. Kalau estimator 'akhir terima' stabil dari "
+                    "hari ke hari, jedanya terjadi sebelum request sampai ke server.",
                     detail,
                     worst_case,
                     recv_window,
                 )
                 return
             raise ClockMeasurementError(
-                f"pengukuran jam ke {self._venue.id} tidak konklusif: {detail}. Ketidakpastian "
-                f"rtt/2 = {uncertainty:.0f} ms melebihi batas {limit} ms, dan batas atas selisih "
+                f"pengukuran jam ke {self._venue.id} TIDAK KONKLUSIF: {detail}. Batas atas selisih "
                 f"{worst_case:.0f} ms sudah menyentuh recv_window {recv_window} ms. Yang gagal "
                 "adalah pengukurannya (jaringan terlalu lambat), bukan jam Anda. Coba lagi saat "
                 "jaringan lebih stabil."
             )
-        if abs(m.drift_ms) > limit:
+        detail = (
+            f"rtt terbaik {best.rtt_ms:.0f} ms, selisih di sampel itu {best.drift_mid_ms:+.0f} ms, "
+            f"{m.usable} sampel terpakai dari {m.attempts} percobaan setelah pemanasan, batas rtt "
+            f"{m.max_rtt_ms} ms; {estimators}"
+        )
+        log.info(
+            "jam: lokal - server = %+.0f ms (batas %d ms; %s)", best.drift_mid_ms, limit, detail
+        )
+        if abs(best.drift_mid_ms) > limit:
             raise TimeDriftError(
-                f"jam lokal melenceng {m.drift_ms:+.0f} ms dari jam server {self._venue.id} "
+                f"jam lokal melenceng {best.drift_mid_ms:+.0f} ms dari jam server {self._venue.id} "
                 f"(batas {limit} ms; pengukuran valid: {detail}). Sinkronkan jam sistem, lalu "
                 "jalankan lagi."
             )

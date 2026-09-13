@@ -181,8 +181,14 @@ class ExchangeConfig:
     recv_window_ms: int
     max_time_drift_ms: int
     # Sampel pengukuran jam saat connect (setelah satu panggilan pemanasan yang dibuang);
-    # yang dipakai sampel dengan rtt terkecil.
+    # yang dipakai sampel dengan rtt terkecil di antara yang rtt-nya <= time_sync_max_rtt_ms.
     time_sync_samples: int
+    # Sampel dengan rtt di atas ini DIBUANG: ketidakpastian titik tengah sekitar rtt/2, jadi
+    # sampel lambat tidak boleh memvonis jam. Kalau belum ada sampel yang cukup cepat,
+    # pengambilan diteruskan sampai time_sync_max_attempts; tanpa satu pun yang cepat,
+    # hasilnya "pengukuran tidak konklusif", bukan "jam melenceng".
+    time_sync_max_rtt_ms: int
+    time_sync_max_attempts: int
     rate_limit: bool
     retry: RetryConfig
     testnet: VenueConfig
@@ -598,6 +604,16 @@ def validate(settings: Settings) -> None:
     )
     _check(e.max_time_drift_ms > 0, "exchange.max_time_drift_ms harus > 0")
     _check(e.time_sync_samples >= 1, "exchange.time_sync_samples harus >= 1")
+    _check(e.time_sync_max_rtt_ms > 0, "exchange.time_sync_max_rtt_ms harus > 0")
+    _check(
+        e.time_sync_max_rtt_ms / 2 < e.max_time_drift_ms,
+        "exchange.time_sync_max_rtt_ms/2 harus lebih kecil dari max_time_drift_ms, kalau tidak "
+        "sampel yang lolos batas rtt pun tidak bisa memutuskan apa pun",
+    )
+    _check(
+        e.time_sync_max_attempts >= e.time_sync_samples,
+        "exchange.time_sync_max_attempts harus >= time_sync_samples",
+    )
     _check(
         e.max_time_drift_ms < e.recv_window_ms,
         "exchange.max_time_drift_ms harus lebih kecil dari recv_window_ms",
