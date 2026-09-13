@@ -258,7 +258,10 @@ eksperimen berbayar, agen LLM yang mengambil keputusan, data provider berbayar.
 
 1. Selesaikan tahap 3 sampai 7 di SPEC.md. Tanpa backtester yang benar, riset apa pun
    menghasilkan angka yang tidak bisa dipercaya.
-2. Kunci holdout. Catat tanggal potongnya di file ini.
+2. Kunci holdout. Catat tanggal potongnya di file ini. DIKUNCI 2026-09-13 (sebelum
+   skrining H1): riset 2017-08-17 sampai 2022-12-31, validasi 2023-01-01 sampai
+   2024-12-31, holdout 2025-01-01 sampai sekarang. Holdout tidak dihitung dan tidak
+   dilihat sampai ada satu kandidat final; hasilnya diterima apa adanya.
 3. Lima hipotesis sudah tertulis di bagian "Lima Hipotesis Awal". Mulai dari H2 karena
    paling murah dan hasilnya menutup atau membuka seluruh arah copy-following.
 4. Uji satu per satu di data riset. Catat semuanya, termasuk yang mati.
